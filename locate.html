@@ -3,240 +3,248 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CORE-LOCATOR v3.0</title>
+    <title>GeoTracker - Localizador Relativo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
-        body { font-family: 'JetBrains Mono', monospace; }
-        .radar-scan {
-            background: conic-gradient(from 0deg, rgba(239, 68, 68, 0.2) 0deg, rgba(239, 68, 68, 0) 90deg);
-            animation: rotate 4s linear infinite;
+        .compass-arrow {
+            transition: transform 0.5s ease-out;
         }
-        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .glitch-text { animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
-<body class="bg-[#050505] text-zinc-100 min-h-screen flex flex-col overflow-x-hidden">
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center p-6 font-sans">
 
-    <!-- Header de Diagnóstico -->
-    <header class="p-4 border-b border-zinc-800 bg-black/80 backdrop-blur-sm flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center gap-2">
-            <div id="status-led" class="w-2 h-2 rounded-full bg-zinc-600"></div>
-            <h1 class="text-xs font-bold tracking-widest text-zinc-400 uppercase">CORE // LOCATOR <span class="text-red-600">V3.0</span></h1>
-        </div>
-        <div id="status-text" class="text-[9px] font-bold text-zinc-500 uppercase px-2 py-1 bg-zinc-900 rounded border border-zinc-800">Iniciando Protocolos...</div>
-    </header>
+    <div class="max-w-md w-full bg-slate-800 rounded-3xl p-8 shadow-2xl border border-slate-700">
+        <h1 class="text-3xl font-bold mb-6 text-center text-blue-400">GeoTracker</h1>
 
-    <main class="flex-grow p-4 flex flex-col items-center justify-center max-w-md mx-auto w-full">
-        
-        <!-- UI: Configuración Inicial -->
-        <div id="ui-setup" class="w-full space-y-6">
-            <div class="text-center space-y-2 mb-8">
-                <div class="text-4xl font-black text-red-600 tracking-tighter">SISTEMA OFF-GRID</div>
-                <p class="text-[10px] text-zinc-500 uppercase tracking-widest leading-tight">Geoposicionamiento en Tiempo Real mediante Enlace de Datos Distribuido</p>
+        <!-- ID Section -->
+        <div id="setup-section" class="space-y-6">
+            <div class="bg-slate-700 p-4 rounded-xl text-center">
+                <p class="text-sm text-slate-400 mb-2">Tu ID de Sesión:</p>
+                <p id="my-id" class="text-2xl font-mono font-bold tracking-wider text-green-400">Generando...</p>
             </div>
 
-            <div class="bg-zinc-900/50 p-1 border border-zinc-800 rounded-lg">
-                <input id="session-id" type="text" placeholder="ID DE OPERACIÓN (EJ: DELTA-9)" 
-                    class="w-full bg-black border-none p-4 rounded text-center font-bold text-red-500 focus:ring-1 focus:ring-red-600 uppercase tracking-widest">
-            </div>
-
-            <div class="grid grid-cols-1 gap-3">
-                <button onclick="launch('A')" class="bg-red-600 hover:bg-red-700 text-white font-bold p-5 rounded-lg transition-all active:scale-95 shadow-lg shadow-red-900/20 uppercase text-xs">
-                    Activar Baliza (Usuario A)
+            <div class="flex flex-col gap-4">
+                <button id="btn-share" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold transition-all active:scale-95">
+                    MARCAR MI UBICACIÓN
                 </button>
-                <button onclick="launch('B')" class="bg-zinc-100 hover:bg-white text-black font-bold p-5 rounded-lg transition-all active:scale-95 uppercase text-xs">
-                    Iniciar Rastreo (Usuario B)
+                
+                <div class="relative py-4">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-600"></div></div>
+                    <div class="relative flex justify-center text-xs uppercase"><span class="bg-slate-800 px-2 text-slate-400">O buscar a alguien</span></div>
+                </div>
+
+                <input type="text" id="target-id" placeholder="Ingresa ID del Usuario A" class="w-full bg-slate-700 border border-slate-600 p-4 rounded-xl text-center focus:ring-2 focus:ring-blue-500 outline-none">
+                
+                <button id="btn-follow" class="w-full bg-purple-600 hover:bg-purple-500 py-4 rounded-xl font-bold transition-all active:scale-95">
+                    RASTREAR USUARIO
                 </button>
             </div>
         </div>
 
-        <!-- UI: Transmisor (Usuario A) -->
-        <div id="ui-role-a" class="hidden w-full space-y-8 animate-pulse">
-            <div class="relative w-64 h-64 mx-auto flex items-center justify-center">
-                <div class="absolute inset-0 border-2 border-red-600/20 rounded-full"></div>
-                <div class="absolute inset-0 radar-scan rounded-full"></div>
-                <div class="w-8 h-8 bg-red-600 rounded-full shadow-[0_0_20px_#ef4444] z-10"></div>
-            </div>
+        <!-- Tracking Section (Hidden initially) -->
+        <div id="tracking-section" class="hidden space-y-8 py-4">
             <div class="text-center">
-                <div class="text-2xl font-black text-white tracking-widest mb-1">TRANSMITIENDO</div>
-                <div id="a-coords" class="text-[10px] text-zinc-500">BUSCANDO SEÑAL GPS...</div>
+                <p class="text-slate-400 text-sm">Rastreando a:</p>
+                <p id="tracking-id-display" class="font-mono font-bold text-purple-400"></p>
             </div>
-            <div class="bg-red-600/5 border border-red-600/20 p-4 rounded text-center">
-                <div class="text-[9px] text-zinc-500 uppercase mb-1">ID DE CANAL</div>
-                <div id="display-sid" class="text-lg font-bold text-red-500">---</div>
-            </div>
-        </div>
 
-        <!-- UI: Receptor (Usuario B) -->
-        <div id="ui-role-b" class="hidden w-full space-y-6">
-            <div class="relative w-72 h-72 mx-auto bg-zinc-900 rounded-full border-4 border-zinc-800 shadow-2xl flex items-center justify-center overflow-hidden">
-                <div class="absolute inset-0 opacity-10 flex items-center justify-center text-[10px]">
-                    <div class="absolute top-4">N</div>
-                    <div class="absolute bottom-4">S</div>
-                    <div class="absolute right-4">E</div>
-                    <div class="absolute left-4">W</div>
+            <!-- Compass UI -->
+            <div class="relative w-48 h-48 mx-auto flex items-center justify-center bg-slate-700 rounded-full border-4 border-slate-600 shadow-inner">
+                <div id="arrow" class="compass-arrow text-blue-400">
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/>
+                    </svg>
                 </div>
-                
-                <div id="nav-arrow" class="absolute w-full h-full flex flex-col items-center justify-center transition-transform duration-500">
-                    <div class="w-1 h-24 bg-gradient-to-t from-transparent via-red-600 to-red-500 rounded-full"></div>
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="#ef4444" class="drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
-                </div>
-                
-                <div id="dist-overlay" class="z-20 text-4xl font-black text-white bg-black/40 px-4 py-2 rounded-lg backdrop-blur-sm border border-white/10 shadow-2xl">---</div>
+                <div class="absolute top-2 font-bold text-xs text-slate-500">N</div>
+                <div class="absolute bottom-2 font-bold text-xs text-slate-500">S</div>
+                <div class="absolute left-2 font-bold text-xs text-slate-500">O</div>
+                <div class="absolute right-2 font-bold text-xs text-slate-500">E</div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
-                <div class="bg-zinc-900 p-4 rounded border border-zinc-800">
-                    <div class="text-[9px] text-zinc-500 uppercase mb-1 font-bold">Rumbo</div>
-                    <div id="bearing-val" class="text-xl font-bold text-zinc-200">0°</div>
+                <div class="bg-slate-700 p-4 rounded-2xl text-center">
+                    <p class="text-xs text-slate-400 uppercase">Distancia</p>
+                    <p id="distance" class="text-2xl font-bold">-- m</p>
                 </div>
-                <div class="bg-zinc-900 p-4 rounded border border-zinc-800">
-                    <div class="text-[9px] text-zinc-500 uppercase mb-1 font-bold">Estado</div>
-                    <div id="signal-quality" class="text-xl font-bold text-red-500">SIN SEÑAL</div>
+                <div class="bg-slate-700 p-4 rounded-2xl text-center">
+                    <p class="text-xs text-slate-400 uppercase">Rumbo</p>
+                    <p id="bearing-text" class="text-2xl font-bold text-blue-400">--</p>
                 </div>
             </div>
+
+            <button id="btn-stop" class="w-full bg-red-600/20 hover:bg-red-600/40 text-red-400 py-3 rounded-xl font-medium transition-all">
+                Detener Seguimiento
+            </button>
         </div>
-
-    </main>
-
-    <!-- Modal de Error Forzado -->
-    <div id="error-modal" class="hidden fixed inset-0 bg-black/95 z-[100] p-10 flex flex-col items-center justify-center text-center">
-        <div class="text-red-600 text-6xl mb-6">⚠️</div>
-        <div class="text-xl font-bold mb-2">FALLO DE SISTEMA</div>
-        <p id="error-msg" class="text-zinc-500 text-sm mb-8"></p>
-        <button onclick="location.reload()" class="bg-zinc-800 px-6 py-2 rounded font-bold">REINTENTAR</button>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    <div id="status-msg" class="mt-6 text-sm text-slate-500 text-center px-4"></div>
 
-        // CONFIGURACIÓN E INICIALIZACIÓN
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, where, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+
+        // CONFIGURACIÓN
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'core_loc_3';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'geo-tracker-pro';
 
-        let user = null;
-        let activeSession = null;
+        let myUserId = null;
+        let watchId = null;
+        let trackingUnsubscribe = null;
 
-        // SISTEMA DE RECONEXIÓN EXPONENCIAL / HARD-AUTH
-        async function connect() {
+        // UI Elements
+        const statusMsg = document.getElementById('status-msg');
+        const setupSection = document.getElementById('setup-section');
+        const trackingSection = document.getElementById('tracking-section');
+        const myIdDisplay = document.getElementById('my-id');
+        const arrow = document.getElementById('arrow');
+        const distanceDisplay = document.getElementById('distance');
+        const bearingDisplay = document.getElementById('bearing-text');
+
+        // Inicializar Auth
+        async function init() {
             try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                const user = await signInAnonymously(auth);
+                myUserId = user.user.uid.substring(0, 6).toUpperCase();
+                myIdDisplay.innerText = myUserId;
+                showStatus("Conectado. Listo para marcar ubicación.");
             } catch (err) {
-                console.error("Conexión fallida, reintentando...", err);
-                setTimeout(connect, 2000);
+                showStatus("Error de conexión: " + err.message);
             }
         }
 
-        onAuthStateChanged(auth, (u) => {
-            if (u) {
-                user = u;
-                document.getElementById('status-led').classList.replace('bg-zinc-600', 'bg-green-500');
-                document.getElementById('status-text').innerText = "SISTEMA ONLINE";
-                document.getElementById('status-text').classList.replace('text-zinc-500', 'text-green-500');
-            }
-        });
-
-        connect();
-
-        window.launch = (role) => {
-            const sid = document.getElementById('session-id').value.trim().toUpperCase();
-            if (!sid) return alert("INTRODUZCA ID DE SESIÓN");
-            if (!user) return alert("SISTEMA CONECTANDO... ESPERE");
-
-            activeSession = sid;
-            document.getElementById('ui-setup').classList.add('hidden');
-
-            if (role === 'A') {
-                document.getElementById('ui-role-a').classList.remove('hidden');
-                document.getElementById('display-sid').innerText = sid;
-                startBeacon();
-            } else {
-                document.getElementById('ui-role-b').classList.remove('hidden');
-                startTracking();
-            }
-        };
-
-        // LÓGICA USUARIO A (TRANSMISOR)
-        function startBeacon() {
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', activeSession);
-            
-            navigator.geolocation.watchPosition(async (pos) => {
-                const { latitude, longitude, accuracy } = pos.coords;
-                document.getElementById('a-coords').innerText = `${latitude.toFixed(5)}, ${longitude.toFixed(5)} (±${Math.round(accuracy)}m)`;
-                
-                try {
-                    await setDoc(docRef, {
-                        lat: latitude,
-                        lng: longitude,
-                        t: Date.now(),
-                        acc: accuracy
-                    }, { merge: true });
-                } catch (e) { console.error(e); }
-            }, (err) => {
-                showError("GPS BLOQUEADO O NO DISPONIBLE.");
-            }, { enableHighAccuracy: true, maximumAge: 0 });
+        function showStatus(msg) {
+            statusMsg.innerText = msg;
         }
 
-        // LÓGICA USUARIO B (RECEPTOR)
-        function startTracking() {
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', activeSession);
-            
-            onSnapshot(docRef, (snap) => {
-                if (snap.exists()) {
-                    const target = snap.data();
-                    navigator.geolocation.getCurrentPosition((myPos) => {
-                        updateNavigation(myPos.coords, target);
-                    }, null, { enableHighAccuracy: true });
-                } else {
-                    document.getElementById('signal-quality').innerText = "BUSCANDO A...";
-                }
-            }, (err) => showError("ERROR DE ENLACE FIRESTORE."));
+        // --- Lógica de Geolocalización ---
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Metros
+            const phi1 = lat1 * Math.PI/180;
+            const phi2 = lat2 * Math.PI/180;
+            const deltaPhi = (lat2-lat1) * Math.PI/180;
+            const deltaLambda = (lon2-lon1) * Math.PI/180;
+
+            const a = Math.sin(deltaPhi/2) * Math.sin(deltaPhi/2) +
+                      Math.cos(phi1) * Math.cos(phi2) *
+                      Math.sin(deltaLambda/2) * Math.sin(deltaLambda/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c; 
         }
 
-        function updateNavigation(me, target) {
-            const dist = getDist(me.latitude, me.longitude, target.lat, target.lng);
-            const bearing = getBearing(me.latitude, me.longitude, target.lat, target.lng);
-
-            document.getElementById('dist-overlay').innerText = dist > 999 ? (dist/1000).toFixed(1) + "km" : Math.round(dist) + "m";
-            document.getElementById('bearing-val').innerText = Math.round(bearing) + "°";
-            document.getElementById('nav-arrow').style.transform = `rotate(${bearing}deg)`;
-            document.getElementById('signal-quality').innerText = "ACTIVA";
-            document.getElementById('signal-quality').classList.replace('text-red-500', 'text-green-500');
-        }
-
-        // MATH
-        function getDist(lat1, lon1, lat2, lon2) {
-            const R = 6371e3;
-            const p1 = lat1 * Math.PI/180;
-            const p2 = lat2 * Math.PI/180;
-            const dp = (lat2-lat1) * Math.PI/180;
-            const dl = (lon2-lon1) * Math.PI/180;
-            const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
-            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
-        }
-
-        function getBearing(lat1, lon1, lat2, lon2) {
+        function calculateBearing(lat1, lon1, lat2, lon2) {
             const y = Math.sin((lon2-lon1) * Math.PI/180) * Math.cos(lat2 * Math.PI/180);
             const x = Math.cos(lat1 * Math.PI/180) * Math.sin(lat2 * Math.PI/180) -
                       Math.sin(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.cos((lon2-lon1) * Math.PI/180);
-            return (Math.atan2(y, x) * 180/Math.PI + 360) % 360;
+            const brng = Math.atan2(y, x) * 180 / Math.PI;
+            return (brng + 360) % 360;
         }
 
-        function showError(m) {
-            document.getElementById('error-msg').innerText = m;
-            document.getElementById('error-modal').classList.remove('hidden');
+        function getCardinalDirection(angle) {
+            const directions = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+            return directions[Math.round(angle / 45) % 8];
         }
+
+        // --- Acciones de Usuario ---
+
+        document.getElementById('btn-share').onclick = async () => {
+            if (!navigator.geolocation) return showStatus("Geolocalización no soportada");
+
+            showStatus("Obteniendo ubicación...");
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const data = {
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                    timestamp: Date.now()
+                };
+
+                try {
+                    // Guardar en Firestore siguiendo la Regla 1
+                    const userDoc = doc(db, 'artifacts', appId, 'public', 'data', 'locations', myUserId);
+                    await setDoc(userDoc, data);
+                    showStatus("Ubicación marcada. Comparte tu ID con el Usuario B.");
+                    document.getElementById('btn-share').innerText = "UBICACIÓN ACTUALIZADA";
+                    document.getElementById('btn-share').classList.replace('bg-blue-600', 'bg-green-600');
+                } catch (e) {
+                    showStatus("Error al guardar: " + e.message);
+                }
+            }, (err) => {
+                showStatus("Error de GPS: " + err.message);
+            }, { enableHighAccuracy: true });
+        };
+
+        document.getElementById('btn-follow').onclick = async () => {
+            const targetId = document.getElementById('target-id').value.toUpperCase().trim();
+            if (!targetId) return showStatus("Ingresa un ID válido");
+
+            // Verificar si existe el objetivo
+            const targetRef = doc(db, 'artifacts', appId, 'public', 'data', 'locations', targetId);
+            const snap = await getDoc(targetRef);
+
+            if (!snap.exists()) {
+                return showStatus("ID no encontrado o expirado");
+            }
+
+            // Iniciar seguimiento
+            setupSection.classList.add('hidden');
+            trackingSection.classList.remove('hidden');
+            document.getElementById('tracking-id-display').innerText = targetId;
+
+            // Escuchar cambios del objetivo en tiempo real
+            trackingUnsubscribe = onSnapshot(targetRef, (doc) => {
+                const targetData = doc.data();
+                if (!targetData) return;
+                
+                // Limpieza de datos viejos (10 min)
+                if (Date.now() - targetData.timestamp > 600000) {
+                    showStatus("La ubicación del usuario ha expirado.");
+                    stopTracking();
+                    return;
+                }
+
+                // Iniciar actualización constante de mi propia posición para calcular dirección relativa
+                if (watchId) navigator.geolocation.clearWatch(watchId);
+                
+                watchId = navigator.geolocation.watchPosition((myPos) => {
+                    const dist = calculateDistance(
+                        myPos.coords.latitude, myPos.coords.longitude,
+                        targetData.lat, targetData.lng
+                    );
+                    const bear = calculateBearing(
+                        myPos.coords.latitude, myPos.coords.longitude,
+                        targetData.lat, targetData.lng
+                    );
+
+                    distanceDisplay.innerText = dist > 1000 ? (dist/1000).toFixed(2) + " km" : Math.round(dist) + " m";
+                    bearingDisplay.innerText = getCardinalDirection(bear);
+                    arrow.style.transform = `rotate(${bear}deg)`;
+                    
+                    showStatus("Actualizando dirección relativa...");
+                }, (err) => {
+                    showStatus("Error rastreando tu posición: " + err.message);
+                }, { enableHighAccuracy: true });
+
+            }, (err) => {
+                showStatus("Error en suscripción: " + err.message);
+            });
+        };
+
+        function stopTracking() {
+            if (trackingUnsubscribe) trackingUnsubscribe();
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            setupSection.classList.remove('hidden');
+            trackingSection.classList.add('hidden');
+            showStatus("Seguimiento detenido.");
+        }
+
+        document.getElementById('btn-stop').onclick = stopTracking;
+
+        window.onload = init;
     </script>
 </body>
 </html>
