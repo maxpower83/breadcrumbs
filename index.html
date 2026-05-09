@@ -10,11 +10,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; overflow: hidden; touch-action: manipulation; }
-        .compass-arrow { transition: transform 0.3s ease-out; filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.5)); }
+        .compass-container { position: relative; width: 224px; height: 224px; }
+        .compass-arrow { transition: transform 0.2s linear; filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.5)); }
         .loading-spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .crumb-node { animation: slideIn 0.3s ease-out; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .accuracy-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
     </style>
     
     <!-- PWA Manifest -->
@@ -40,12 +41,12 @@
 
     <div class="w-full text-center mt-4">
         <h1 class="text-2xl font-black tracking-tighter text-sky-400">BREADCRUMBS</h1>
-        <div id="stackCount" class="text-[10px] bg-sky-900/50 text-sky-300 px-2 py-0.5 rounded-full inline-block mt-1 font-bold">STACK EMPTY</div>
+        <div id="stackCount" class="text-[10px] bg-sky-900/50 text-sky-300 px-2 py-0.5 rounded-full inline-block mt-1 font-bold uppercase tracking-wider">Stack Empty</div>
     </div>
 
     <!-- Main Navigation Area -->
     <div id="navView" class="hidden flex flex-col items-center justify-center flex-1 w-full">
-        <div class="relative w-56 h-56 flex items-center justify-center rounded-full border-4 border-slate-800 bg-slate-900/30">
+        <div class="compass-container flex items-center justify-center rounded-full border-4 border-slate-800 bg-slate-900/30">
             <svg id="arrow" class="compass-arrow w-28 h-28 text-sky-400" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
             </svg>
@@ -54,7 +55,7 @@
         
         <div class="mt-8 text-center">
             <div id="distance" class="text-6xl font-mono font-bold tracking-tighter">0m</div>
-            <div class="text-slate-500 uppercase text-[10px] mt-1 font-bold tracking-widest">To Next Breadcrumb</div>
+            <div id="accuracyMsg" class="text-slate-500 uppercase text-[10px] mt-1 font-bold tracking-widest accuracy-pulse">Calibrating GPS...</div>
         </div>
     </div>
 
@@ -88,7 +89,7 @@
     </div>
 
     <div id="statusBar" class="text-[10px] text-slate-500 uppercase mb-2 font-mono">
-        Ready
+        System Ready
     </div>
 
     <script>
@@ -101,7 +102,6 @@
         manifestLink.href = manifestURL;
         document.head.appendChild(manifestLink);
 
-        // Service Worker inline
         if ('serviceWorker' in navigator) {
             const swCode = `
                 self.addEventListener('install', (e) => self.skipWaiting());
@@ -112,13 +112,14 @@
             navigator.serviceWorker.register(swURL).catch(err => console.log('SW failed', err));
         }
 
-        // App Logic
+        // State Management
         let breadcrumbs = JSON.parse(localStorage.getItem('breadcrumbs_stack')) || []; 
         let currentCoords = null;
         let watchId = null;
+        let deviceHeading = 0; // Magnetic heading
+        let wakeLock = null;
 
         const labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-
         const dropBtn = document.getElementById('dropBtn');
         const pickUpBtn = document.getElementById('pickUpBtn');
         const clearBtn = document.getElementById('clearBtn');
@@ -129,10 +130,10 @@
         const arrowEl = document.getElementById('arrow');
         const stackCount = document.getElementById('stackCount');
         const statusBar = document.getElementById('statusBar');
+        const accuracyMsg = document.getElementById('accuracyMsg');
 
-        function saveState() {
-            localStorage.setItem('breadcrumbs_stack', JSON.stringify(breadcrumbs));
-        }
+        // Utils
+        const saveState = () => localStorage.setItem('breadcrumbs_stack', JSON.stringify(breadcrumbs));
 
         function calculateDistance(lat1, lon1, lat2, lon2) {
             const R = 6371e3;
@@ -151,6 +152,23 @@
             return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
         }
 
+        // Screen Wake Lock
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                console.log("WakeLock failed:", err);
+            }
+        }
+
+        // Compass orientation handler
+        window.addEventListener('deviceorientationabsolute', (e) => {
+            if (e.alpha !== null) deviceHeading = e.alpha; 
+        }, true);
+
+        // UI Refresh
         function updateUI() {
             const count = breadcrumbs.length;
             stackCount.innerText = count > 0 ? `${count} CRUMBS DROPPED` : "STACK EMPTY";
@@ -166,9 +184,21 @@
 
                 if (currentCoords) {
                     const dist = calculateDistance(currentCoords.latitude, currentCoords.longitude, target.lat, target.lon);
-                    const bearing = calculateBearing(currentCoords.latitude, currentCoords.longitude, target.lat, target.lon);
+                    const bearingToTarget = calculateBearing(currentCoords.latitude, currentCoords.longitude, target.lat, target.lon);
+                    
+                    // Arrow points to Target Bearing minus Device Heading
+                    const finalRotation = (bearingToTarget - deviceHeading + 360) % 360;
+                    
                     distanceEl.innerText = dist > 1000 ? (dist/1000).toFixed(2) + 'km' : Math.round(dist) + 'm';
-                    arrowEl.style.transform = `rotate(${bearing}deg)`;
+                    
+                    // Red-teaming fix: stabilize arrow if too close
+                    if (dist < 3) {
+                        arrowEl.style.transform = `rotate(0deg)`;
+                        accuracyMsg.innerText = "YOU HAVE ARRIVED";
+                    } else {
+                        arrowEl.style.transform = `rotate(${finalRotation}deg)`;
+                        accuracyMsg.innerText = `GPS Accuracy: ±${Math.round(currentCoords.accuracy)}m`;
+                    }
                 }
             } else {
                 emptyView.classList.remove('hidden');
@@ -178,12 +208,11 @@
             }
         }
 
+        // GPS Logic
         async function getGPS() {
             return new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    enableHighAccuracy: true, 
-                    timeout: 15000, // Aumentado a 15s
-                    maximumAge: 5000 // Acepta caché de hasta 5s para mayor velocidad
+                    enableHighAccuracy: true, timeout: 15000, maximumAge: 0
                 });
             });
         }
@@ -191,37 +220,19 @@
         dropBtn.addEventListener('click', async () => {
             const btnText = document.getElementById('btnText');
             const btnSpinner = document.getElementById('btnSpinner');
-            
             btnText.innerText = "DROPPING...";
             btnSpinner.classList.remove('hidden');
 
             try {
-                let pos;
-                try {
-                    pos = await getGPS();
-                } catch (gpsError) {
-                    // Si el GPS falla por timeout pero tenemos una ubicación reciente del watchPosition, usar esa
-                    if (gpsError.code === 3 && currentCoords) {
-                        pos = { coords: currentCoords };
-                        statusBar.innerText = "USING LAST KNOWN POS (TIMEOUT)";
-                    } else {
-                        throw gpsError;
-                    }
-                }
-
+                const pos = await getGPS();
                 currentCoords = pos.coords;
                 const label = labels[breadcrumbs.length % labels.length];
-                breadcrumbs.push({
-                    lat: pos.coords.latitude,
-                    lon: pos.coords.longitude,
-                    label: label
-                });
+                breadcrumbs.push({ lat: pos.coords.latitude, lon: pos.coords.longitude, label: label });
                 saveState();
-                if (statusBar.innerText !== "USING LAST KNOWN POS (TIMEOUT)") {
-                    statusBar.innerText = `DROPPED ${label} (ACC: ±${Math.round(pos.coords.accuracy)}M)`;
-                }
+                statusBar.innerText = `DROPPED ${label}`;
                 updateUI();
                 startContinuousTracking();
+                requestWakeLock();
             } catch (err) {
                 statusBar.innerText = "GPS ERROR: " + err.message;
             } finally {
@@ -240,12 +251,12 @@
         });
 
         clearBtn.addEventListener('click', () => {
-            if (confirm("Clear all breadcrumbs? This cannot be undone.")) {
+            if (confirm("Clear all breadcrumbs?")) {
                 breadcrumbs = [];
                 saveState();
                 if (watchId) navigator.geolocation.clearWatch(watchId);
                 updateUI();
-                statusBar.innerText = "ALL CRUMBS CLEARED";
+                statusBar.innerText = "CLEARED";
             }
         });
 
@@ -255,17 +266,14 @@
                 currentCoords = pos.coords;
                 updateUI();
             }, (err) => {
-                statusBar.innerText = "TRACKING ERROR: " + err.message;
-            }, { 
-                enableHighAccuracy: true,
-                maximumAge: 2000 
-            });
+                statusBar.innerText = "TRACKING LOST";
+            }, { enableHighAccuracy: true, maximumAge: 1000 });
         }
 
         window.addEventListener('load', () => {
             updateUI();
             if (breadcrumbs.length > 0) {
-                statusBar.innerText = "RESUMING PATH...";
+                statusBar.innerText = "RESUMING...";
                 startContinuousTracking();
             }
         });
