@@ -2,32 +2,160 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Locator PWA</title>
-    <!-- Link al manifiesto -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0a0a0a">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#09090b">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png">
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-black text-white font-sans">
-    <div id="root">
-        <!-- El componente React anterior se montaría aquí -->
-        <div class="flex flex-col items-center justify-center min-h-screen p-6 text-center">
-            <h1 class="text-xl font-bold mb-2">Locator PWA</h1>
-            <p class="text-gray-400 text-sm mb-4">Cargando aplicación...</p>
-            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500"></div>
-        </div>
-    </div>
+    
+    <!-- Manifest Inline (Data URI) -->
+    <link rel="manifest" href='data:application/json,{"name":"Locator PWA","short_name":"Locator","start_url":".","display":"standalone","background_color":"#09090b","theme_color":"#2563eb","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/854/854878.png","sizes":"512x512","type":"image/png"}]}'>
 
-    <script>
-        // Registro del Service Worker
+    <!-- Scripts Externos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+        window.FirebaseSDK = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot };
+    </script>
+
+    <style>
+        body { background-color: #09090b; color: #fafafa; -webkit-tap-highlight-color: transparent; }
+        .distance-circle { transition: background-color 0.5s ease, transform 0.3s ease; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [status, setStatus] = useState('idle');
+            const [sessionId, setSessionId] = useState('');
+            const [inputSessionId, setInputSessionId] = useState('');
+            const [currentPos, setCurrentPos] = useState(null);
+            const [targetPos, setTargetPos] = useState(null);
+            const [error, setError] = useState(null);
+
+            const config = JSON.parse(__firebase_config);
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'pwa-locator';
+
+            useEffect(() => {
+                const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore } = window.FirebaseSDK;
+                const app = initializeApp(config);
+                const auth = getAuth(app);
+                const db = getFirestore(app);
+
+                signInAnonymously(auth).catch(err => setError("Error Auth: " + err.message));
+                onAuthStateChanged(auth, setUser);
+
+                const watchId = navigator.geolocation.watchPosition(
+                    (p) => setCurrentPos({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }),
+                    (e) => setError("Permiso de GPS denegado."),
+                    { enableHighAccuracy: true }
+                );
+
+                return () => navigator.geolocation.clearWatch(watchId);
+            }, []);
+
+            useEffect(() => {
+                if (!user || !sessionId) return;
+                const { getFirestore, doc, onSnapshot } = window.FirebaseSDK;
+                const db = getFirestore();
+                
+                const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId), (snap) => {
+                    if (snap.exists()) setTargetPos(snap.data());
+                    else setError("Sesión no encontrada.");
+                });
+                return () => unsub();
+            }, [user, sessionId]);
+
+            const haversine = (p1, p2) => {
+                const R = 6371e3;
+                const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+                const dLon = (p2.lng - p1.lng) * Math.PI / 180;
+                const a = Math.sin(dLat/2)**2 + Math.cos(p1.lat * Math.PI/180) * Math.cos(p2.lat * Math.PI/180) * Math.sin(dLon/2)**2;
+                return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            };
+
+            const handleCreate = async () => {
+                if (!currentPos) return;
+                const id = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const { getFirestore, doc, setDoc } = window.FirebaseSDK;
+                await setDoc(doc(getFirestore(), 'artifacts', appId, 'public', 'data', 'sessions', id), {
+                    lat: currentPos.lat, lng: currentPos.lng, uid: user.uid
+                });
+                setSessionId(id);
+                setStatus('tracking');
+            };
+
+            const distance = (currentPos && targetPos) ? haversine(currentPos, targetPos) : null;
+
+            return (
+                <div className="max-w-md mx-auto min-h-screen flex flex-col p-6">
+                    <header className="py-8 text-center">
+                        <h1 className="text-2xl font-black tracking-tighter text-blue-500">LOCATOR.PWA</h1>
+                    </header>
+
+                    {error && <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded-lg text-xs mb-4">{error}</div>}
+
+                    {status === 'idle' ? (
+                        <div className="space-y-6">
+                            <button onClick={handleCreate} disabled={!currentPos} className="w-full bg-blue-600 py-10 rounded-2xl font-bold text-xl active:scale-95 transition-transform disabled:opacity-50">
+                                COMPARTIR MI UBICACIÓN
+                            </button>
+                            <div className="flex items-center gap-3">
+                                <input value={inputSessionId} onChange={e => setInputSessionId(e.target.value)} placeholder="CÓDIGO" className="flex-1 bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-center font-mono uppercase focus:outline-none focus:border-blue-500"/>
+                                <button onClick={() => {setSessionId(inputSessionId.toUpperCase()); setStatus('tracking');}} className="bg-zinc-100 text-black px-6 py-4 rounded-xl font-bold">UNIRSE</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-6 text-center">
+                            <div className="bg-zinc-900 p-8 rounded-3xl border border-zinc-800">
+                                <p className="text-[10px] text-zinc-500 font-bold mb-2">CÓDIGO DE SESIÓN</p>
+                                <p className="text-3xl font-mono font-black text-blue-400 mb-8">{sessionId}</p>
+                                
+                                <div className={`w-40 h-40 mx-auto rounded-full flex items-center justify-center mb-4 distance-circle ${distance < 15 ? 'bg-green-600' : 'bg-blue-600'}`}>
+                                    <div>
+                                        <p className="text-4xl font-black">{distance !== null ? Math.round(distance) : '--'}</p>
+                                        <p className="text-[10px] font-bold opacity-70">METROS</p>
+                                    </div>
+                                </div>
+                                <p className="font-bold">{distance < 15 ? "¡ESTÁS AQUÍ!" : "ACERCÁNDOTE"}</p>
+                            </div>
+                            <button onClick={() => location.reload()} className="text-zinc-500 text-xs font-bold underline">FINALIZAR</button>
+                        </div>
+                    )}
+                    
+                    <footer className="mt-auto pt-10 text-[10px] text-zinc-600 text-center uppercase tracking-widest">
+                        GPS Accuracy: {currentPos ? Math.round(currentPos.acc) : 'N/A'}m
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+        // Simple Service Worker inline registration
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW registrado', reg))
-                    .catch(err => console.error('Error SW', err));
-            });
+            const swCode = `
+                self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
+            `;
+            const blob = new Blob([swCode], {type: 'text/javascript'});
+            navigator.serviceWorker.register(URL.createObjectURL(blob));
         }
     </script>
 </body>
