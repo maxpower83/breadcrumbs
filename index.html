@@ -1,282 +1,113 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Breadcrumbs Stack</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HUB | Terminal de Herramientas</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; overflow: hidden; touch-action: manipulation; }
-        .compass-container { position: relative; width: 224px; height: 224px; }
-        .compass-arrow { transition: transform 0.2s linear; filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.5)); }
-        .loading-spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 24px; height: 24px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .accuracy-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        body {
+            font-family: 'JetBrains+Mono', monospace;
+            background-color: #050505;
+            color: #a1a1aa;
+        }
+        .tool-card {
+            background: linear-gradient(145deg, #0f0f0f, #151515);
+            border: 1px solid #27272a;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .tool-card:hover {
+            border-color: #3b82f6;
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+        }
+        .status-dot {
+            height: 8px;
+            width: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-online { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        .status-offline { background-color: #ef4444; }
     </style>
-    
-    <!-- PWA Manifest -->
-    <script id="pwa-manifest" type="application/json">
-    {
-        "name": "Breadcrumbs Stack",
-        "short_name": "Breadcrumbs",
-        "start_url": ".",
-        "display": "standalone",
-        "background_color": "#0f172a",
-        "theme_color": "#0f172a",
-        "icons": [
-            {
-                "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2338bdf8'%3E%3Cpath d='M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z'/%3E%3C/svg%3E",
-                "sizes": "192x192",
-                "type": "image/svg+xml"
-            }
-        ]
-    }
-    </script>
 </head>
-<body class="flex flex-col items-center justify-between h-screen p-6">
+<body class="min-h-screen flex flex-col">
 
-    <div class="w-full text-center mt-4">
-        <h1 class="text-2xl font-black tracking-tighter text-sky-400">BREADCRUMBS</h1>
-        <div id="stackCount" class="text-[10px] bg-sky-900/50 text-sky-300 px-2 py-0.5 rounded-full inline-block mt-1 font-bold uppercase tracking-wider">Stack Empty</div>
-    </div>
+    <div class="max-w-5xl mx-auto w-full p-6 md:p-12 flex-grow">
+        <!-- Header Principal -->
+        <header class="mb-12 border-l-4 border-blue-600 pl-6">
+            <h1 class="text-3xl font-bold text-white tracking-tighter uppercase italic">CORE Protocol</h1>
+            <p class="text-zinc-500 text-sm tracking-widest mt-1">SISTEMA OPERATIVO DE UTILIDAD URBANA | V 1.0</p>
+        </header>
 
-    <!-- Main Navigation Area -->
-    <div id="navView" class="hidden flex flex-col items-center justify-center flex-1 w-full">
-        <div class="compass-container flex items-center justify-center rounded-full border-4 border-slate-800 bg-slate-900/30">
-            <svg id="arrow" class="compass-arrow w-28 h-28 text-sky-400" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
-            </svg>
-            <div id="targetLabel" class="absolute -top-4 bg-sky-500 text-slate-900 font-black px-3 py-1 rounded-md text-sm">POINT C</div>
-        </div>
-        
-        <div class="mt-8 text-center">
-            <div id="distance" class="text-6xl font-mono font-bold tracking-tighter">0m</div>
-            <div id="accuracyMsg" class="text-slate-500 uppercase text-[10px] mt-1 font-bold tracking-widest accuracy-pulse">Calibrating GPS...</div>
-        </div>
-    </div>
-
-    <!-- Empty State -->
-    <div id="emptyView" class="flex flex-col items-center justify-center text-center flex-1">
-        <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
-            <svg class="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-        </div>
-        <p class="text-slate-500 text-sm font-medium">No path recorded yet.</p>
-    </div>
-
-    <!-- Controls -->
-    <div class="w-full max-w-sm space-y-3 mb-6">
-        <div class="grid grid-cols-2 gap-3">
-            <button id="dropBtn" class="col-span-2 flex items-center justify-center py-5 bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-black rounded-2xl transition-all text-lg shadow-xl shadow-sky-900/20">
-                <span id="btnText">DROP CRUMB</span>
-                <div id="btnSpinner" class="loading-spinner hidden ml-3"></div>
-            </button>
+        <!-- Grid de Aplicaciones -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
-            <button id="pickUpBtn" class="hidden flex flex-col items-center justify-center py-3 bg-emerald-600 text-white font-bold rounded-2xl active:scale-95 transition-all">
-                <span class="text-xs opacity-80 uppercase">Arrived</span>
-                <span>PICK UP</span>
-            </button>
-            
-            <button id="clearBtn" class="hidden flex items-center justify-center py-3 bg-slate-800 text-slate-400 font-bold rounded-2xl border border-slate-700 active:scale-95 transition-all">
-                CLEAR ALL
-            </button>
-        </div>
-    </div>
+            <!-- Ghost Inventory -->
+            <a href="ghost.html" class="tool-card p-6 rounded-lg group">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="p-3 bg-blue-900/20 rounded border border-blue-500/30 text-blue-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                    </div>
+                    <span class="status-dot status-online"></span>
+                </div>
+                <h2 class="text-white font-bold uppercase mb-2 group-hover:text-blue-400">Ghost Inventory</h2>
+                <p class="text-xs text-zinc-500 leading-relaxed italic">Indexación de objetos y contenedores físicos para despliegue rápido.</p>
+                <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">LOCAL_STORAGE_ACTIVE</div>
+            </a>
 
-    <div id="statusBar" class="text-[10px] text-slate-500 uppercase mb-2 font-mono">
-        System Ready
+            <!-- Breadcrumbs -->
+            <a href="breadcrumbs.html" class="tool-card p-6 rounded-lg group">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="p-3 bg-zinc-900 rounded border border-zinc-800 text-zinc-400 group-hover:border-orange-500/30 group-hover:text-orange-400 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    </div>
+                    <span class="status-dot status-offline"></span>
+                </div>
+                <h2 class="text-zinc-300 font-bold uppercase mb-2 group-hover:text-orange-400">Breadcrumbs</h2>
+                <p class="text-xs text-zinc-500 leading-relaxed italic">Rastreador de puntos de interés y rutas críticas sin dependencia de mapas pesados.</p>
+                <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">AWAITING_DEPLOYMENT</div>
+            </a>
+
+            <!-- Slot Vacío (Próximamente) -->
+            <div class="tool-card p-6 rounded-lg border-dashed border-zinc-800 flex flex-col items-center justify-center opacity-50 grayscale">
+                <div class="text-zinc-700 mb-2 font-bold uppercase tracking-tighter text-xs">Slot de Expansión 03</div>
+                <div class="text-[10px] text-zinc-800 uppercase">System_Empty</div>
+            </div>
+
+        </div>
+
+        <!-- Terminal Footer -->
+        <div class="mt-16 p-4 bg-zinc-900/30 border border-zinc-800 rounded flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="animate-pulse h-2 w-2 bg-green-500 rounded-full"></div>
+                <span class="text-[10px] uppercase font-bold tracking-[0.2em] text-zinc-500">Núcleo CORE Operativo</span>
+            </div>
+            <div class="text-[10px] font-mono text-zinc-600">
+                Uptime: <span id="uptime">00:00:00</span>
+            </div>
+        </div>
     </div>
 
     <script>
-        // PWA Setup
-        const manifestContent = document.getElementById('pwa-manifest').textContent;
-        const manifestBlob = new Blob([manifestContent], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(manifestBlob);
-        const manifestLink = document.createElement('link');
-        manifestLink.rel = 'manifest';
-        manifestLink.href = manifestURL;
-        document.head.appendChild(manifestLink);
+        // Lógica simple de Uptime para el ambiente de terminal
+        let startTime = Date.now();
+        setInterval(() => {
+            let diff = Math.floor((Date.now() - startTime) / 1000);
+            let h = Math.floor(diff / 3600).toString().padStart(2, '0');
+            let m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+            let s = (diff % 60).toString().padStart(2, '0');
+            document.getElementById('uptime').innerText = `${h}:${m}:${s}`;
+        }, 1000);
 
+        // Registro de Service Worker (Para capacidad PWA en GitHub Pages)
         if ('serviceWorker' in navigator) {
-            const swCode = `
-                self.addEventListener('install', (e) => self.skipWaiting());
-                self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
-            `;
-            const swBlob = new Blob([swCode], {type: 'application/javascript'});
-            const swURL = URL.createObjectURL(swBlob);
-            navigator.serviceWorker.register(swURL).catch(err => console.log('SW failed', err));
-        }
-
-        // State Management
-        let breadcrumbs = JSON.parse(localStorage.getItem('breadcrumbs_stack')) || []; 
-        let currentCoords = null;
-        let watchId = null;
-        let deviceHeading = 0; // Magnetic heading
-        let wakeLock = null;
-
-        const labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-        const dropBtn = document.getElementById('dropBtn');
-        const pickUpBtn = document.getElementById('pickUpBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const navView = document.getElementById('navView');
-        const emptyView = document.getElementById('emptyView');
-        const targetLabel = document.getElementById('targetLabel');
-        const distanceEl = document.getElementById('distance');
-        const arrowEl = document.getElementById('arrow');
-        const stackCount = document.getElementById('stackCount');
-        const statusBar = document.getElementById('statusBar');
-        const accuracyMsg = document.getElementById('accuracyMsg');
-
-        // Utils
-        const saveState = () => localStorage.setItem('breadcrumbs_stack', JSON.stringify(breadcrumbs));
-
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371e3;
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        }
-
-        function calculateBearing(lat1, lon1, lat2, lon2) {
-            const y = Math.sin((lon2 - lon1) * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180);
-            const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
-                      Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos((lon2 - lon1) * Math.PI / 180);
-            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-        }
-
-        // Screen Wake Lock
-        async function requestWakeLock() {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                }
-            } catch (err) {
-                console.log("WakeLock failed:", err);
-            }
-        }
-
-        // Compass orientation handler
-        window.addEventListener('deviceorientationabsolute', (e) => {
-            if (e.alpha !== null) deviceHeading = e.alpha; 
-        }, true);
-
-        // UI Refresh
-        function updateUI() {
-            const count = breadcrumbs.length;
-            stackCount.innerText = count > 0 ? `${count} CRUMBS DROPPED` : "STACK EMPTY";
-            
-            if (count > 0) {
-                emptyView.classList.add('hidden');
-                navView.classList.remove('hidden');
-                pickUpBtn.classList.remove('hidden');
-                clearBtn.classList.remove('hidden');
-                
-                const target = breadcrumbs[count - 1];
-                targetLabel.innerText = `POINT ${target.label}`;
-
-                if (currentCoords) {
-                    const dist = calculateDistance(currentCoords.latitude, currentCoords.longitude, target.lat, target.lon);
-                    const bearingToTarget = calculateBearing(currentCoords.latitude, currentCoords.longitude, target.lat, target.lon);
-                    
-                    // Arrow points to Target Bearing minus Device Heading
-                    const finalRotation = (bearingToTarget - deviceHeading + 360) % 360;
-                    
-                    distanceEl.innerText = dist > 1000 ? (dist/1000).toFixed(2) + 'km' : Math.round(dist) + 'm';
-                    
-                    // Red-teaming fix: stabilize arrow if too close
-                    if (dist < 3) {
-                        arrowEl.style.transform = `rotate(0deg)`;
-                        accuracyMsg.innerText = "YOU HAVE ARRIVED";
-                    } else {
-                        arrowEl.style.transform = `rotate(${finalRotation}deg)`;
-                        accuracyMsg.innerText = `GPS Accuracy: ±${Math.round(currentCoords.accuracy)}m`;
-                    }
-                }
-            } else {
-                emptyView.classList.remove('hidden');
-                navView.classList.add('hidden');
-                pickUpBtn.classList.add('hidden');
-                clearBtn.classList.add('hidden');
-            }
-        }
-
-        // GPS Logic
-        async function getGPS() {
-            return new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    enableHighAccuracy: true, timeout: 15000, maximumAge: 0
-                });
+            window.addEventListener('load', () => {
+                // El archivo sw.js debería existir para funcionalidad offline real
+                console.log('Hub listo para registro PWA');
             });
         }
-
-        dropBtn.addEventListener('click', async () => {
-            const btnText = document.getElementById('btnText');
-            const btnSpinner = document.getElementById('btnSpinner');
-            btnText.innerText = "DROPPING...";
-            btnSpinner.classList.remove('hidden');
-
-            try {
-                const pos = await getGPS();
-                currentCoords = pos.coords;
-                const label = labels[breadcrumbs.length % labels.length];
-                breadcrumbs.push({ lat: pos.coords.latitude, lon: pos.coords.longitude, label: label });
-                saveState();
-                statusBar.innerText = `DROPPED ${label}`;
-                updateUI();
-                startContinuousTracking();
-                requestWakeLock();
-            } catch (err) {
-                statusBar.innerText = "GPS ERROR: " + err.message;
-            } finally {
-                btnText.innerText = "DROP CRUMB";
-                btnSpinner.classList.add('hidden');
-            }
-        });
-
-        pickUpBtn.addEventListener('click', () => {
-            if (breadcrumbs.length > 0) {
-                const removed = breadcrumbs.pop();
-                saveState();
-                statusBar.innerText = `PICKED UP ${removed.label}`;
-                updateUI();
-            }
-        });
-
-        clearBtn.addEventListener('click', () => {
-            if (confirm("Clear all breadcrumbs?")) {
-                breadcrumbs = [];
-                saveState();
-                if (watchId) navigator.geolocation.clearWatch(watchId);
-                updateUI();
-                statusBar.innerText = "CLEARED";
-            }
-        });
-
-        function startContinuousTracking() {
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-            watchId = navigator.geolocation.watchPosition((pos) => {
-                currentCoords = pos.coords;
-                updateUI();
-            }, (err) => {
-                statusBar.innerText = "TRACKING LOST";
-            }, { enableHighAccuracy: true, maximumAge: 1000 });
-        }
-
-        window.addEventListener('load', () => {
-            updateUI();
-            if (breadcrumbs.length > 0) {
-                statusBar.innerText = "RESUMING...";
-                startContinuousTracking();
-            }
-        });
     </script>
 </body>
 </html>
