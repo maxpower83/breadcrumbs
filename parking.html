@@ -4,136 +4,111 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parking Ghost | CORE</title>
+    <link rel="manifest" id="pwa-manifest">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
         body { font-family: 'JetBrains+Mono', monospace; background-color: #050505; color: #eee; }
-        .radar-ring { border: 2px solid #3b82f6; border-radius: 50%; position: relative; }
-        .arrow { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 20px solid #3b82f6; transition: transform 0.2s ease; }
+        .arrow { width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-bottom: 30px solid #3b82f6; transition: transform 0.1s linear; }
     </style>
 </head>
-<body class="flex flex-col min-h-screen p-6">
-
-        <!-- Navegación -->
-    <nav class="mb-6">
-        <a href="index.html" class="text-[10px] text-zinc-500 hover:text-blue-400 uppercase tracking-widest flex items-center gap-2 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-            Volver al HUB
-        </a>
-    </nav>
-
-    <header class="mb-6 border-l-4 border-blue-600 pl-4">
-        <h1 class="text-xl font-bold uppercase italic text-white">Parking Ghost</h1>
-        <p class="text-[10px] text-zinc-500 uppercase tracking-widest">Geo-Tracker v2.0</p>
+<body class="p-6 flex flex-col min-h-screen">
+    <header class="mb-6 border-l-4 border-blue-600 pl-4 flex justify-between items-center">
+        <div>
+            <a href="index.html" class="text-[10px] text-zinc-600 uppercase">← Hub</a>
+            <h1 class="text-xl font-bold uppercase italic text-white">Parking Ghost</h1>
+        </div>
+        <button id="installBtn" class="hidden bg-white text-black px-3 py-1 rounded text-[10px] font-bold uppercase">Instalar</button>
     </header>
 
-    <main class="flex-grow flex flex-col gap-4">
-        <!-- Radar / Dirección -->
-        <div id="radarContainer" class="hidden bg-zinc-900 border border-zinc-800 p-6 rounded-lg flex flex-col items-center">
-            <p class="text-[10px] text-zinc-500 uppercase mb-4 tracking-tighter">Rumbo al vehículo:</p>
-            <div class="radar-ring w-32 h-32 flex items-center justify-center mb-4">
-                <div id="arrow" class="arrow"></div>
-            </div>
-            <p id="distanceDisplay" class="text-xs font-bold text-blue-400 uppercase">Calculando distancia...</p>
+    <main class="flex-grow space-y-4">
+        <div id="radar" class="hidden bg-zinc-900 border border-zinc-800 p-8 rounded-full aspect-square flex flex-col items-center justify-center mx-auto max-w-[250px]">
+            <div id="arrow" class="arrow mb-4"></div>
+            <p id="dist" class="text-xl font-bold text-blue-400">--- M</p>
         </div>
 
-        <!-- Info Visual -->
-        <div id="currentLocation" class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg text-center">
-            <p class="text-[10px] text-zinc-500 uppercase mb-2">Referencia visual:</p>
-            <div id="locDisplay" class="text-2xl font-bold text-white uppercase italic">---</div>
-            <p id="timeDisplay" class="text-[10px] text-zinc-600 mt-2 uppercase tracking-widest">Sin datos</p>
+        <div class="bg-zinc-900 p-6 rounded-lg text-center border border-zinc-800">
+            <p class="text-[10px] text-zinc-500 uppercase mb-1">Último registro:</p>
+            <div id="note" class="text-2xl font-bold text-white uppercase italic">Libre</div>
+            <div id="ts" class="text-[9px] text-zinc-600 mt-2">---</div>
         </div>
 
-        <!-- Controles -->
         <div class="space-y-3">
-            <input type="text" id="manualInput" placeholder="EJ: P2 AZUL B14" 
-                   class="w-full p-4 bg-zinc-900 border border-zinc-800 rounded text-center text-lg uppercase outline-none focus:border-blue-500">
-            
-            <button onclick="saveCurrentState()" class="w-full bg-blue-600 text-white font-bold py-4 rounded uppercase text-sm flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                Fijar Posición
-            </button>
-            <button onclick="clearLocation()" class="w-full bg-zinc-800 text-zinc-500 py-3 rounded uppercase text-[10px] font-bold">Borrar Datos</button>
+            <input type="text" id="manual" placeholder="PLTA / COLOR / LETRA" class="w-full p-4 bg-zinc-900 border border-zinc-800 rounded text-center text-white outline-none">
+            <button onclick="setParking()" class="w-full bg-blue-600 py-4 rounded font-bold uppercase text-sm">Fijar Posición GPS</button>
+            <button onclick="resetParking()" class="w-full text-zinc-700 text-[10px] uppercase font-bold py-2">Resetear</button>
         </div>
     </main>
 
     <script>
-        let targetCoords = null;
         let watchId = null;
+        let target = JSON.parse(localStorage.getItem('p_ghost_v2')) || null;
 
-        function saveCurrentState() {
-            const text = document.getElementById('manualInput').value || "Sin nota visual";
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                    const data = {
-                        loc: text.toUpperCase(),
-                        lat: pos.coords.latitude,
-                        lng: pos.coords.longitude,
-                        time: new Date().toLocaleTimeString()
-                    };
-                    localStorage.setItem('core_parking_v2', JSON.stringify(data));
-                    document.getElementById('manualInput').value = '';
-                    initTracking();
-                    render();
-                }, (err) => alert("Error de GPS: Activa la ubicación"), {enableHighAccuracy: true});
-            }
+        function setParking() {
+            if (!navigator.geolocation) return alert("GPS No disponible");
+            navigator.geolocation.getCurrentPosition(pos => {
+                target = {
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                    note: document.getElementById('manual').value.toUpperCase() || "SIN NOTA",
+                    ts: new Date().toLocaleTimeString()
+                };
+                localStorage.setItem('p_ghost_v2', JSON.stringify(target));
+                startTrack();
+                render();
+            }, null, {enableHighAccuracy: true});
         }
 
-        function calculateHeading(lat1, lon1, lat2, lon2) {
-            const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
-            const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
-            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        function startTrack() {
+            if (!target) return;
+            document.getElementById('radar').classList.remove('hidden');
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            watchId = navigator.geolocation.watchPosition(pos => {
+                const dist = calculateDist(pos.coords.latitude, pos.coords.longitude, target.lat, target.lng);
+                const bearing = calculateBearing(pos.coords.latitude, pos.coords.longitude, target.lat, target.lng);
+                document.getElementById('dist').innerText = `${Math.round(dist)} M`;
+                document.getElementById('arrow').style.transform = `rotate(${bearing}deg)`;
+            }, null, {enableHighAccuracy: true});
         }
 
-        function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371e3; 
+        function calculateDist(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
             const φ1 = lat1 * Math.PI/180;
             const φ2 = lat2 * Math.PI/180;
             const Δφ = (lat2-lat1) * Math.PI/180;
             const Δλ = (lon2-lon1) * Math.PI/180;
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c;
+            const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        function initTracking() {
-            const saved = JSON.parse(localStorage.getItem('core_parking_v2'));
-            if (!saved || !saved.lat) return;
-            targetCoords = { lat: saved.lat, lng: saved.lng };
-            
-            document.getElementById('radarContainer').classList.remove('hidden');
-
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-            watchId = navigator.geolocation.watchPosition((pos) => {
-                const current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                const dist = getDistance(current.lat, current.lng, targetCoords.lat, targetCoords.lng);
-                const heading = calculateHeading(current.lat, current.lng, targetCoords.lat, targetCoords.lng);
-                
-                document.getElementById('distanceDisplay').innerText = `${Math.round(dist)} METROS`;
-                document.getElementById('arrow').style.transform = `rotate(${heading}deg)`;
-            }, null, {enableHighAccuracy: true});
+        function calculateBearing(lat1, lon1, lat2, lon2) {
+            const y = Math.sin((lon2-lon1)*Math.PI/180) * Math.cos(lat2*Math.PI/180);
+            const x = Math.cos(lat1*Math.PI/180)*Math.sin(lat2*Math.PI/180)-Math.sin(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.cos((lon2-lon1)*Math.PI/180);
+            return (Math.atan2(y, x)*180/Math.PI + 360) % 360;
         }
 
-        function clearLocation() {
-            localStorage.removeItem('core_parking_v2');
+        function resetParking() {
+            localStorage.removeItem('p_ghost_v2');
+            target = null;
             if (watchId) navigator.geolocation.clearWatch(watchId);
-            document.getElementById('radarContainer').classList.add('hidden');
+            document.getElementById('radar').classList.add('hidden');
             render();
         }
 
         function render() {
-            const saved = JSON.parse(localStorage.getItem('core_parking_v2'));
-            if(saved) {
-                document.getElementById('locDisplay').innerText = saved.loc;
-                document.getElementById('timeDisplay').innerText = `GUARDADO: ${saved.time}`;
-                if (!watchId) initTracking();
+            if (target) {
+                document.getElementById('note').innerText = target.note;
+                document.getElementById('ts').innerText = `FIJADO: ${target.ts}`;
             } else {
-                document.getElementById('locDisplay').innerText = "---";
-                document.getElementById('timeDisplay').innerText = "SIN DATOS";
+                document.getElementById('note').innerText = "LIBRE";
+                document.getElementById('ts').innerText = "---";
             }
         }
 
-        window.onload = render;
+        window.onload = () => { render(); startTrack(); };
+
+        const manifest = { "name": "Parking Ghost", "short_name": "ParkGhost", "start_url": "parking.html", "display": "standalone", "theme_color": "#3b82f6" };
+        document.getElementById('pwa-manifest').setAttribute('href', 'data:application/json;base64,' + btoa(JSON.stringify(manifest)));
     </script>
 </body>
 </html>
