@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost Inventory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        body {
+            font-family: 'JetBrains+Mono', monospace;
+            background-color: #0a0a0a;
+            color: #d1d1d1;
+        }
+        .container-card {
+            background-color: #1a1a1a;
+            border-left: 4px solid #3b82f6;
+            transition: all 0.2s ease;
+        }
+        .container-card:hover {
+            border-left-color: #60a5fa;
+            background-color: #222;
+        }
+        input, textarea {
+            background-color: #121212 !important;
+            border: 1px solid #333 !important;
+            color: #fff !important;
+        }
+        input:focus {
+            outline: none;
+            border-color: #3b82f6 !important;
+        }
+        .ghost-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #666;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-3xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 border-b border-zinc-800 pb-4 flex justify-between items-end">
+            <div>
+                <h1 class="text-2xl font-bold text-white uppercase tracking-tighter">Ghost Inventory</h1>
+                <p class="text-xs text-zinc-500">v1.0.0 | Offline Alpha</p>
+            </div>
+            <div id="stats" class="text-right text-xs text-zinc-400 uppercase">
+                0 Items Indexados
+            </div>
+        </header>
+
+        <!-- Search & Control -->
+        <div class="mb-8 sticky top-0 bg-black/90 py-4 z-10 backdrop-blur-sm">
+            <input type="text" id="searchInput" placeholder="BUSCAR ITEM O CAJA..." 
+                   class="w-full p-4 rounded bg-zinc-900 border border-zinc-800 text-lg mb-4">
+            
+            <button onclick="toggleModal(true)" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded transition-colors uppercase text-sm">
+                + Indexar Nuevo Contenedor
+            </button>
+        </div>
+
+        <!-- Inventory List -->
+        <div id="inventoryList" class="space-y-4">
+            <!-- Render dinámico -->
+        </div>
+    </div>
+
+    <!-- Modal Form -->
+    <div id="modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-20">
+        <div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg w-full max-w-md">
+            <h2 class="text-xl font-bold mb-4 text-white uppercase">Nuevo Contenedor</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="ghost-label">ID / Número de Caja</label>
+                    <input type="text" id="boxId" placeholder="Ej: CAJA-01" class="w-full p-2 rounded">
+                </div>
+                <div>
+                    <label class="ghost-label">Ubicación</label>
+                    <input type="text" id="boxLoc" placeholder="Ej: Trastero / Estante B" class="w-full p-2 rounded">
+                </div>
+                <div>
+                    <label class="ghost-label">Contenido (Palabras clave)</label>
+                    <textarea id="boxContent" rows="4" placeholder="Ej: cargador laptop, cables hdmi, destornilladores..." class="w-full p-2 rounded"></textarea>
+                </div>
+                <div class="flex gap-2 pt-4">
+                    <button onclick="saveBox()" class="flex-1 bg-green-700 hover:bg-green-600 text-white font-bold py-2 rounded uppercase text-xs">Guardar Registro</button>
+                    <button onclick="toggleModal(false)" class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 py-2 rounded uppercase text-xs">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Carga inicial desde localStorage (persistencia indefinida)
+        let inventory = JSON.parse(localStorage.getItem('ghost_inventory')) || [];
+
+        function toggleModal(show) {
+            const modal = document.getElementById('modal');
+            modal.style.display = show ? 'flex' : 'none';
+            if(show) document.getElementById('boxId').focus();
+        }
+
+        function saveBox() {
+            const id = document.getElementById('boxId').value;
+            const loc = document.getElementById('boxLoc').value;
+            const content = document.getElementById('boxContent').value;
+
+            if(!id || !content) return;
+
+            const entry = {
+                id: id.toUpperCase(),
+                loc: loc.toUpperCase(),
+                content: content.toLowerCase(),
+                timestamp: Date.now()
+            };
+
+            inventory.push(entry);
+            // Sincronización con almacenamiento local
+            localStorage.setItem('ghost_inventory', JSON.stringify(inventory));
+            
+            // Limpiar y cerrar
+            document.getElementById('boxId').value = '';
+            document.getElementById('boxLoc').value = '';
+            document.getElementById('boxContent').value = '';
+            toggleModal(false);
+            render();
+        }
+
+        function deleteBox(timestamp) {
+            // Confirmación personalizada mínima para evitar alert() intrusivo
+            if(!confirm('¿Eliminar este registro permanentemente?')) return;
+            inventory = inventory.filter(item => item.timestamp !== timestamp);
+            localStorage.setItem('ghost_inventory', JSON.stringify(inventory));
+            render();
+        }
+
+        function render(filter = '') {
+            const list = document.getElementById('inventoryList');
+            const stats = document.getElementById('stats');
+            list.innerHTML = '';
+            
+            const filtered = inventory.filter(item => 
+                item.content.includes(filter.toLowerCase()) || 
+                item.id.includes(filter.toUpperCase()) ||
+                item.loc.includes(filter.toUpperCase())
+            );
+
+            stats.innerText = `${inventory.length} CONTENEDORES INDEXADOS`;
+
+            if(filtered.length === 0) {
+                list.innerHTML = `<div class="text-center py-20 text-zinc-600 uppercase tracking-widest text-xs">Sin registros que coincidan</div>`;
+                return;
+            }
+
+            filtered.sort((a, b) => b.timestamp - a.timestamp).forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'container-card p-4 rounded shadow-lg flex justify-between items-start border border-zinc-800';
+                card.innerHTML = `
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="bg-blue-900/30 text-blue-400 px-2 py-1 rounded text-[10px] font-bold border border-blue-800/50 uppercase">
+                                ${item.id}
+                            </span>
+                            <span class="text-[10px] text-zinc-500 font-bold tracking-widest uppercase">${item.loc || 'UBICACIÓN NO ESPECIFICADA'}</span>
+                        </div>
+                        <p class="text-sm text-zinc-300 leading-relaxed">${item.content}</p>
+                    </div>
+                    <button onclick="deleteBox(${item.timestamp})" class="ml-4 text-zinc-700 hover:text-red-500 transition-colors p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    </button>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            render(e.target.value);
+        });
+
+        // Inicialización de renderizado
+        window.onload = render;
+    </script>
+</body>
+</html>
