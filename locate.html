@@ -1,227 +1,301 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoTracker - Localizador</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Geo-Tracker Relativo</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
     <style>
         .compass-arrow {
-            transition: transform 0.3s ease-in-out;
+            transition: transform 0.2s ease-out;
         }
-        @keyframes pulse-ring {
+        .pulse {
+            animation: pulse-animation 2s infinite;
+        }
+        @keyframes pulse-animation {
             0% { transform: scale(0.95); opacity: 0.5; }
-            50% { transform: scale(1.05); opacity: 0.3; }
+            50% { transform: scale(1.05); opacity: 0.8; }
             100% { transform: scale(0.95); opacity: 0.5; }
         }
-        .pulse { animation: pulse-ring 2s infinite; }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col items-center p-4 font-sans">
+<body class="bg-slate-900 text-white font-sans overflow-hidden">
 
-    <div class="max-w-md w-full bg-zinc-900 rounded-3xl p-6 shadow-2xl border border-zinc-800 mt-8">
-        <header class="text-center mb-8">
-            <h1 class="text-2xl font-black tracking-tighter text-blue-500">GEOTRACKER</h1>
-            <p class="text-xs text-zinc-500 uppercase tracking-widest">Encuentro en tiempo real</p>
+    <div id="app" class="h-screen flex flex-col p-4 max-w-md mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-blue-400">Encuéntrame</h1>
+            <p class="text-slate-400 text-sm">Ubicación compartida temporal (10 min)</p>
         </header>
 
-        <!-- Pantalla Inicial -->
-        <div id="setup-section" class="space-y-6">
-            <div class="bg-zinc-800/50 p-4 rounded-2xl border border-zinc-700 text-center">
-                <p class="text-xs text-zinc-400 mb-1">Tu Identificador:</p>
-                <p id="my-id" class="text-3xl font-mono font-bold text-white tracking-widest text-blue-400">---</p>
-            </div>
-
-            <div class="space-y-3">
-                <button id="btn-share" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-bold transition-all active:scale-95 shadow-lg shadow-blue-900/20">
-                    FIJAR MI POSICIÓN (USUARIO A)
-                </button>
-                
-                <div class="relative py-4 flex items-center gap-4">
-                    <div class="flex-grow border-t border-zinc-800"></div>
-                    <span class="text-[10px] text-zinc-600 font-bold uppercase">O rastrear</span>
-                    <div class="flex-grow border-t border-zinc-800"></div>
-                </div>
-
-                <div class="space-y-2">
-                    <input type="text" id="target-id" maxlength="6" placeholder="ID DEL USUARIO A" class="w-full bg-zinc-800 border border-zinc-700 p-4 rounded-2xl text-center focus:ring-2 focus:ring-blue-500 outline-none font-mono uppercase text-xl">
-                    <button id="btn-follow" class="w-full bg-zinc-100 hover:bg-white text-zinc-900 py-4 rounded-2xl font-bold transition-all active:scale-95">
-                        BUSCAR USUARIO B
-                    </button>
-                </div>
-            </div>
+        <!-- Pantalla de Inicio -->
+        <div id="screen-start" class="flex-1 flex flex-col gap-4 justify-center">
+            <button onclick="startSharing()" class="bg-blue-600 hover:bg-blue-700 p-6 rounded-2xl text-xl font-bold shadow-lg flex flex-col items-center">
+                <span>📍 Soy Usuario A</span>
+                <span class="text-sm font-normal opacity-80 mt-2">Quiero que me encuentren</span>
+            </button>
+            <button onclick="showJoinScreen()" class="bg-emerald-600 hover:bg-emerald-700 p-6 rounded-2xl text-xl font-bold shadow-lg flex flex-col items-center">
+                <span>🔎 Soy Usuario B</span>
+                <span class="text-sm font-normal opacity-80 mt-2">Estoy buscando a alguien</span>
+            </button>
         </div>
 
-        <!-- Pantalla de Rastreo -->
-        <div id="tracking-section" class="hidden space-y-8 animate-in fade-in duration-500">
-            <div class="flex justify-between items-center bg-zinc-800/50 p-3 rounded-xl border border-zinc-700">
-                <span class="text-xs text-zinc-400">Rastreando: <b id="tracking-id-display" class="text-blue-400 font-mono"></b></span>
-                <span id="last-update" class="text-[10px] text-zinc-500">Hace: 0s</span>
+        <!-- Pantalla Compartir (Usuario A) -->
+        <div id="screen-share" class="hidden flex-1 flex flex-col items-center justify-center text-center">
+            <div class="bg-slate-800 p-8 rounded-3xl border border-slate-700 w-full mb-6">
+                <p class="text-slate-400 mb-2">Tu código de sesión es:</p>
+                <div id="session-code-display" class="text-5xl font-black tracking-widest text-blue-400 mb-4">----</div>
+                <p class="text-xs text-slate-500">Compártelo con la otra persona.</p>
+            </div>
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-3 h-3 bg-red-500 rounded-full pulse"></div>
+                <p id="status-a">Obteniendo ubicación...</p>
+            </div>
+            <button onclick="location.reload()" class="text-slate-400 underline">Detener y salir</button>
+        </div>
+
+        <!-- Pantalla Unirse (Usuario B) -->
+        <div id="screen-join" class="hidden flex-1 flex flex-col items-center justify-center">
+            <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 w-full">
+                <h2 class="text-lg mb-4">Ingresa el código del Usuario A</h2>
+                <input id="join-code-input" type="text" maxlength="4" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-4 text-3xl text-center font-bold tracking-widest mb-4 focus:outline-none focus:border-blue-500 uppercase">
+                <button onclick="startTracking()" class="w-full bg-emerald-600 p-4 rounded-xl font-bold">Rastrear</button>
+            </div>
+            <button onclick="location.reload()" class="mt-6 text-slate-400 underline">Volver</button>
+        </div>
+
+        <!-- Pantalla Radar (Usuario B) -->
+        <div id="screen-radar" class="hidden flex-1 flex flex-col items-center justify-center text-center">
+            <div id="permission-box" class="bg-yellow-600/20 border border-yellow-600 p-4 rounded-xl mb-4 text-sm">
+                <p class="mb-2">Necesitamos acceso a tu brújula para indicar direcciones relativas.</p>
+                <button onclick="requestOrientationPermission()" class="bg-yellow-600 px-4 py-2 rounded-lg font-bold">Activar Brújula</button>
             </div>
 
-            <!-- Brújula Visual -->
-            <div class="relative w-56 h-56 mx-auto flex items-center justify-center">
-                <div class="absolute inset-0 rounded-full border-2 border-zinc-800 bg-zinc-800/20 pulse"></div>
-                <div class="absolute inset-4 rounded-full border border-zinc-700"></div>
+            <div class="relative w-64 h-64 mb-8">
+                <!-- Círculos de Radar -->
+                <div class="absolute inset-0 border-2 border-slate-700 rounded-full"></div>
+                <div class="absolute inset-4 border border-slate-800 rounded-full"></div>
+                <div class="absolute inset-12 border border-slate-800 rounded-full"></div>
                 
-                <!-- Marcas cardinales -->
-                <span class="absolute top-0 text-zinc-600 font-bold text-xs">N</span>
-                <span class="absolute bottom-0 text-zinc-600 font-bold text-xs">S</span>
-                <span class="absolute left-0 text-zinc-600 font-bold text-xs">O</span>
-                <span class="absolute right-0 text-zinc-600 font-bold text-xs">E</span>
-
-                <div id="arrow" class="compass-arrow text-blue-500 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">
-                    <svg width="100" height="100" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/>
+                <!-- Indicador de Dirección -->
+                <div id="direction-indicator" class="absolute inset-0 flex items-center justify-center compass-arrow">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]">
+                        <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" fill="currentColor"/>
                     </svg>
                 </div>
+                
+                <!-- Usuario B (Centro) -->
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white"></div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
-                <div class="bg-zinc-800/80 p-4 rounded-2xl border border-zinc-700 text-center">
-                    <p class="text-[10px] text-zinc-500 uppercase font-bold mb-1">Distancia</p>
-                    <p id="distance" class="text-2xl font-black">-- m</p>
-                </div>
-                <div class="bg-zinc-800/80 p-4 rounded-2xl border border-zinc-700 text-center">
-                    <p class="text-[10px] text-zinc-500 uppercase font-bold mb-1">Dirección</p>
-                    <p id="bearing-text" class="text-2xl font-black text-blue-400">--</p>
-                </div>
-            </div>
-
-            <button id="btn-stop" class="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 py-3 rounded-xl font-bold transition-all text-sm border border-zinc-700">
-                CANCELAR RASTREO
-            </button>
+            <div id="relative-direction-text" class="text-3xl font-black mb-2 text-white">--</div>
+            <div class="text-slate-400">Distancia: <span id="distance-display" class="text-white font-bold">--</span></div>
+            
+            <div id="last-update" class="text-[10px] text-slate-600 mt-8">Última actualización: --</div>
+            <button onclick="location.reload()" class="mt-8 text-slate-400 underline">Salir</button>
         </div>
     </div>
 
-    <div id="msg-box" class="mt-6 text-xs text-zinc-600 text-center max-w-xs px-4 leading-relaxed"></div>
+    <!-- Modales de Error -->
+    <div id="modal-error" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-6 z-50 text-center">
+        <div class="bg-slate-800 p-6 rounded-2xl border border-red-500 max-w-xs">
+            <h3 class="text-red-500 font-bold mb-2">Error</h3>
+            <p id="error-msg" class="text-sm mb-4"></p>
+            <button onclick="hideError()" class="bg-slate-700 px-4 py-2 rounded-lg">Cerrar</button>
+        </div>
+    </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        // CONFIG
+        // Configuración de Firebase (Variables inyectadas por el entorno)
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
         const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'geoloc-v1';
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'geo-tracker-default';
 
-        let myShortId = "";
-        let user = null;
-        let trackingUnsubscribe = null;
+        let currentUser = null;
+        let sessionCode = "";
         let watchId = null;
+        let userHeading = 0; // Brújula del usuario
+        let targetCoords = null;
+        let myCoords = null;
 
-        const setupUI = document.getElementById('setup-section');
-        const trackingUI = document.getElementById('tracking-section');
-        const msgBox = document.getElementById('msg-box');
-        const arrow = document.getElementById('arrow');
+        // Inicializar Auth
+        signInAnonymously(auth).catch(err => showError("Error de conexión: " + err.message));
+        onAuthStateChanged(auth, user => { currentUser = user; });
 
-        // Inicializar Auth (REGLA 3)
-        async function start() {
-            try {
-                const cred = await signInAnonymously(auth);
-                user = cred.user;
-                myShortId = user.uid.substring(0, 6).toUpperCase();
-                document.getElementById('my-id').innerText = myShortId;
-                updateMsg("Sistema listo. Comparte tu ID para ser encontrado.");
-            } catch (err) {
-                updateMsg("Error de conexión: " + err.message);
+        // Gestión de Pantallas
+        window.showScreen = (id) => {
+            ['screen-start', 'screen-share', 'screen-join', 'screen-radar'].forEach(s => {
+                document.getElementById(s).classList.add('hidden');
+            });
+            document.getElementById(id).classList.remove('hidden');
+        };
+
+        window.showJoinScreen = () => showScreen('screen-join');
+
+        window.showError = (msg) => {
+            document.getElementById('error-msg').innerText = msg;
+            document.getElementById('modal-error').classList.remove('hidden');
+        };
+
+        window.hideError = () => document.getElementById('modal-error').classList.add('hidden');
+
+        // LÓGICA USUARIO A (EMISOR)
+        window.startSharing = async () => {
+            if (!currentUser) return showError("Espera a que la app conecte...");
+            
+            // Generar código corto aleatorio
+            sessionCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+            document.getElementById('session-code-display').innerText = sessionCode;
+            showScreen('screen-share');
+
+            if ("geolocation" in navigator) {
+                watchId = navigator.geolocation.watchPosition(
+                    async (pos) => {
+                        const { latitude, longitude } = pos.coords;
+                        try {
+                            const ref = doc(db, 'artifacts', appId, 'public', 'data', sessionCode);
+                            await setDoc(ref, {
+                                lat: latitude,
+                                lng: longitude,
+                                timestamp: serverTimestamp(),
+                                userId: currentUser.uid
+                            });
+                            document.getElementById('status-a').innerText = "Transmitiendo ubicación...";
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    },
+                    (err) => showError("Activa el GPS: " + err.message),
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                showError("Tu navegador no soporta GPS.");
             }
+        };
+
+        // LÓGICA USUARIO B (BUSCADOR)
+        window.startTracking = () => {
+            const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+            if (code.length < 4) return showError("Ingresa un código válido.");
+            
+            sessionCode = code;
+            showScreen('screen-radar');
+
+            // Suscribirse a la ubicación de A
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', sessionCode);
+            onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    
+                    // Verificar expiración (10 min = 600,000 ms)
+                    const now = Date.now();
+                    const docTime = data.timestamp?.toDate().getTime() || now;
+                    if (now - docTime > 600000) {
+                        showError("La sesión ha expirado (máx 10 min).");
+                        location.reload();
+                        return;
+                    }
+
+                    targetCoords = { lat: data.lat, lng: data.lng };
+                    document.getElementById('last-update').innerText = "Última actualización: " + new Date(docTime).toLocaleTimeString();
+                    updateNavigation();
+                } else {
+                    showError("Código no encontrado.");
+                }
+            }, (err) => showError("Error al leer datos: " + err.message));
+
+            // Seguir propia ubicación de B
+            navigator.geolocation.watchPosition((pos) => {
+                myCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                updateNavigation();
+            }, (err) => console.warn(err), { enableHighAccuracy: true });
+        };
+
+        // PERMISOS DE ORIENTACIÓN (Brújula)
+        window.requestOrientationPermission = () => {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response == 'granted') {
+                            startCompass();
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                startCompass();
+            }
+        };
+
+        function startCompass() {
+            window.addEventListener('deviceorientation', (event) => {
+                // webkitCompassHeading es para iOS, alpha para Android (aunque requiere ajustes)
+                userHeading = event.webkitCompassHeading || (360 - event.alpha);
+                document.getElementById('permission-box').classList.add('hidden');
+                updateNavigation();
+            }, true);
         }
 
-        function updateMsg(m) { msgBox.innerText = m; }
+        // CÁLCULOS MATEMÁTICOS
+        function updateNavigation() {
+            if (!myCoords || !targetCoords) return;
 
-        // Cálculos Geográficos
+            const dist = getDistance(myCoords.lat, myCoords.lng, targetCoords.lat, targetCoords.lng);
+            const bearing = getBearing(myCoords.lat, myCoords.lng, targetCoords.lat, targetCoords.lng);
+            
+            // Ángulo relativo: Rumbo hacia A menos orientación de B
+            // Si bearing es 0 (Norte) y yo miro al Norte (0), la flecha apunta arriba (0).
+            const relativeAngle = (bearing - userHeading + 360) % 360;
+
+            document.getElementById('distance-display').innerText = dist < 1000 ? Math.round(dist) + " m" : (dist/1000).toFixed(2) + " km";
+            
+            // Rotar flecha
+            document.getElementById('direction-indicator').style.transform = `rotate(${relativeAngle}deg)`;
+
+            // Texto descriptivo
+            let dirText = "";
+            if (relativeAngle > 337.5 || relativeAngle <= 22.5) dirText = "ADALANTE";
+            else if (relativeAngle > 22.5 && relativeAngle <= 67.5) dirText = "ADELANTE DERECHA";
+            else if (relativeAngle > 67.5 && relativeAngle <= 112.5) dirText = "A LA DERECHA";
+            else if (relativeAngle > 112.5 && relativeAngle <= 157.5) dirText = "ATRÁS DERECHA";
+            else if (relativeAngle > 157.5 && relativeAngle <= 202.5) dirText = "ATRÁS";
+            else if (relativeAngle > 202.5 && relativeAngle <= 247.5) dirText = "ATRÁS IZQUIERDA";
+            else if (relativeAngle > 247.5 && relativeAngle <= 292.5) dirText = "A LA IZQUIERDA";
+            else dirText = "ADELANTE IZQUIERDA";
+
+            document.getElementById('relative-direction-text').innerText = dirText;
+        }
+
+        // Fórmula Haversine para distancia en metros
         function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371e3;
-            const p1 = lat1 * Math.PI/180;
-            const p2 = lat2 * Math.PI/180;
-            const dp = (lat2-lat1) * Math.PI/180;
-            const dl = (lon2-lon1) * Math.PI/180;
-            const a = Math.sin(dp/2)**2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2)**2;
-            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+            const R = 6371e3; 
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
         }
 
+        // Rumbo (Bearing) inicial entre dos puntos
         function getBearing(lat1, lon1, lat2, lon2) {
             const y = Math.sin((lon2-lon1) * Math.PI/180) * Math.cos(lat2 * Math.PI/180);
             const x = Math.cos(lat1 * Math.PI/180) * Math.sin(lat2 * Math.PI/180) -
                       Math.sin(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.cos((lon2-lon1) * Math.PI/180);
-            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+            return (Math.atan2(y, x) * 180/Math.PI + 360) % 360;
         }
 
-        function getCardinal(deg) {
-            const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
-            return dirs[Math.round(deg / 45) % 8];
-        }
-
-        // Acciones
-        document.getElementById('btn-share').onclick = () => {
-            if (!user) return;
-            updateMsg("Obteniendo GPS...");
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-                const path = ['artifacts', appId, 'public', 'data', 'locations', myShortId];
-                await setDoc(doc(db, ...path), {
-                    lat: pos.coords.latitude,
-                    lng: pos.coords.longitude,
-                    time: Date.now()
-                });
-                updateMsg("Ubicación guardada en la nube por 10 min.");
-            }, (err) => updateMsg("Error GPS: " + err.message), { enableHighAccuracy: true });
-        };
-
-        document.getElementById('btn-follow').onclick = async () => {
-            const tid = document.getElementById('target-id').value.toUpperCase().trim();
-            if (!tid || !user) return;
-
-            updateMsg("Buscando usuario " + tid + "...");
-            const targetRef = doc(db, 'artifacts', appId, 'public', 'data', 'locations', tid);
-            const snap = await getDoc(targetRef);
-
-            if (!snap.exists()) return updateMsg("El ID no existe o no ha marcado su ubicación.");
-
-            setupUI.classList.add('hidden');
-            trackingUI.classList.remove('hidden');
-            document.getElementById('tracking-id-display').innerText = tid;
-
-            trackingUnsubscribe = onSnapshot(targetRef, (snapshot) => {
-                const data = snapshot.data();
-                if (!data) return;
-
-                const diff = (Date.now() - data.time) / 1000;
-                if (diff > 600) {
-                    updateMsg("La ubicación ha expirado (más de 10 min).");
-                    stopTracking();
-                    return;
-                }
-                
-                document.getElementById('last-update').innerText = `Hace: ${Math.round(diff)}s`;
-
-                if (watchId) navigator.geolocation.clearWatch(watchId);
-                watchId = navigator.geolocation.watchPosition((myPos) => {
-                    const dist = getDistance(myPos.coords.latitude, myPos.coords.longitude, data.lat, data.lng);
-                    const bear = getBearing(myPos.coords.latitude, myPos.coords.longitude, data.lat, data.lng);
-
-                    document.getElementById('distance').innerText = dist > 999 ? (dist/1000).toFixed(1) + "km" : Math.round(dist) + "m";
-                    document.getElementById('bearing-text').innerText = getCardinal(bear);
-                    arrow.style.transform = `rotate(${bear}deg)`;
-                }, null, { enableHighAccuracy: true });
-            });
-        };
-
-        function stopTracking() {
-            if (trackingUnsubscribe) trackingUnsubscribe();
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-            trackingUI.classList.add('hidden');
-            setupUI.classList.remove('hidden');
-            updateMsg("Seguimiento finalizado.");
-        }
-
-        document.getElementById('btn-stop').onclick = stopTracking;
-
-        window.onload = start;
     </script>
 </body>
 </html>
