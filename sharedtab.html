@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Tab | CORE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        body { font-family: 'JetBrains+Mono', monospace; background-color: #050505; color: #eee; }
+        .input-dark { background: #0a0a0a; border: 1px solid #333; color: white; padding: 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+    </style>
+</head>
+<body class="p-6 max-w-xl mx-auto">
+    <header class="mb-8 border-l-4 border-green-600 pl-4">
+        <h1 class="text-xl font-bold uppercase italic text-white">Shared Tab</h1>
+        <p class="text-[10px] text-zinc-500 uppercase tracking-widest">División de Gastos Inmediata</p>
+    </header>
+
+    <div class="space-y-6">
+        <!-- Input Principal -->
+        <div class="bg-zinc-900 p-4 rounded-lg border border-zinc-800">
+            <label class="text-[10px] text-zinc-500 uppercase block mb-2">Total de la Cuenta (€)</label>
+            <input type="number" id="totalBill" placeholder="0.00" class="w-full text-2xl font-bold input-dark mb-4">
+            
+            <div class="flex gap-2">
+                <input type="text" id="newName" placeholder="NOMBRE" class="flex-grow input-dark uppercase">
+                <button onclick="addPerson()" class="bg-green-700 px-4 py-2 rounded text-white font-bold text-xs uppercase">+</button>
+            </div>
+        </div>
+
+        <!-- Lista de Personas -->
+        <div id="peopleList" class="space-y-2"></div>
+
+        <!-- Resultados -->
+        <div id="results" class="mt-8 pt-8 border-t border-zinc-800 space-y-2"></div>
+    </div>
+
+    <script>
+        let people = [];
+
+        function addPerson() {
+            const name = document.getElementById('newName').value;
+            if(!name) return;
+            people.push({ name: name.toUpperCase(), extra: 0 });
+            document.getElementById('newName').value = '';
+            render();
+        }
+
+        function updateExtra(index, val) {
+            people[index].extra = parseFloat(val) || 0;
+            render();
+        }
+
+        function removePerson(index) {
+            people.splice(index, 1);
+            render();
+        }
+
+        function render() {
+            const list = document.getElementById('peopleList');
+            const resDiv = document.getElementById('results');
+            const total = parseFloat(document.getElementById('totalBill').value) || 0;
+            
+            list.innerHTML = '';
+            people.forEach((p, i) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-3 bg-zinc-900/50 p-2 rounded border border-zinc-800';
+                div.innerHTML = `
+                    <span class="flex-grow text-xs font-bold">${p.name}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-zinc-600">EXTRA:</span>
+                        <input type="number" value="${p.extra}" onchange="updateExtra(${i}, this.value)" class="w-16 input-dark py-1 text-center">
+                        <button onclick="removePerson(${i})" class="text-zinc-700 px-2 text-lg">×</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+
+            if(people.length > 0) {
+                let extrasTotal = people.reduce((acc, p) => acc + p.extra, 0);
+                let baseToDivide = total - extrasTotal;
+                let splitBase = baseToDivide / people.length;
+
+                resDiv.innerHTML = `<h3 class="text-[10px] text-zinc-500 uppercase mb-3">Distribución:</h3>`;
+                people.forEach(p => {
+                    const share = splitBase + p.extra;
+                    const pDiv = document.createElement('div');
+                    pDiv.className = 'flex justify-between items-center text-sm p-1';
+                    pDiv.innerHTML = `<span>${p.name}</span><span class="font-bold text-green-500">${share.toFixed(2)}€</span>`;
+                    resDiv.appendChild(pDiv);
+                });
+            }
+        }
+
+        document.getElementById('totalBill').addEventListener('input', render);
+    </script>
+</body>
+</html>
