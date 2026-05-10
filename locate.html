@@ -3,313 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Beacon Finder</title>
+    <title>Beacon Link</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
     <style>
         .compass-arrow {
-            transition: transform 0.2s ease-out;
+            transition: transform 0.1s linear;
         }
-        .pulse {
-            animation: pulse-animation 2s infinite;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
-        @keyframes pulse-animation {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
-        }
+        .loading-pulse { animation: pulse 1.5s infinite; }
     </style>
 </head>
-<body class="bg-slate-900 text-white font-sans overflow-hidden">
+<body class="bg-zinc-950 text-zinc-100 font-sans selection:bg-blue-500">
     <div id="app" class="h-screen w-full flex flex-col p-6 max-w-md mx-auto">
-        <!-- Header -->
-        <header class="text-center mb-8">
-            <h1 class="text-3xl font-bold tracking-tight text-blue-400">BEACON</h1>
-            <p class="text-slate-400 text-sm">Encuentra a tu contacto en tiempo real</p>
+        
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-black tracking-tighter text-white">BEACON<span class="text-blue-500">.</span></h1>
+            <p class="text-zinc-500 text-xs mt-1 uppercase tracking-widest">Localización Relativa P2P</p>
         </header>
 
-        <!-- Main UI -->
-        <main class="flex-1 flex flex-col justify-center gap-6">
+        <main class="flex-1 flex flex-col">
             
-            <!-- Step 1: Selection -->
-            <div id="view-selection" class="flex flex-col gap-4">
-                <button onclick="setView('create')" class="bg-blue-600 hover:bg-blue-700 py-4 px-6 rounded-2xl font-bold text-lg transition-all shadow-lg active:scale-95">
-                    SOY USUARIO A (Marcar Ubicación)
+            <!-- Vista Inicial -->
+            <div id="view-home" class="space-y-4">
+                <button onclick="startA()" class="w-full bg-white text-black h-20 rounded-2xl font-bold text-lg active:scale-95 transition-transform">
+                    GENERAR MI UBICACIÓN
                 </button>
-                <button onclick="setView('join')" class="bg-emerald-600 hover:bg-emerald-700 py-4 px-6 rounded-2xl font-bold text-lg transition-all shadow-lg active:scale-95">
-                    SOY USUARIO B (Buscar a A)
-                </button>
+                <p class="text-center text-zinc-600 text-sm italic">Crea un enlace para que otros te encuentren</p>
             </div>
 
-            <!-- Step 2: User A - Create Beacon -->
-            <div id="view-create" class="hidden flex flex-col gap-6 text-center">
-                <div id="status-a" class="p-4 bg-slate-800 rounded-xl border border-slate-700">
-                    Obteniendo GPS...
+            <!-- Vista Generando (Usuario A) -->
+            <div id="view-creating" class="hidden space-y-6 text-center">
+                <div class="py-10">
+                    <div class="loading-pulse text-blue-500 text-xl font-mono" id="gps-status">OBTENIENDO GPS...</div>
                 </div>
-                <div id="code-display" class="hidden">
-                    <p class="text-slate-400 mb-2">Comparte este código con B:</p>
-                    <div class="text-6xl font-black tracking-widest text-blue-400 mb-4" id="beacon-id">----</div>
-                    <p class="text-xs text-red-400 uppercase">Expira en 10 minutos</p>
+                <div id="link-container" class="hidden space-y-4">
+                    <div class="p-4 bg-zinc-900 border border-zinc-800 rounded-xl break-all text-sm font-mono text-zinc-400" id="share-url"></div>
+                    <button onclick="copyLink()" class="w-full bg-blue-600 h-14 rounded-xl font-bold active:scale-95 transition-transform">
+                        COPIAR ENLACE
+                    </button>
+                    <p class="text-xs text-zinc-500">Envía este enlace a la otra persona.</p>
                 </div>
-                <button onclick="resetApp()" class="text-slate-500 underline text-sm mt-4">Cancelar</button>
+                <button onclick="location.reload()" class="text-zinc-500 text-sm underline">Cancelar</button>
             </div>
 
-            <!-- Step 3: User B - Join Beacon -->
-            <div id="view-join" class="hidden flex flex-col gap-4">
-                <input type="text" id="input-code" maxlength="4" placeholder="Código de 4 dígitos" 
-                       class="bg-slate-800 border-2 border-slate-700 rounded-xl p-4 text-center text-2xl tracking-widest uppercase focus:border-emerald-500 outline-none">
-                <button onclick="joinBeacon()" class="bg-emerald-600 py-4 rounded-xl font-bold shadow-lg">RASTREAR</button>
-                <button onclick="resetApp()" class="text-slate-500 underline text-sm">Volver</button>
-            </div>
-
-            <!-- Step 4: Tracking Compass -->
-            <div id="view-tracker" class="hidden flex flex-col items-center gap-8">
-                <div id="distance-display" class="text-center">
-                    <span class="text-5xl font-bold" id="dist-val">--</span>
-                    <span class="text-2xl text-slate-400">m</span>
+            <!-- Vista Tracker (Usuario B) -->
+            <div id="view-tracker" class="hidden flex-1 flex flex-col items-center justify-between py-4">
+                <div class="text-center">
+                    <div class="text-6xl font-black tracking-tighter" id="dist-val">0</div>
+                    <div class="text-zinc-500 font-bold uppercase tracking-widest">Metros</div>
                 </div>
 
-                <!-- Visual Compass -->
-                <div class="relative w-64 h-64 flex items-center justify-center">
-                    <div class="absolute inset-0 border-4 border-slate-800 rounded-full"></div>
-                    <div class="absolute inset-4 border border-slate-700 rounded-full opacity-50"></div>
-                    <div id="arrow-container" class="compass-arrow relative w-full h-full flex items-center justify-center">
-                        <!-- SVG Arrow -->
-                        <svg viewBox="0 0 100 100" class="w-32 h-32 fill-emerald-500 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">
-                            <path d="M50 5 L90 90 L50 75 L10 90 Z" />
+                <div class="relative w-72 h-72 flex items-center justify-center">
+                    <!-- Circulos de fondo -->
+                    <div class="absolute inset-0 border border-zinc-800 rounded-full"></div>
+                    <div class="absolute inset-10 border border-zinc-800 rounded-full"></div>
+                    
+                    <!-- Flecha -->
+                    <div id="arrow-container" class="compass-arrow w-full h-full flex items-center justify-center">
+                        <svg viewBox="0 0 100 100" class="w-24 h-24 fill-blue-500">
+                            <path d="M50 0 L95 85 L50 70 L5 85 Z" />
                         </svg>
                     </div>
                 </div>
 
-                <div id="relative-direction" class="text-xl font-medium text-slate-300 italic">--</div>
+                <div class="text-center space-y-2">
+                    <div id="dir-text" class="text-xl font-bold uppercase text-white">CALIBRANDO...</div>
+                    <div class="text-xs text-zinc-600 max-w-[200px]">Apunta la parte superior de tu móvil hacia adelante</div>
+                </div>
 
-                <button onclick="resetApp()" class="mt-4 text-red-400 text-sm border border-red-900/30 px-4 py-2 rounded-lg">Detener Rastreo</button>
+                <button onclick="location.href='index.html'" class="w-full border border-zinc-800 h-12 rounded-xl text-zinc-500 text-sm">
+                    SALIR
+                </button>
             </div>
+
         </main>
-
-        <footer class="mt-auto py-4 text-center">
-            <div id="debug-info" class="text-[10px] text-slate-600 break-all font-mono"></div>
-        </footer>
     </div>
 
-    <!-- UI Modal for Notifications -->
-    <div id="modal" class="fixed inset-0 bg-black/80 flex items-center justify-center hidden z-50 p-6">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 max-w-xs w-full text-center">
-            <p id="modal-text" class="mb-6"></p>
-            <button onclick="closeModal()" class="w-full bg-blue-600 py-2 rounded-lg">Entendido</button>
-        </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase Setup
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'beacon-app-default';
-
-        let currentUser = null;
-        let beaconData = null;
-        let watchId = null;
+    <script>
+        let targetCoords = null;
         let deviceHeading = 0;
-        let unsubscribeBeacon = null;
+        let watchId = null;
 
-        // Initialize Auth
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (e) { console.error("Auth error", e); }
+        // Al cargar, verificar si hay coordenadas en la URL
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            const lat = params.get('lat');
+            const lon = params.get('lon');
+
+            if (lat && lon) {
+                targetCoords = { lat: parseFloat(lat), lon: parseFloat(lon) };
+                startB();
+            }
         };
 
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            if (user) console.log("Autenticado como:", user.uid);
-        });
+        // LÓGICA USUARIO A
+        function startA() {
+            showView('creating');
+            if (!navigator.geolocation) return alert("GPS no soportado");
 
-        initAuth();
-
-        // View Controller
-        window.setView = (view) => {
-            const views = ['selection', 'create', 'join', 'tracker'];
-            views.forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
-            document.getElementById(`view-${view}`).classList.remove('hidden');
-
-            if (view === 'create') startBeaconCreation();
-            if (view === 'tracker') requestOrientation();
-        };
-
-        window.resetApp = () => {
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-            if (unsubscribeBeacon) unsubscribeBeacon();
-            window.location.reload();
-        };
-
-        // Utility: Distance & Bearing
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371e3; // metres
-            const φ1 = lat1 * Math.PI/180;
-            const φ2 = lat2 * Math.PI/180;
-            const Δφ = (lat2-lat1) * Math.PI/180;
-            const Δλ = (lon2-lon1) * Math.PI/180;
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                      Math.cos(φ1) * Math.cos(φ2) *
-                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c; 
-        }
-
-        function calculateBearing(lat1, lon1, lat2, lon2) {
-            const φ1 = lat1 * Math.PI/180;
-            const φ2 = lat2 * Math.PI/180;
-            const λ1 = lon1 * Math.PI/180;
-            const λ2 = lon2 * Math.PI/180;
-            const y = Math.sin(λ2-λ1) * Math.cos(φ2);
-            const x = Math.cos(φ1) * Math.sin(φ2) -
-                      Math.sin(φ1) * Math.cos(φ2) * Math.cos(λ2-λ1);
-            const θ = Math.atan2(y, x);
-            return (θ * 180 / Math.PI + 360) % 360; 
-        }
-
-        // Usuario A Logic
-        async function startBeaconCreation() {
-            if (!navigator.geolocation) return showError("GPS no disponible");
-            
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-                const code = Math.floor(1000 + Math.random() * 9000).toString();
-                const beaconRef = doc(db, 'artifacts', appId, 'public', 'data', code);
+            navigator.geolocation.getCurrentPosition(pos => {
+                const lat = pos.coords.latitude.toFixed(6);
+                const lon = pos.coords.longitude.toFixed(6);
+                const url = `${window.location.origin}${window.location.pathname}?lat=${lat}&lon=${lon}`;
                 
-                const data = {
-                    lat: pos.coords.latitude,
-                    lon: pos.coords.longitude,
-                    createdAt: serverTimestamp(),
-                    createdBy: currentUser.uid
-                };
-
-                try {
-                    await setDoc(beaconRef, data);
-                    document.getElementById('status-a').innerText = "📍 Ubicación guardada";
-                    document.getElementById('code-display').classList.remove('hidden');
-                    document.getElementById('beacon-id').innerText = code;
-                    
-                    // Cleanup auto after 10 mins (local trigger for UI)
-                    setTimeout(() => {
-                        deleteDoc(beaconRef);
-                        showError("El código ha expirado.");
-                        resetApp();
-                    }, 600000);
-
-                } catch (e) {
-                    showError("Error al guardar en la nube");
-                }
-            }, (err) => showError("Error obteniendo ubicación. Asegúrate de dar permisos."));
+                document.getElementById('gps-status').innerText = "¡UBICACIÓN FIJADA!";
+                document.getElementById('link-container').classList.remove('hidden');
+                document.getElementById('share-url').innerText = url;
+                window.generatedUrl = url;
+            }, err => {
+                alert("Error de GPS: " + err.message);
+                location.reload();
+            }, { enableHighAccuracy: true });
         }
 
-        // Usuario B Logic
-        window.joinBeacon = async () => {
-            const code = document.getElementById('input-code').value.toUpperCase().trim();
-            if (!code || code.length < 4) return;
+        function copyLink() {
+            const el = document.createElement('textarea');
+            el.value = window.generatedUrl;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            alert("Enlace copiado al portapapeles");
+        }
 
-            const beaconRef = doc(db, 'artifacts', appId, 'public', 'data', code);
-            const snap = await getDoc(beaconRef);
-
-            if (!snap.exists()) {
-                return showError("Código inválido o expirado");
-            }
-
-            beaconData = snap.data();
+        // LÓGICA USUARIO B
+        function startB() {
+            showView('tracker');
             
-            // Check expiry manually (Firestore rules should handle this but app logic for UX)
-            const created = beaconData.createdAt?.toDate();
-            if (created && (new Date() - created > 600000)) {
-                await deleteDoc(beaconRef);
-                return showError("Código expirado");
-            }
-
-            setView('tracker');
-            startTracking();
-        };
-
-        function startTracking() {
-            watchId = navigator.geolocation.watchPosition((pos) => {
-                const myLat = pos.coords.latitude;
-                const myLon = pos.coords.longitude;
-                const targetLat = beaconData.lat;
-                const targetLon = beaconData.lon;
-
-                const distance = calculateDistance(myLat, myLon, targetLat, targetLon);
-                const bearing = calculateBearing(myLat, myLon, targetLat, targetLon);
-
-                updateUI(distance, bearing);
-            }, (err) => console.error(err), { enableHighAccuracy: true });
-        }
-
-        function updateUI(distance, targetBearing) {
-            // Distancia
-            document.getElementById('dist-val').innerText = Math.round(distance);
-
-            // Dirección Relativa (Bearing - Heading)
-            // Note: deviceHeading is the direction the phone is pointing (0 = North)
-            const relativeBearing = (targetBearing - deviceHeading + 360) % 360;
-            
-            document.getElementById('arrow-container').style.transform = `rotate(${relativeBearing}deg)`;
-
-            // Texto de ayuda
-            let text = "";
-            if (relativeBearing >= 337.5 || relativeBearing < 22.5) text = "Sigue recto";
-            else if (relativeBearing >= 22.5 && relativeBearing < 67.5) text = "Gira un poco a la derecha";
-            else if (relativeBearing >= 67.5 && relativeBearing < 112.5) text = "Gira a la derecha";
-            else if (relativeBearing >= 112.5 && relativeBearing < 157.5) text = "Está detrás a la derecha";
-            else if (relativeBearing >= 157.5 && relativeBearing < 202.5) text = "Está detrás tuyo";
-            else if (relativeBearing >= 202.5 && relativeBearing < 247.5) text = "Está detrás a la izquierda";
-            else if (relativeBearing >= 247.5 && relativeBearing < 292.5) text = "Gira a la izquierda";
-            else text = "Gira un poco a la izquierda";
-
-            document.getElementById('relative-direction').innerText = text;
-        }
-
-        // Sensor de Orientación
-        function requestOrientation() {
+            // Solicitar permisos de orientación (iOS 13+)
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(response => {
-                        if (response === 'granted') {
-                            window.addEventListener('deviceorientation', handleOrientation);
-                        }
-                    }).catch(console.error);
+                DeviceOrientationEvent.requestPermission().then(res => {
+                    if (res === 'granted') window.addEventListener('deviceorientation', handleOrientation);
+                });
             } else {
                 window.addEventListener('deviceorientation', handleOrientation);
             }
+
+            // Iniciar seguimiento GPS
+            watchId = navigator.geolocation.watchPosition(pos => {
+                const dist = calculateDistance(pos.coords.latitude, pos.coords.longitude, targetCoords.lat, targetCoords.lon);
+                const bearing = calculateBearing(pos.coords.latitude, pos.coords.longitude, targetCoords.lat, targetCoords.lon);
+                
+                updateTrackerUI(dist, bearing);
+            }, err => console.error(err), { enableHighAccuracy: true });
         }
 
-        function handleOrientation(event) {
-            // webkitCompassHeading es específico de iOS para el Norte absoluto
-            // alpha es el estándar pero requiere ajustes
-            let heading = event.webkitCompassHeading || (360 - event.alpha);
-            if (heading !== undefined) {
-                deviceHeading = heading;
-            }
+        function handleOrientation(e) {
+            // Brújula: 0 es Norte
+            deviceHeading = e.webkitCompassHeading || (360 - e.alpha) || 0;
         }
 
-        // Modal Helpers
-        function showError(msg) {
-            document.getElementById('modal-text').innerText = msg;
-            document.getElementById('modal').classList.remove('hidden');
+        function updateTrackerUI(dist, bearing) {
+            document.getElementById('dist-val').innerText = Math.round(dist);
+            
+            // El ángulo de la flecha es (Rumbo al objetivo - Orientación del móvil)
+            const arrowAngle = (bearing - deviceHeading + 360) % 360;
+            document.getElementById('arrow-container').style.transform = `rotate(${arrowAngle}deg)`;
+
+            // Texto descriptivo
+            const dirText = document.getElementById('dir-text');
+            if (arrowAngle < 20 || arrowAngle > 340) dirText.innerText = "Sigue Adelante";
+            else if (arrowAngle >= 20 && arrowAngle < 160) dirText.innerText = "Gira a la Derecha";
+            else if (arrowAngle >= 160 && arrowAngle < 200) dirText.innerText = "Está detrás tuyo";
+            else dirText.innerText = "Gira a la Izquierda";
         }
 
-        window.closeModal = () => {
-            document.getElementById('modal').classList.add('hidden');
-        };
+        // MATH UTILS
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const p1 = lat1 * Math.PI/180;
+            const p2 = lat2 * Math.PI/180;
+            const dp = (lat2-lat1) * Math.PI/180;
+            const dl = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+        }
 
+        function calculateBearing(lat1, lon1, lat2, lon2) {
+            const p1 = lat1 * Math.PI/180;
+            const p2 = lat2 * Math.PI/180;
+            const dl = (lon2-lon1) * Math.PI/180;
+            const y = Math.sin(dl) * Math.cos(p2);
+            const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
+
+        function showView(id) {
+            ['home', 'creating', 'tracker'].forEach(v => document.getElementById('view-'+v).classList.add('hidden'));
+            document.getElementById('view-'+id).classList.remove('hidden');
+        }
     </script>
 </body>
 </html>
