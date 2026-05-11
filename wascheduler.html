@@ -2,171 +2,139 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GHOSTWRITER V4 | CRITICAL</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GHOSTWRITER V7 | CORE-SYSTEM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-        body { background-color: #000; color: #00ff41; font-family: 'JetBrains+Mono', monospace; overflow: hidden; }
-        .input-core { background: #050505; border: 1px solid #00ff41; color: #00ff41; outline: none; }
-        .surface-trigger { height: 70vh; cursor: pointer; border: 2px solid #ff0000; background: rgba(255,0,0,0.05); }
-        .blink-red { animation: blinker 0.4s linear infinite; color: #ff0000; }
-        @keyframes blinker { 50% { opacity: 0; } }
-        #permission-overlay { background: rgba(0,0,0,0.95); z-index: 100; }
+        body { background: #000; color: #00ff41; font-family: 'JetBrains Mono', monospace; }
+        .architect-ui { border: 1px solid #00ff41; background: #050505; }
+        .blink { animation: b 1s infinite; }
+        @keyframes b { 50% { opacity: 0.3; } }
     </style>
 </head>
-<body class="h-screen flex flex-col p-4">
+<body class="p-6 flex flex-col min-h-screen">
 
-    <!-- OVERLAY DE PERMISOS CRÍTICOS -->
-    <div id="permission-overlay" class="fixed inset-0 flex flex-col items-center justify-center p-6 text-center">
-        <h2 class="text-xl font-bold mb-4 uppercase tracking-tighter">System Access Required</h2>
-        <p class="text-[10px] text-zinc-500 mb-8 uppercase">Para despertar el dispositivo y emitir alertas en la pantalla de bloqueo, se requiere autorización de nivel ARCHITECT.</p>
-        <button onclick="enableSystems()" class="bg-[#00ff41] text-black font-bold py-4 px-8 rounded-none uppercase text-xs">
-            Enable System Alerts
-        </button>
-    </div>
-
-    <header class="mb-4 border-b border-[#00ff4133] pb-2 flex justify-between items-end">
-        <div>
-            <h1 class="text-lg font-bold uppercase tracking-tighter">The Ghostwriter</h1>
-            <p class="text-[8px] text-zinc-500 uppercase font-bold">Execution Engine V4.0</p>
-        </div>
-        <div id="sys-clock" class="text-xs font-bold">00:00:00</div>
+    <header class="mb-6 border-b border-[#00ff4144] pb-4">
+        <h1 class="text-xl font-bold uppercase tracking-tighter">Ghostwriter V7</h1>
+        <p class="text-[9px] text-zinc-500 uppercase">Self-Contained Service Worker Engine</p>
     </header>
 
-    <main id="setup-view" class="space-y-4">
-        <div class="border border-[#00ff4133] p-4 space-y-3">
-            <input type="tel" id="phone" placeholder="PHONE: 34600000000" class="w-full p-2 text-xs input-core">
-            <textarea id="msg" rows="2" placeholder="PAYLOAD..." class="w-full p-2 text-xs input-core resize-none"></textarea>
-            <div class="flex gap-2">
-                <input type="datetime-local" id="time" class="flex-grow p-2 text-xs input-core">
-                <button onclick="commit()" class="bg-[#00ff41] text-black px-4 text-[10px] font-bold uppercase">Commit</button>
-            </div>
-        </div>
-        <div id="task-list" class="space-y-2 text-[10px]"></div>
-    </main>
+    <!-- ALERTA DE CONFIGURACIÓN CRÍTICA -->
+    <div id="flag-alert" class="architect-ui border-yellow-500 p-4 mb-6 text-yellow-500 text-[10px] space-y-2">
+        <p class="font-bold uppercase blink">!! REQUISITO DE KERNEL DETECTADO !!</p>
+        <p>Para delegar la ejecución al reloj del sistema y ahorrar 99% de batería, debes habilitar el soporte nativo:</p>
+        <ol class="list-decimal ml-4 uppercase">
+            <li>Escribe <span class="text-white font-bold select-all">chrome://flags</span> en la barra de direcciones.</li>
+            <li>Busca: <span class="text-white font-bold">"Experimental Web Platform features"</span>.</li>
+            <li>Cámbialo a <span class="text-white font-bold text-lg">ENABLED</span> y reinicia Chrome.</li>
+        </ol>
+    </div>
 
-    <!-- VISTA DE DISPARO (CRITICAL) -->
-    <div id="trigger-view" class="hidden flex-grow flex flex-col">
-        <div class="text-center mb-4">
-            <div class="blink-red font-bold text-xl uppercase tracking-widest">! EXECUTION REQUIRED !</div>
-            <p id="trigger-meta" class="text-[9px] text-zinc-400"></p>
+    <div class="architect-ui p-4 space-y-4">
+        <button onclick="deployGhostWorker()" class="w-full bg-[#00ff41] text-black p-3 font-bold text-xs uppercase hover:bg-white transition-all">
+            Deploy Ghost Worker & Permissions
+        </button>
+        
+        <div class="space-y-2 pt-4 border-t border-[#00ff4122]">
+            <input type="tel" id="target" placeholder="TEL: 34600000000" class="w-full bg-black border border-[#00ff41] p-2 text-xs text-[#00ff41] outline-none">
+            <textarea id="payload" placeholder="PAYLOAD..." class="w-full bg-black border border-[#00ff41] p-2 text-xs text-[#00ff41] outline-none h-20"></textarea>
+            <input type="datetime-local" id="time" class="w-full bg-black border border-[#00ff41] p-2 text-xs text-[#00ff41] outline-none">
+            <button onclick="scheduleNative()" class="w-full border border-[#00ff41] p-3 font-bold text-xs uppercase hover:bg-[#00ff41] hover:text-black transition-all">
+                Schedule Task
+            </button>
         </div>
-        <div onclick="execute()" class="surface-trigger flex items-center justify-center">
-            <div class="text-center">
-                <div class="text-xs font-bold uppercase tracking-[0.4em] text-white">Unlock & Tap Here</div>
-                <div class="text-[8px] mt-2 opacity-50 uppercase">Securing WhatsApp Tunnel...</div>
-            </div>
-        </div>
+    </div>
+
+    <div class="mt-auto pt-6 text-[8px] text-zinc-600 uppercase">
+        Execution Layer: <span id="layer-status" class="text-red-900">Offline</span><br>
+        Browser: <span id="browser-info"></span>
     </div>
 
     <script>
-        let tasks = JSON.parse(localStorage.getItem('ghost_v4') || '[]');
-        let activeTask = null;
-        let audioCtx = null;
+        document.getElementById('browser-info').innerText = navigator.userAgent.substring(0, 50) + "...";
 
-        function enableSystems() {
-            // Inicializar Audio Context por interacción de usuario
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Solicitar Permisos de Notificación
-            if ("Notification" in window) {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") {
-                        document.getElementById('permission-overlay').classList.add('hidden');
-                        new Notification("GHOSTWRITER ACTIVE", { body: "System monitoring initialized." });
+        // INYECCIÓN DE SERVICE WORKER VIA BLOB
+        const swCode = `
+            self.addEventListener('install', (e) => self.skipWaiting());
+            self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
+
+            self.addEventListener('notificationclick', function(event) {
+                event.notification.close();
+                if (event.notification.data && event.notification.data.url) {
+                    event.waitUntil(
+                        clients.openWindow(event.notification.data.url)
+                    );
+                }
+            });
+
+            // Listener para mensajes del hilo principal
+            self.addEventListener('message', (event) => {
+                console.log('Task received in GhostWorker:', event.data);
+            });
+        `;
+
+        async function deployGhostWorker() {
+            if ('serviceWorker' in navigator) {
+                const blob = new Blob([swCode], { type: 'text/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+                
+                try {
+                    const reg = await navigator.serviceWorker.register(swUrl);
+                    const permission = await Notification.requestPermission();
+                    
+                    if (permission === 'granted' && reg) {
+                        document.getElementById('layer-status').innerText = 'CORE_ACTIVE';
+                        document.getElementById('layer-status').className = 'text-green-500';
+                        console.log("GhostWorker operativo via Blob.");
                     }
-                });
+                } catch (err) {
+                    console.error("Error de despliegue:", err);
+                    alert("Fallo en despliegue de trabajador. Revisa protocolos de seguridad.");
+                }
             }
         }
 
-        function commit() {
-            const t = {
-                id: Date.now(),
-                phone: document.getElementById('phone').value.replace(/\D/g, ''),
-                msg: document.getElementById('msg').value,
-                time: new Date(document.getElementById('time').value).getTime()
-            };
-            if(!t.phone || !t.msg || isNaN(t.time)) return;
-            tasks.push(t);
-            localStorage.setItem('ghost_v4', JSON.stringify(tasks));
-            render();
-        }
+        async function scheduleNative() {
+            const reg = await navigator.serviceWorker.getRegistration();
+            const timestamp = new Date(document.getElementById('time').value).getTime();
+            const tel = document.getElementById('target').value.replace(/\D/g, '');
+            const msg = document.getElementById('payload').value;
 
-        function render() {
-            const list = document.getElementById('task-list');
-            list.innerHTML = tasks.sort((a,b)=>a.time-b.time).map(t => `
-                <div class="border border-zinc-800 p-2 flex justify-between">
-                    <span>+${t.phone} | ${new Date(t.time).toLocaleTimeString()}</span>
-                    <button onclick="del(${t.id})" class="text-red-900">REMOVE</button>
-                </div>
-            `).join('');
-        }
+            if (!reg || isNaN(timestamp) || !tel) {
+                alert("ERROR: Datos incompletos o Worker no desplegado.");
+                return;
+            }
 
-        setInterval(() => {
-            const now = Date.now();
-            document.getElementById('sys-clock').innerText = new Date().toLocaleTimeString();
-            
-            const next = tasks.find(t => now >= t.time);
-            if(next && !activeTask) fireAlert(next);
-        }, 1000);
-
-        function fireAlert(task) {
-            activeTask = task;
-            
-            // 1. Notificación de Sistema (Aparece en pantalla de bloqueo)
-            if (Notification.permission === "granted") {
-                new Notification("! WHATSAPP PENDING !", {
-                    body: `Target: +${task.phone}. Tap to execute.`,
+            try {
+                // El uso de showTrigger requiere habilitar el flag mencionado en la UI
+                await reg.showNotification("GHOSTWRITER V7: READY", {
+                    body: `Destino: +${tel}. Toca para disparar payload.`,
+                    showTrigger: new TimestampTrigger(timestamp), 
+                    data: { url: `whatsapp://send?phone=${tel}&text=${encodeURIComponent(msg)}` },
+                    icon: 'https://cdn-icons-png.flaticon.com/512/124/124034.png',
+                    vibrate: [500, 100, 500, 100, 500],
                     requireInteraction: true,
-                    silent: false
-                }).onclick = () => { window.focus(); };
+                    tag: 'whatsapp-trigger-' + Date.now()
+                });
+                
+                alert("OPERACIÓN DELEGADA: El sistema despertará a las " + new Date(timestamp).toLocaleTimeString());
+            } catch (e) {
+                console.warn("TimestampTrigger no soportado o Flag desactivado. Usando modo persistencia.");
+                // Fallback: Si el flag no está activo, intentamos usar el timer tradicional
+                const delay = timestamp - Date.now();
+                if(delay > 0) {
+                    setTimeout(() => {
+                        reg.showNotification("DISPARO MANUAL (Fallback)", {
+                            body: `Click para enviar a +${tel}`,
+                            data: { url: `whatsapp://send?phone=${tel}&text=${encodeURIComponent(msg)}` },
+                            requireInteraction: true
+                        });
+                    }, delay);
+                    alert("Aviso: El flag 'Experimental Web Platform' no está activo. Mantén la pestaña abierta para asegurar el disparo.");
+                }
             }
-
-            // 2. Alerta Sonora (Saturación de frecuencia para despertar)
-            if (audioCtx) {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.value = 880;
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 1.5);
-            }
-
-            // 3. UI Update
-            document.getElementById('setup-view').classList.add('hidden');
-            document.getElementById('trigger-view').classList.remove('hidden');
-            document.getElementById('trigger-meta').innerText = `SEND TO: +${task.phone}`;
-            
-            // Vibración Crítica
-            if ("vibrate" in navigator) navigator.vibrate([500, 200, 500, 200, 1000]);
         }
-
-        function execute() {
-            if(!activeTask) return;
-            window.location.href = `whatsapp://send?phone=${activeTask.phone}&text=${encodeURIComponent(activeTask.msg)}`;
-            tasks = tasks.filter(t => t.id !== activeTask.id);
-            localStorage.setItem('ghost_v4', JSON.stringify(tasks));
-            reset();
-        }
-
-        function reset() {
-            activeTask = null;
-            document.getElementById('setup-view').classList.remove('hidden');
-            document.getElementById('trigger-view').classList.add('hidden');
-            render();
-        }
-
-        function del(id) {
-            tasks = tasks.filter(t => t.id !== id);
-            localStorage.setItem('ghost_v4', JSON.stringify(tasks));
-            render();
-        }
-
-        render();
     </script>
 </body>
 </html>
