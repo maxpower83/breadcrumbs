@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WA SCHEDULER | THE GHOSTWRITER</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        body { background-color: #050505; color: #00ff41; font-family: 'JetBrains+Mono', monospace; overflow: hidden; }
+        .architect-border { border: 1px solid #00ff4144; }
+        .input-core { background: #000; border: 1px solid #00ff41; color: #00ff41; outline: none; transition: all 0.2s; }
+        .input-core:focus { box-shadow: 0 0 10px #00ff4144; border-color: #fff; }
+        .surface-trigger { height: 75vh; cursor: pointer; transition: background 0.1s; }
+        .surface-trigger:active { background: #00ff4122; }
+        .blink { animation: blinker 0.8s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+        .scanline { width: 100%; height: 2px; background: rgba(0, 255, 65, 0.1); position: absolute; animation: scan 4s linear infinite; pointer-events: none; }
+        @keyframes scan { from { top: 0; } to { top: 100%; } }
+    </style>
+</head>
+<body class="h-screen flex flex-col p-4 relative">
+    <div class="scanline"></div>
+
+    <!-- HEADER OPERATIVO -->
+    <header class="mb-6 flex justify-between items-end border-b border-[#00ff4133] pb-2">
+        <div>
+            <h1 class="text-xl font-bold tracking-tighter uppercase">WhatsApp Scheduler</h1>
+            <p class="text-[9px] tracking-[0.2em] text-zinc-500 font-bold uppercase">The Ghostwriter_v3.1</p>
+        </div>
+        <div class="text-right text-[10px] leading-tight">
+            <div id="sys-clock">00:00:00</div>
+            <div class="text-zinc-600">STATUS: <span id="status-tag" class="text-[#00ff41]">STANDBY</span></div>
+        </div>
+    </header>
+
+    <!-- INTERFAZ DE CARGA DE DATOS -->
+    <main id="setup-view" class="space-y-4">
+        <section class="architect-border p-4 bg-black/50">
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[9px] uppercase tracking-widest block mb-1">Target_Phone</label>
+                    <input type="tel" id="phone" placeholder="34600000000" class="w-full p-2 text-sm input-core">
+                </div>
+                <div>
+                    <label class="text-[9px] uppercase tracking-widest block mb-1">Message_Payload</label>
+                    <textarea id="msg" rows="3" placeholder="Escribe el mensaje aquí..." class="w-full p-2 text-sm input-core resize-none"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[9px] uppercase tracking-widest block mb-1">Execution_Time</label>
+                        <input type="datetime-local" id="time" class="w-full p-2 text-xs input-core">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="commitTask()" class="w-full bg-[#00ff41] text-black font-bold py-2 text-xs uppercase hover:bg-white transition-colors">
+                            Commit_to_Memory
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="text-[9px] uppercase tracking-widest text-zinc-500 mb-2">Pending_Tasks</h2>
+            <div id="task-list" class="space-y-2 max-h-40 overflow-y-auto">
+                <!-- Inyección dinámica -->
+            </div>
+        </section>
+    </main>
+
+    <!-- ZONA DE DISPARO DE SUPERFICIE (MODO CRÍTICO) -->
+    <div id="trigger-view" class="hidden flex-grow flex flex-col pt-4">
+        <div class="text-center mb-6">
+            <div class="text-red-600 font-bold text-2xl blink uppercase tracking-tighter">! Critical Window Open !</div>
+            <p id="trigger-meta" class="text-[10px] text-zinc-500 mt-1"></p>
+        </div>
+        
+        <div onclick="execute()" class="surface-trigger architect-border rounded-lg flex items-center justify-center relative overflow-hidden group">
+            <div class="absolute inset-0 bg-[#00ff4105] group-active:bg-[#00ff4115]"></div>
+            <div class="text-center z-10 p-8">
+                <div class="text-4xl mb-4">⛯</div>
+                <div class="text-xs font-bold uppercase tracking-[0.5em] text-white">Tap Anywhere to Fire</div>
+                <div class="text-[8px] text-zinc-600 mt-2">SECURE_TUNNEL_READY</div>
+            </div>
+        </div>
+
+        <button onclick="abortSequence()" class="mt-6 text-[10px] text-zinc-600 uppercase tracking-widest underline decoration-red-900">Abort_Sequence</button>
+    </div>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('ghostwriter_db') || '[]');
+        let activeTask = null;
+
+        function commitTask() {
+            const p = document.getElementById('phone').value.replace(/\D/g, '');
+            const m = document.getElementById('msg').value;
+            const t = new Date(document.getElementById('time').value).getTime();
+
+            if(!p || !m || isNaN(t)) return;
+
+            tasks.push({ id: Date.now(), phone: p, msg: m, time: t });
+            localStorage.setItem('ghostwriter_db', JSON.stringify(tasks));
+            renderTasks();
+            document.getElementById('msg').value = '';
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('task-list');
+            if(tasks.length === 0) {
+                container.innerHTML = '<div class="text-[9px] text-zinc-800 text-center py-4">NO_TASKS_IN_QUEUE</div>';
+                return;
+            }
+            container.innerHTML = tasks.sort((a,b) => a.time - b.time).map(t => `
+                <div class="architect-border p-2 flex justify-between items-center text-[10px] bg-black/30">
+                    <div>
+                        <span class="text-white font-bold">+${t.phone}</span><br>
+                        <span class="text-zinc-600">${new Date(t.time).toLocaleString()}</span>
+                    </div>
+                    <button onclick="deleteTask(${t.id})" class="text-red-900 px-2 font-bold hover:text-red-500">X</button>
+                </div>
+            `).join('');
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            localStorage.setItem('ghostwriter_db', JSON.stringify(tasks));
+            renderTasks();
+        }
+
+        setInterval(() => {
+            const now = Date.now();
+            document.getElementById('sys-clock').innerText = new Date().toTimeString().split(' ')[0];
+            
+            const next = tasks.find(t => now >= t.time);
+            if(next && !activeTask) activateTrigger(next);
+        }, 1000);
+
+        function activateTrigger(task) {
+            activeTask = task;
+            document.getElementById('setup-view').classList.add('hidden');
+            document.getElementById('trigger-view').classList.remove('hidden');
+            document.getElementById('status-tag').innerText = 'CRITICAL';
+            document.getElementById('status-tag').classList.replace('text-[#00ff41]', 'text-red-600');
+            document.getElementById('trigger-meta').innerText = `TARGET: +${task.phone} | PAYLOAD: ${task.msg.substring(0, 20)}...`;
+            
+            // Sonido de sistema
+            const ac = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ac.createOscillator();
+            const g = ac.createGain();
+            osc.connect(g);
+            g.connect(ac.destination);
+            osc.frequency.value = 523.25; // C5
+            g.gain.setValueAtTime(0.05, ac.currentTime);
+            osc.start();
+            osc.stop(ac.currentTime + 0.15);
+        }
+
+        function execute() {
+            if(!activeTask) return;
+            const waUrl = `whatsapp://send?phone=${activeTask.phone}&text=${encodeURIComponent(activeTask.msg)}`;
+            window.location.href = waUrl;
+            
+            tasks = tasks.filter(t => t.id !== activeTask.id);
+            localStorage.setItem('ghostwriter_db', JSON.stringify(tasks));
+            abortSequence();
+        }
+
+        function abortSequence() {
+            activeTask = null;
+            document.getElementById('setup-view').classList.remove('hidden');
+            document.getElementById('trigger-view').classList.add('hidden');
+            document.getElementById('status-tag').innerText = 'STANDBY';
+            document.getElementById('status-tag').classList.replace('text-red-600', 'text-[#00ff41]');
+            renderTasks();
+        }
+
+        renderTasks();
+    </script>
+</body>
+                          </html>
