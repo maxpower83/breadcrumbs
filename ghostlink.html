@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <title>Ghost Link v3 | Dynamic Trace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+        body { font-family: 'Space Mono', monospace; }
+        .scanner-line {
+            height: 2px;
+            background: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 0 15px #3b82f6;
+            animation: scan 3s linear infinite;
+        }
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(288px); }
+        }
+        .compass-transition {
+            transition: transform 0.2s cubic-bezier(0.33, 1, 0.68, 1);
+        }
+        .ghost-pulse {
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(.3); opacity: 0.8; }
+            80%, 100% { transform: scale(1.2); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-black text-zinc-300 selection:bg-blue-900 overflow-hidden">
+
+    <div id="app" class="h-screen w-full flex flex-col p-8 max-w-md mx-auto">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-start mb-8">
+            <div class="flex flex-col">
+                <h1 class="text-xl font-bold tracking-tighter text-white flex items-center gap-2">
+                    <span id="pulse-dot" class="w-2 h-2 bg-zinc-700 rounded-full"></span>
+                    GHOST LINK <span class="text-[10px] text-blue-500 ml-1">v3</span>
+                </h1>
+                <div class="flex gap-2 mt-2">
+                    <a href="index.html" class="text-[9px] bg-zinc-900 hover:bg-zinc-800 text-zinc-400 px-2 py-1 rounded border border-zinc-800 transition-colors uppercase tracking-widest">
+                        ← HUB
+                    </a>
+                    <div id="mode-badge" class="text-[9px] bg-zinc-900 text-zinc-500 px-2 py-1 rounded border border-zinc-800 uppercase tracking-widest">
+                        Modo: Offline
+                    </div>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="text-[10px] text-zinc-500 bg-zinc-900 px-2 py-1 rounded">DYNAMIC_CORE</span>
+                <p id="system-status" class="text-[8px] text-zinc-700 uppercase tracking-widest mt-1">Ready</p>
+            </div>
+        </header>
+
+        <main class="flex-1 flex flex-col justify-center">
+            
+            <!-- VIEW: HOME (Generator) -->
+            <div id="view-home" class="space-y-6">
+                <div class="border border-zinc-800 p-6 rounded-2xl bg-zinc-950/50 relative overflow-hidden">
+                    <h2 class="text-white font-bold mb-2 uppercase text-sm">Protocolo de Rastreo</h2>
+                    <p class="text-[11px] text-zinc-500 mb-6 leading-relaxed">Selecciona el tipo de rastro para emitir:</p>
+                    
+                    <div class="space-y-3">
+                        <button onclick="startBroadcast(false)" class="w-full bg-zinc-900 hover:bg-zinc-800 text-white h-14 rounded-xl font-bold transition-all flex items-center justify-between px-6 border border-zinc-800">
+                            <span class="text-xs uppercase">Rastro Estático</span>
+                            <span class="text-[9px] text-zinc-500">Punto Fijo</span>
+                        </button>
+                        
+                        <button onclick="startBroadcast(true)" class="w-full bg-blue-600 hover:bg-blue-500 text-white h-14 rounded-xl font-bold transition-all flex items-center justify-between px-6 shadow-lg shadow-blue-900/20">
+                            <span class="text-xs uppercase">Rastro Dinámico</span>
+                            <span class="text-[9px] text-blue-200">En Tiempo Real</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="result-container" class="hidden space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div class="p-4 bg-zinc-900 border border-blue-900/30 rounded-xl">
+                        <p class="text-[10px] text-blue-400 mb-2 font-bold tracking-widest uppercase">Enlace de Intercepción:</p>
+                        <div id="share-url" class="text-[11px] break-all text-zinc-400 font-mono leading-tight mb-4 opacity-70"></div>
+                        <button onclick="copyLink()" id="btn-copy" class="w-full bg-white text-black h-12 rounded-lg text-sm font-bold hover:bg-zinc-200 transition-colors">
+                            COPIAR ENLACE
+                        </button>
+                    </div>
+                    <p id="broadcast-status" class="text-[10px] text-center text-blue-500 uppercase tracking-tighter animate-pulse">Transmitiendo coordenadas...</p>
+                </div>
+            </div>
+
+            <!-- VIEW: TRACKER (Receiver) -->
+            <div id="view-tracker" class="hidden flex-1 flex flex-col items-center justify-between">
+                <div class="text-center w-full">
+                    <div class="flex justify-between text-[10px] text-zinc-500 mb-8 uppercase tracking-widest px-2">
+                        <span id="signal-label">Sincronizando...</span>
+                        <span id="time-remaining" class="text-blue-400">--:--</span>
+                    </div>
+                    <div class="text-7xl font-black tracking-tighter text-white inline-block" id="dist-val">0</div>
+                    <div class="text-blue-500 font-bold uppercase tracking-widest text-xs mt-2">Metros</div>
+                </div>
+
+                <div class="relative w-64 h-64 flex items-center justify-center">
+                    <div class="absolute inset-0 border border-zinc-900 rounded-full"></div>
+                    <div class="absolute inset-8 border border-zinc-800 rounded-full"></div>
+                    <div id="dynamic-ring" class="absolute inset-0 border border-blue-500/20 rounded-full hidden"></div>
+                    
+                    <div class="scanner-line absolute w-full top-0 left-0 rounded-full opacity-20"></div>
+
+                    <div id="arrow-container" class="compass-transition w-full h-full flex items-center justify-center">
+                        <svg viewBox="0 0 100 100" class="w-16 h-16 fill-white drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]">
+                            <path d="M50 5 L90 85 L50 70 L10 85 Z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="text-center w-full">
+                    <div id="dir-text" class="text-lg font-bold uppercase text-blue-500 tracking-tighter mb-1">CALIBRANDO...</div>
+                    <p class="text-[10px] text-zinc-600 uppercase">Mantén el dispositivo en horizontal</p>
+                </div>
+
+                <button onclick="location.href=window.location.pathname" class="w-full border border-zinc-800 h-12 rounded-xl text-zinc-600 text-[10px] uppercase tracking-widest mt-4">
+                    Finalizar Sesión
+                </button>
+            </div>
+
+            <!-- VIEW: EXPIRED -->
+            <div id="view-expired" class="hidden text-center space-y-6">
+                <div class="text-red-500 text-5xl mb-4">✕</div>
+                <h2 class="text-white font-bold text-xl uppercase">Rastro Perdido</h2>
+                <p class="text-sm text-zinc-500 leading-relaxed">El emisor ha cortado la señal o el tiempo de sesión ha expirado.</p>
+                <button onclick="location.href=window.location.pathname" class="w-full bg-zinc-900 h-14 rounded-xl font-bold uppercase tracking-widest text-xs">Reiniciar Sistema</button>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- UI Custom Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] px-6 py-3 rounded-full font-bold uppercase tracking-widest opacity-0 transition-opacity pointer-events-none z-50">
+        Enlace copiado
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // CONFIG & INIT
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ghost-link-v3';
+
+        let user = null;
+        let sessionRef = null;
+        let watchId = null;
+        let targetCoords = null;
+        let deviceHeading = 0;
+        let isDynamic = false;
+
+        // AUTH
+        const initAuth = async () => {
+            try {
+                await signInAnonymously(auth);
+            } catch (e) { console.error("Auth error", e); }
+        };
+        initAuth();
+        onAuthStateChanged(auth, (u) => { 
+            user = u;
+            if(u) document.getElementById('system-status').innerText = "Status: Online";
+        });
+
+        // ROUTING
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            const sid = params.get('sid');
+            if (sid) joinSession(sid);
+        };
+
+        // BROADCASTER LOGIC
+        window.startBroadcast = async (dynamic) => {
+            if (!user) return alert("Esperando conexión con CORE...");
+            isDynamic = dynamic;
+            
+            document.getElementById('system-status').innerText = "Status: GPS_SEARCH";
+            
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const sessionId = Math.random().toString(36).substring(2, 10);
+                sessionRef = doc(db, 'artifacts', appId, 'public', 'data', sessionId);
+                
+                const initialData = {
+                    lat: pos.coords.latitude,
+                    lon: pos.coords.longitude,
+                    isDynamic: dynamic,
+                    createdAt: serverTimestamp(),
+                    expiresAt: Date.now() + (30 * 60 * 1000)
+                };
+
+                await setDoc(sessionRef, initialData);
+
+                if (dynamic) {
+                    document.getElementById('pulse-dot').classList.add('ghost-pulse', 'bg-blue-500');
+                    document.getElementById('mode-badge').innerText = "Modo: Dinámico";
+                    document.getElementById('mode-badge').classList.replace('text-zinc-500', 'text-blue-400');
+                    
+                    watchId = navigator.geolocation.watchPosition(async (newPos) => {
+                        await updateDoc(sessionRef, {
+                            lat: newPos.coords.latitude,
+                            lon: newPos.coords.longitude,
+                            lastUpdate: serverTimestamp()
+                        });
+                    }, null, { enableHighAccuracy: true });
+                } else {
+                    document.getElementById('mode-badge').innerText = "Modo: Estático";
+                }
+
+                const url = `${window.location.origin}${window.location.pathname}?sid=${sessionId}`;
+                document.getElementById('share-url').innerText = url;
+                document.getElementById('result-container').classList.remove('hidden');
+                window.lastUrl = url;
+                document.getElementById('system-status').innerText = "Status: Transmitting";
+
+            }, (err) => alert("GPS Error: " + err.message), { enableHighAccuracy: true });
+        };
+
+        // RECEIVER LOGIC
+        async function joinSession(sid) {
+            showView('tracker');
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', sid);
+            
+            onSnapshot(docRef, (snap) => {
+                if (!snap.exists()) return showView('expired');
+                const data = snap.data();
+                
+                // Verificar expiración
+                if (Date.now() > data.expiresAt) return showView('expired');
+
+                targetCoords = { lat: data.lat, lon: data.lon };
+                
+                if (data.isDynamic) {
+                    document.getElementById('dynamic-ring').classList.remove('hidden');
+                    document.getElementById('signal-label').innerText = "Signal: Live";
+                } else {
+                    document.getElementById('signal-label').innerText = "Signal: Fixed";
+                }
+
+                updateDistance();
+            }, (err) => showView('expired'));
+
+            // Iniciar Brújula
+            initCompass();
+            
+            // Watch Receiver Location
+            navigator.geolocation.watchPosition(() => updateDistance(), null, { enableHighAccuracy: true });
+
+            // Timer
+            setInterval(() => updateTimer(), 1000);
+        }
+
+        function updateDistance() {
+            if (!targetCoords) return;
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const dist = calculateDistance(pos.coords.latitude, pos.coords.longitude, targetCoords.lat, targetCoords.lon);
+                const bearing = calculateBearing(pos.coords.latitude, pos.coords.longitude, targetCoords.lat, targetCoords.lon);
+                
+                document.getElementById('dist-val').innerText = Math.round(dist);
+                const arrowAngle = (bearing - deviceHeading + 360) % 360;
+                document.getElementById('arrow-container').style.transform = `rotate(${arrowAngle}deg)`;
+                
+                const dt = document.getElementById('dir-text');
+                if (dist < 6) {
+                    dt.innerText = "Objetivo Detectado";
+                    dt.className = "text-lg font-bold uppercase text-green-500 tracking-tighter mb-1";
+                } else {
+                    dt.className = "text-lg font-bold uppercase text-blue-500 tracking-tighter mb-1";
+                    if (arrowAngle < 30 || arrowAngle > 330) dt.innerText = "Sigue el rastro";
+                    else if (arrowAngle >= 30 && arrowAngle < 180) dt.innerText = "Gira a la derecha";
+                    else dt.innerText = "Gira a la izquierda";
+                }
+            });
+        }
+
+        function initCompass() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                const btn = document.createElement('button');
+                btn.className = "fixed inset-0 z-[100] bg-black flex items-center justify-center text-white uppercase text-[10px] tracking-widest font-bold";
+                btn.innerText = "TAP TO CALIBRATE SENSORS";
+                document.body.appendChild(btn);
+                btn.onclick = () => {
+                    DeviceOrientationEvent.requestPermission().then(res => {
+                        if (res === 'granted') {
+                            window.addEventListener('deviceorientation', (e) => {
+                                deviceHeading = e.webkitCompassHeading || (360 - e.alpha) || 0;
+                            });
+                            btn.remove();
+                        }
+                    });
+                };
+            } else {
+                window.addEventListener('deviceorientation', (e) => {
+                    deviceHeading = e.webkitCompassHeading || (360 - e.alpha) || 0;
+                });
+            }
+        }
+
+        // HELPERS
+        function showView(id) {
+            ['home', 'tracker', 'expired'].forEach(v => document.getElementById('view-' + v).classList.add('hidden'));
+            document.getElementById('view-' + id).classList.remove('hidden');
+        }
+
+        window.copyLink = () => {
+            const el = document.createElement('textarea');
+            el.value = window.lastUrl;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            const t = document.getElementById('toast');
+            t.classList.replace('opacity-0', 'opacity-100');
+            setTimeout(() => t.classList.replace('opacity-100', 'opacity-0'), 2000);
+        };
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180;
+            const dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(dp/2)**2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2)**2;
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+        }
+
+        function calculateBearing(lat1, lon1, lat2, lon2) {
+            const p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
+            const y = Math.sin(dl) * Math.cos(p2), x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
+
+        function updateTimer() {
+            // Lógica simple de visualización de tiempo restante (asumido 30 min desde inicio)
+            const label = document.getElementById('time-remaining');
+            if (label.innerText === "--:--") label.innerText = "30:00";
+            // Para simplicidad en este MVP el timer es visual, la expiración real es controlada por Firestore data.expiresAt
+        }
+
+    </script>
+</body>
+</html>
