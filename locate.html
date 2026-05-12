@@ -3,175 +3,274 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Beacon Link</title>
+    <title>Ghost Link | CORE System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .compass-arrow {
-            transition: transform 0.1s linear;
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+        
+        body { font-family: 'Space Mono', monospace; }
+        
+        .scanner-line {
+            height: 2px;
+            background: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 0 15px #3b82f6;
+            animation: scan 3s linear infinite;
         }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(288px); }
         }
-        .loading-pulse { animation: pulse 1.5s infinite; }
+
+        .compass-transition {
+            transition: transform 0.2s cubic-bezier(0.33, 1, 0.68, 1);
+        }
+
+        .ghost-pulse {
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(.3); opacity: 0.8; }
+            80%, 100% { transform: scale(1.2); opacity: 0; }
+        }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 font-sans selection:bg-blue-500">
-    <div id="app" class="h-screen w-full flex flex-col p-6 max-w-md mx-auto">
+<body class="bg-black text-zinc-300 selection:bg-blue-900 overflow-hidden">
+
+    <!-- UI Container -->
+    <div id="app" class="h-screen w-full flex flex-col p-8 max-w-md mx-auto">
         
-        <header class="text-center mb-10">
-            <h1 class="text-4xl font-black tracking-tighter text-white">BEACON<span class="text-blue-500">.</span></h1>
-            <p class="text-zinc-500 text-xs mt-1 uppercase tracking-widest">Localización Relativa P2P</p>
+        <!-- Header -->
+        <header class="flex justify-between items-start mb-8">
+            <div>
+                <h1 class="text-xl font-bold tracking-tighter text-white flex items-center gap-2">
+                    <span class="w-2 h-2 bg-blue-500 rounded-full ghost-pulse"></span>
+                    GHOST LINK
+                </h1>
+                <p id="system-status" class="text-[10px] text-zinc-600 uppercase tracking-widest mt-1">Status: Ready</p>
+            </div>
+            <div class="text-right">
+                <span class="text-[10px] text-zinc-500 bg-zinc-900 px-2 py-1 rounded">v2.0_SECURE</span>
+            </div>
         </header>
 
-        <main class="flex-1 flex flex-col">
+        <main class="flex-1 flex flex-col justify-center">
             
-            <!-- Vista Inicial -->
-            <div id="view-home" class="space-y-4">
-                <button onclick="startA()" class="w-full bg-white text-black h-20 rounded-2xl font-bold text-lg active:scale-95 transition-transform">
-                    GENERAR MI UBICACIÓN
-                </button>
-                <p class="text-center text-zinc-600 text-sm italic">Crea un enlace para que otros te encuentren</p>
+            <!-- VIEW: HOME (Generator) -->
+            <div id="view-home" class="space-y-8">
+                <div class="border border-zinc-800 p-6 rounded-2xl bg-zinc-950/50 relative overflow-hidden">
+                    <div class="relative z-10">
+                        <h2 class="text-white font-bold mb-2">GENERAR RASTRO</h2>
+                        <p class="text-xs text-zinc-500 mb-6">Tu ubicación se codificará en un enlace que expirará en 30 minutos.</p>
+                        
+                        <button onclick="generateGhostLink()" class="w-full bg-blue-600 hover:bg-blue-500 text-white h-14 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                            CREAR ENLACE EFÍMERO
+                        </button>
+                    </div>
+                </div>
+
+                <div id="result-container" class="hidden space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div class="p-4 bg-zinc-900 border border-blue-900/30 rounded-xl">
+                        <p class="text-[10px] text-blue-400 mb-2 font-bold tracking-widest uppercase">Enlace Encriptado:</p>
+                        <div id="share-url" class="text-[11px] break-all text-zinc-400 font-mono leading-tight mb-4 opacity-70"></div>
+                        <button onclick="copyLink()" id="btn-copy" class="w-full border border-zinc-700 h-12 rounded-lg text-sm font-bold hover:bg-zinc-800 transition-colors">
+                            COPIAR RASTRO
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-center text-zinc-600 uppercase tracking-tighter">Autodestrucción activa: 30 min</p>
+                </div>
             </div>
 
-            <!-- Vista Generando (Usuario A) -->
-            <div id="view-creating" class="hidden space-y-6 text-center">
-                <div class="py-10">
-                    <div class="loading-pulse text-blue-500 text-xl font-mono" id="gps-status">OBTENIENDO GPS...</div>
-                </div>
-                <div id="link-container" class="hidden space-y-4">
-                    <div class="p-4 bg-zinc-900 border border-zinc-800 rounded-xl break-all text-sm font-mono text-zinc-400" id="share-url"></div>
-                    <button onclick="copyLink()" class="w-full bg-blue-600 h-14 rounded-xl font-bold active:scale-95 transition-transform">
-                        COPIAR ENLACE
-                    </button>
-                    <p class="text-xs text-zinc-500">Envía este enlace a la otra persona.</p>
-                </div>
-                <button onclick="location.reload()" class="text-zinc-500 text-sm underline">Cancelar</button>
-            </div>
-
-            <!-- Vista Tracker (Usuario B) -->
-            <div id="view-tracker" class="hidden flex-1 flex flex-col items-center justify-between py-4">
-                <div class="text-center">
-                    <div class="text-6xl font-black tracking-tighter" id="dist-val">0</div>
-                    <div class="text-zinc-500 font-bold uppercase tracking-widest">Metros</div>
+            <!-- VIEW: TRACKER (Receiver) -->
+            <div id="view-tracker" class="hidden flex-1 flex flex-col items-center justify-between">
+                <div class="text-center w-full">
+                    <div class="flex justify-between text-[10px] text-zinc-500 mb-8 uppercase tracking-widest px-2">
+                        <span>Signal: Stable</span>
+                        <span id="time-remaining">EXP: --:--</span>
+                    </div>
+                    <div class="text-7xl font-black tracking-tighter text-white inline-block" id="dist-val">0</div>
+                    <div class="text-blue-500 font-bold uppercase tracking-widest text-xs mt-2">Metros de distancia</div>
                 </div>
 
                 <div class="relative w-72 h-72 flex items-center justify-center">
-                    <!-- Circulos de fondo -->
-                    <div class="absolute inset-0 border border-zinc-800 rounded-full"></div>
-                    <div class="absolute inset-10 border border-zinc-800 rounded-full"></div>
+                    <div class="absolute inset-0 border border-zinc-900 rounded-full"></div>
+                    <div class="absolute inset-8 border border-zinc-800 rounded-full"></div>
+                    <div class="absolute inset-20 border border-zinc-800/50 rounded-full"></div>
                     
-                    <!-- Flecha -->
-                    <div id="arrow-container" class="compass-arrow w-full h-full flex items-center justify-center">
-                        <svg viewBox="0 0 100 100" class="w-24 h-24 fill-blue-500">
-                            <path d="M50 0 L95 85 L50 70 L5 85 Z" />
+                    <div class="scanner-line absolute w-full top-0 left-0 rounded-full opacity-20"></div>
+
+                    <div id="arrow-container" class="compass-transition w-full h-full flex items-center justify-center">
+                        <svg viewBox="0 0 100 100" class="w-20 h-20 fill-white drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">
+                            <path d="M50 5 L90 85 L50 70 L10 85 Z" />
                         </svg>
                     </div>
                 </div>
 
-                <div class="text-center space-y-2">
-                    <div id="dir-text" class="text-xl font-bold uppercase text-white">CALIBRANDO...</div>
-                    <div class="text-xs text-zinc-600 max-w-[200px]">Apunta la parte superior de tu móvil hacia adelante</div>
+                <div class="text-center w-full">
+                    <div id="dir-text" class="text-lg font-bold uppercase text-blue-500 tracking-tighter mb-1">CALIBRANDO...</div>
+                    <p class="text-[10px] text-zinc-600 uppercase">Apunta con el cabezal del móvil</p>
                 </div>
 
-                <button onclick="location.href='index.html'" class="w-full border border-zinc-800 h-12 rounded-xl text-zinc-500 text-sm">
-                    SALIR
+                <button onclick="location.href=window.location.pathname" class="w-full border border-zinc-800 h-12 rounded-xl text-zinc-600 text-[10px] uppercase tracking-widest mt-4">
+                    Abortar Misión
                 </button>
+            </div>
+
+            <!-- VIEW: EXPIRED -->
+            <div id="view-expired" class="hidden text-center space-y-6">
+                <div class="text-red-500 text-5xl mb-4">✕</div>
+                <h2 class="text-white font-bold text-xl uppercase">Rastro Enfriado</h2>
+                <p class="text-sm text-zinc-500">Este enlace ha expirado o es inválido. Los datos han sido eliminados del sistema.</p>
+                <button onclick="location.href=window.location.pathname" class="w-full bg-zinc-900 h-14 rounded-xl font-bold">VOLVER</button>
             </div>
 
         </main>
     </div>
 
+    <!-- UI Custom Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] px-6 py-3 rounded-full font-bold uppercase tracking-widest opacity-0 transition-opacity pointer-events-none z-50">
+        Copiado al Portapapeles
+    </div>
+
     <script>
         let targetCoords = null;
+        let expirationTime = null;
         let deviceHeading = 0;
-        let watchId = null;
+        const EXPIRATION_MINUTES = 30;
 
-        // Al cargar, verificar si hay coordenadas en la URL
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
-            const lat = params.get('lat');
-            const lon = params.get('lon');
+            const data = params.get('g'); // 'g' for ghost data
 
-            if (lat && lon) {
-                targetCoords = { lat: parseFloat(lat), lon: parseFloat(lon) };
-                startB();
+            if (data) {
+                try {
+                    const decoded = JSON.parse(atob(data));
+                    const now = Date.now();
+                    
+                    if (now > decoded.exp) {
+                        showView('expired');
+                    } else {
+                        targetCoords = { lat: decoded.lat, lon: decoded.lon };
+                        expirationTime = decoded.exp;
+                        initTracker();
+                    }
+                } catch (e) {
+                    showView('expired');
+                }
             }
         };
 
-        // LÓGICA USUARIO A
-        function startA() {
-            showView('creating');
-            if (!navigator.geolocation) return alert("GPS no soportado");
+        function showView(id) {
+            ['home', 'tracker', 'expired'].forEach(v => {
+                document.getElementById('view-' + v).classList.add('hidden');
+            });
+            document.getElementById('view-' + id).classList.remove('hidden');
+        }
 
+        function showToast() {
+            const t = document.getElementById('toast');
+            t.classList.add('opacity-100');
+            setTimeout(() => t.classList.remove('opacity-100'), 2000);
+        }
+
+        // --- LOGICA GENERADOR ---
+        function generateGhostLink() {
+            if (!navigator.geolocation) return alert("GPS No disponible");
+            
+            document.getElementById('system-status').innerText = "Status: Locating...";
+            
             navigator.geolocation.getCurrentPosition(pos => {
-                const lat = pos.coords.latitude.toFixed(6);
-                const lon = pos.coords.longitude.toFixed(6);
-                const url = `${window.location.origin}${window.location.pathname}?lat=${lat}&lon=${lon}`;
+                const data = {
+                    lat: pos.coords.latitude,
+                    lon: pos.coords.longitude,
+                    exp: Date.now() + (EXPIRATION_MINUTES * 60 * 1000)
+                };
+
+                const encoded = btoa(JSON.stringify(data));
+                const url = `${window.location.origin}${window.location.pathname}?g=${encoded}`;
                 
-                document.getElementById('gps-status').innerText = "¡UBICACIÓN FIJADA!";
-                document.getElementById('link-container').classList.remove('hidden');
+                document.getElementById('system-status').innerText = "Status: Ghost Link Active";
                 document.getElementById('share-url').innerText = url;
-                window.generatedUrl = url;
+                document.getElementById('result-container').classList.remove('hidden');
+                window.lastUrl = url;
             }, err => {
-                alert("Error de GPS: " + err.message);
-                location.reload();
+                alert("Error de GPS: Asegúrate de dar permisos de ubicación.");
+                document.getElementById('system-status').innerText = "Status: Error";
             }, { enableHighAccuracy: true });
         }
 
         function copyLink() {
             const el = document.createElement('textarea');
-            el.value = window.generatedUrl;
+            el.value = window.lastUrl;
             document.body.appendChild(el);
             el.select();
             document.execCommand('copy');
             document.body.removeChild(el);
-            alert("Enlace copiado al portapapeles");
+            showToast();
         }
 
-        // LÓGICA USUARIO B
-        function startB() {
+        // --- LOGICA RASTREADOR ---
+        function initTracker() {
             showView('tracker');
             
-            // Solicitar permisos de orientación (iOS 13+)
+            // Permisos de Brújula
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission().then(res => {
-                    if (res === 'granted') window.addEventListener('deviceorientation', handleOrientation);
-                });
+                const btn = document.createElement('button');
+                btn.className = "fixed inset-0 z-[100] bg-black/80 text-white font-bold uppercase text-xs p-10";
+                btn.innerHTML = "Toca para calibrar sensores de rastreo";
+                btn.onclick = () => {
+                    DeviceOrientationEvent.requestPermission().then(res => {
+                        if (res === 'granted') {
+                            window.addEventListener('deviceorientation', handleOrientation);
+                            btn.remove();
+                        }
+                    });
+                };
+                document.body.appendChild(btn);
             } else {
                 window.addEventListener('deviceorientation', handleOrientation);
             }
 
-            // Iniciar seguimiento GPS
-            watchId = navigator.geolocation.watchPosition(pos => {
+            // Actualizar tiempo restante
+            setInterval(() => {
+                const rem = expirationTime - Date.now();
+                if (rem <= 0) location.reload();
+                const mins = Math.floor(rem / 60000);
+                const secs = Math.floor((rem % 60000) / 1000);
+                document.getElementById('time-remaining').innerText = `EXP: ${mins}:${secs.toString().padStart(2, '0')}`;
+            }, 1000);
+
+            // Seguir GPS
+            navigator.geolocation.watchPosition(pos => {
                 const dist = calculateDistance(pos.coords.latitude, pos.coords.longitude, targetCoords.lat, targetCoords.lon);
                 const bearing = calculateBearing(pos.coords.latitude, pos.coords.longitude, targetCoords.lat, targetCoords.lon);
-                
-                updateTrackerUI(dist, bearing);
-            }, err => console.error(err), { enableHighAccuracy: true });
+                updateUI(dist, bearing);
+            }, null, { enableHighAccuracy: true });
         }
 
         function handleOrientation(e) {
-            // Brújula: 0 es Norte
             deviceHeading = e.webkitCompassHeading || (360 - e.alpha) || 0;
         }
 
-        function updateTrackerUI(dist, bearing) {
+        function updateUI(dist, bearing) {
             document.getElementById('dist-val').innerText = Math.round(dist);
             
-            // El ángulo de la flecha es (Rumbo al objetivo - Orientación del móvil)
             const arrowAngle = (bearing - deviceHeading + 360) % 360;
             document.getElementById('arrow-container').style.transform = `rotate(${arrowAngle}deg)`;
 
-            // Texto descriptivo
-            const dirText = document.getElementById('dir-text');
-            if (arrowAngle < 20 || arrowAngle > 340) dirText.innerText = "Sigue Adelante";
-            else if (arrowAngle >= 20 && arrowAngle < 160) dirText.innerText = "Gira a la Derecha";
-            else if (arrowAngle >= 160 && arrowAngle < 200) dirText.innerText = "Está detrás tuyo";
-            else dirText.innerText = "Gira a la Izquierda";
+            const dt = document.getElementById('dir-text');
+            if (dist < 5) {
+                dt.innerText = "Objetivo Alcanzado";
+                dt.classList.replace('text-blue-500', 'text-green-500');
+            } else if (arrowAngle < 25 || arrowAngle > 335) dt.innerText = "Sigue Adelante";
+            else if (arrowAngle >= 25 && arrowAngle < 155) dt.innerText = "Gira a la Derecha";
+            else if (arrowAngle >= 155 && arrowAngle < 205) dt.innerText = "Tras de ti";
+            else dt.innerText = "Gira a la Izquierda";
         }
 
-        // MATH UTILS
+        // MATH
         function calculateDistance(lat1, lon1, lat2, lon2) {
             const R = 6371e3;
             const p1 = lat1 * Math.PI/180;
@@ -189,11 +288,6 @@
             const y = Math.sin(dl) * Math.cos(p2);
             const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
             return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-        }
-
-        function showView(id) {
-            ['home', 'creating', 'tracker'].forEach(v => document.getElementById('view-'+v).classList.add('hidden'));
-            document.getElementById('view-'+id).classList.remove('hidden');
         }
     </script>
 </body>
