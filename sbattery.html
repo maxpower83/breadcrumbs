@@ -2,213 +2,244 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Social Battery | CORE</title>
     <link rel="manifest" id="pwa-manifest">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-        body { font-family: 'JetBrains+Mono', monospace; background-color: #050505; color: #eee; overflow-x: hidden; }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap');
         
-        .btn-option { border: 1px solid #222; transition: all 0.2s; text-transform: uppercase; font-size: 0.75rem; background: #0a0a0a; }
-        .btn-option.active { border-color: #3b82f6; background: #1d4ed822; color: #3b82f6; }
+        :root {
+            --ios-bg: #1c1c1e;
+            --ios-red: #ff3b30;
+            --ios-green: #34c759;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #050505; 
+            color: #eee; 
+            overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
         
-        /* Slider Estilizado */
+        .mono { font-family: 'JetBrains+Mono', monospace; }
+
+        /* Estética de Terminal para el Setup */
+        .btn-option { 
+            border: 1px solid #1a1a1a; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+            background: #0a0a0a; 
+        }
+        .btn-option.active { 
+            border-color: #3b82f6; 
+            background: rgba(59, 130, 246, 0.1); 
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.1);
+        }
+        
+        /* Slider de alta precisión */
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type=range]:focus { outline: none; }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #222; border-radius: 2px; }
-        input[type=range]::-webkit-slider-thumb { height: 20px; width: 20px; border-radius: 50%; background: #3b82f6; cursor: pointer; -webkit-appearance: none; margin-top: -8px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; cursor: pointer; background: #222; }
+        input[type=range]::-webkit-slider-thumb { 
+            height: 24px; width: 24px; border-radius: 50%; 
+            background: #3b82f6; cursor: pointer; -webkit-appearance: none; 
+            margin-top: -11px; border: 4px solid #050505;
+        }
 
-        .full-screen-alert { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; background: black; }
+        .full-screen-alert { 
+            position: fixed; inset: 0; z-index: 1000; 
+            display: none; flex-direction: column; 
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Pantalla de Sigilo Estrema */
+        #countdown-ui { 
+            background-color: #000; 
+            cursor: none; 
+            z-index: 500;
+        }
         
-        /* Pantalla de Sigilo */
-        #countdown-ui { background-color: #000; cursor: none; }
-        .stealth-text { color: #0a0a0a; transition: color 0.5s; } /* Casi invisible */
-        #countdown-ui:active .stealth-text { color: #1a1a1a; } /* Se ve un poco al tocar */
+        .stealth-text { 
+            color: #080808; 
+            transition: color 0.4s; 
+            font-size: 10px;
+            letter-spacing: 0.5em;
+        }
+        #countdown-ui:active .stealth-text { color: #151515; }
 
-        /* Animación de pulso para la alerta térmica */
         .thermal-pulse { animation: pulse-opacity 2s infinite ease-in-out; }
-        @keyframes pulse-opacity { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        @keyframes pulse-opacity { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+        /* Reloj estilo iOS */
+        .ios-clock { font-size: 80px; font-weight: 200; letter-spacing: -2px; }
     </style>
 </head>
-<body class="p-6 flex flex-col min-h-screen">
+<body class="flex flex-col min-h-screen">
 
-    <div id="setup-ui" class="flex flex-col h-full max-w-md mx-auto w-full">
-        <header class="mb-8 border-l-4 border-blue-600 pl-4 flex justify-between items-start">
+    <!-- SETUP UI -->
+    <div id="setup-ui" class="flex flex-col h-screen p-6 max-w-md mx-auto w-full overflow-y-auto">
+        <header class="mb-8 border-l-2 border-blue-600 pl-4 flex justify-between items-start">
             <div>
-                <a href="index.html" class="text-[10px] text-zinc-600 uppercase tracking-widest hover:text-blue-500 transition-colors flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                    HUB CENTRAL
+                <a href="index.html" class="mono text-[9px] text-zinc-600 uppercase tracking-widest hover:text-blue-500 transition-colors flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m15 18-6-6 6-6"/></svg>
+                    CORE_HUB / TERMINAL
                 </a>
-                <h1 class="text-xl font-bold uppercase italic text-white mt-1">Social Battery</h1>
-                <p class="text-[9px] text-zinc-500 tracking-tighter">PROTOCOLO DE EXTRACCIÓN PASIVA</p>
+                <h1 class="text-2xl font-bold italic text-white mt-1 tracking-tight">Social Battery</h1>
+                <p class="mono text-[8px] text-zinc-500 uppercase tracking-tighter">Passive Extraction Protocol v2.4</p>
             </div>
-            <button id="installBtn" class="hidden bg-blue-600 text-white px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-tight shadow-lg shadow-blue-900/40">
-                Instalar App
-            </button>
+            <div id="status-led" class="flex items-center gap-2 bg-zinc-900 px-2 py-1 rounded">
+                <div class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                <span class="mono text-[8px] text-blue-500">READY</span>
+            </div>
         </header>
 
-        <main class="space-y-8 flex-grow">
-            <!-- Selector de Alerta -->
+        <main class="space-y-6 flex-grow">
+            <!-- 01. MODO -->
             <section>
-                <label class="text-[10px] text-zinc-500 uppercase font-bold mb-4 block tracking-[0.2em]">01. Protocolo de Alerta</label>
+                <label class="mono text-[10px] text-zinc-500 uppercase font-bold mb-3 block">01. Select_Payload</label>
                 <div class="grid grid-cols-1 gap-2">
-                    <button onclick="setType('call')" id="btn-call" class="btn-option p-4 rounded text-left flex items-center justify-between active">
-                        <div class="flex flex-col">
-                            <span class="font-bold">Llamada Entrante</span>
-                            <span class="text-[9px] text-zinc-500 lowercase opacity-60">Simula llamada de contacto familiar</span>
+                    <button onclick="setType('call')" id="btn-call" class="btn-option p-4 rounded-xl text-left flex items-center justify-between active">
+                        <div>
+                            <span class="block font-semibold text-sm">Llamada Entrante</span>
+                            <span class="mono text-[9px] text-zinc-600 uppercase">Simulación VoIP / Red GSM</span>
                         </div>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        <div class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        </div>
                     </button>
-                    <button onclick="setType('security')" id="btn-security" class="btn-option p-4 rounded text-left flex items-center justify-between">
-                        <div class="flex flex-col">
-                            <span class="font-bold">Seguridad Doméstica</span>
-                            <span class="text-[9px] text-zinc-500 lowercase opacity-60">Alerta de intrusión o inundación</span>
+                    
+                    <button onclick="setType('security')" id="btn-security" class="btn-option p-4 rounded-xl text-left flex items-center justify-between">
+                        <div>
+                            <span class="block font-semibold text-sm">Seguridad Doméstica</span>
+                            <span class="mono text-[9px] text-zinc-600 uppercase">Notificación de Intrusión</span>
                         </div>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <div class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        </div>
                     </button>
-                    <button onclick="setType('system')" id="btn-system" class="btn-option p-4 rounded text-left flex items-center justify-between">
-                        <div class="flex flex-col">
-                            <span class="font-bold">Fallo de Hardware</span>
-                            <span class="text-[9px] text-zinc-500 lowercase opacity-60">Aviso térmico crítico (Indiscutible)</span>
+
+                    <button onclick="setType('system')" id="btn-system" class="btn-option p-4 rounded-xl text-left flex items-center justify-between">
+                        <div>
+                            <span class="block font-semibold text-sm">Hardware Critical Failure</span>
+                            <span class="mono text-[9px] text-zinc-600 uppercase">Aviso térmico (Inapelable)</span>
                         </div>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        <div class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 17c-.77 1.333.192 3 1.732 3z"/></svg>
+                        </div>
                     </button>
                 </div>
             </section>
 
-            <!-- Slider de Tiempo -->
-            <section>
-                <div class="flex justify-between items-end mb-4">
-                    <label class="text-[10px] text-zinc-500 uppercase font-bold tracking-[0.2em]">02. Tiempo de Retardo</label>
-                    <span id="time-display" class="text-blue-500 font-bold text-xl">15 min</span>
+            <!-- 02. TIEMPO -->
+            <section class="bg-zinc-900/30 p-4 rounded-2xl border border-zinc-800/50">
+                <div class="flex justify-between items-baseline mb-6">
+                    <label class="mono text-[10px] text-zinc-500 uppercase font-bold">02. Timer_Offset</label>
+                    <div class="text-right">
+                        <span id="time-display" class="text-3xl font-light text-blue-500">15</span>
+                        <span class="mono text-[10px] text-zinc-600 uppercase ml-1">min</span>
+                    </div>
                 </div>
-                <input type="range" id="time-slider" min="1" max="120" value="15" oninput="updateTime(this.value)">
-                <div class="flex justify-between mt-2 text-[9px] text-zinc-800 font-bold uppercase">
-                    <span>Inmediato</span>
-                    <span>2 Horas</span>
+                <input type="range" id="time-slider" min="1" max="60" value="15" oninput="updateTime(this.value)">
+                <div class="flex justify-between mt-4 mono text-[8px] text-zinc-700 font-bold uppercase tracking-widest">
+                    <span>Inmediate</span>
+                    <span>T + 60M</span>
                 </div>
             </section>
         </main>
 
-        <footer class="mt-auto pt-10 pb-4">
-            <button onclick="armSystem()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-5 rounded uppercase text-sm tracking-[0.3em] shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98]">
-                Armar Sistema
+        <footer class="mt-auto py-6">
+            <button onclick="armSystem()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-5 rounded-2xl uppercase text-sm tracking-[0.2em] shadow-2xl shadow-blue-900/20 transition-all active:scale-[0.98]">
+                Armar Protocolo
             </button>
-            <p class="text-[8px] text-center text-zinc-700 mt-4 uppercase">Una vez armado, el dispositivo debe permanecer boca arriba.</p>
+            <div class="flex items-center justify-center gap-4 mt-6">
+                <span class="w-8 h-[1px] bg-zinc-800"></span>
+                <p class="mono text-[8px] text-zinc-600 uppercase tracking-tighter text-center">Modo Sigilo Activo tras Armado</p>
+                <span class="w-8 h-[1px] bg-zinc-800"></span>
+            </div>
         </footer>
     </div>
 
-    <!-- Pantalla de Sigilo -->
-    <div id="countdown-ui" class="hidden fixed inset-0 flex flex-col items-center justify-center p-10 text-center z-[200]">
-        <p class="stealth-text text-[8px] uppercase tracking-[1em] mb-4">SYSTEM_IDLE_MODE</p>
-        <div id="countdown-timer" class="stealth-text text-sm font-bold opacity-30">00:00</div>
-        <!-- El botón invisible ocupa toda la pantalla para abortar con un toque largo -->
-        <button id="abort-trigger" class="absolute inset-0 w-full h-full bg-transparent border-none cursor-default focus:outline-none"></button>
+    <!-- STEALTH UI -->
+    <div id="countdown-ui" class="hidden fixed inset-0 flex flex-col items-center justify-center z-[500]">
+        <div class="text-center">
+            <p class="stealth-text mb-2">IO_MONITOR_ACTIVE</p>
+            <div id="countdown-timer" class="stealth-text opacity-50 font-bold">00:00</div>
+        </div>
+        <!-- Gatillo de cancelación (Toque largo 2s) -->
+        <button id="abort-trigger" class="absolute inset-0 w-full h-full bg-transparent border-none outline-none touch-none"></button>
     </div>
 
-    <!-- PANTALLAS DE ALERTA -->
-    
-    <!-- Alerta de Llamada (Estilo iOS Dark) -->
-    <div id="alert-call" class="full-screen-alert bg-[#1c1c1e] font-sans">
-        <div class="mt-24 flex flex-col items-center">
-            <div class="w-24 h-24 bg-zinc-700 rounded-full mb-6 flex items-center justify-center text-zinc-300">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+    <!-- REALISTIC ALERT: CALL -->
+    <div id="alert-call" class="full-screen-alert bg-black font-sans">
+        <div class="mt-20 flex flex-col items-center flex-grow">
+            <div class="w-20 h-20 bg-zinc-800 rounded-full mb-6 flex items-center justify-center text-zinc-400 overflow-hidden shadow-2xl">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
             </div>
-            <h2 class="text-3xl font-medium text-white mb-1">Mamá</h2>
-            <p class="text-zinc-400 text-lg animate-pulse">Llamada de audio de WhatsApp...</p>
+            <h2 class="text-3xl font-normal text-white mb-2">Mamá</h2>
+            <p class="text-zinc-400 text-base font-light tracking-wide animate-pulse">Llamada de audio de WhatsApp...</p>
         </div>
-        <div class="mt-auto mb-20 w-full px-12 flex justify-between max-w-sm">
+        
+        <div class="pb-24 w-full px-12 flex justify-between max-w-sm mx-auto">
             <div class="flex flex-col items-center gap-3">
-                <button onclick="abort()" class="w-16 h-16 bg-[#ff3b30] rounded-full flex items-center justify-center text-white shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rotate-[135deg]"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <button onclick="abort()" class="w-16 h-16 bg-[#ff3b30] rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="rotate-[135deg]"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 </button>
-                <span class="text-[12px] text-white font-normal">Rechazar</span>
+                <span class="text-[11px] text-zinc-500 font-medium">Rechazar</span>
             </div>
             <div class="flex flex-col items-center gap-3">
-                <button class="w-16 h-16 bg-[#34c759] rounded-full flex items-center justify-center text-white shadow-lg animate-bounce">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <button class="w-16 h-16 bg-[#34c759] rounded-full flex items-center justify-center text-white shadow-lg active:scale-90 transition-transform animate-[bounce_2s_infinite]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 </button>
-                <span class="text-[12px] text-white font-normal">Aceptar</span>
+                <span class="text-[11px] text-zinc-500 font-medium">Aceptar</span>
             </div>
         </div>
     </div>
 
-    <!-- Seguridad (Genérica pero alarmante) -->
-    <div id="alert-security" class="full-screen-alert bg-zinc-950">
-        <div class="p-8 border border-red-900/50 rounded-2xl text-center bg-zinc-900/40 backdrop-blur-md max-w-[85%]">
-            <div class="mb-6 thermal-pulse">
-                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto text-red-500" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    <!-- REALISTIC ALERT: SECURITY -->
+    <div id="alert-security" class="full-screen-alert bg-[#050505]">
+        <div class="m-auto w-full max-w-xs px-6 py-10 rounded-3xl bg-[#1c1c1e] border border-zinc-800 text-center shadow-2xl">
+            <div class="mb-6 thermal-pulse text-red-500 flex justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
-            <h2 class="text-xl font-bold text-white uppercase mb-2 tracking-tighter">Smart Home: ALERTA</h2>
-            <p class="text-[10px] text-red-400 font-mono mb-8 tracking-widest leading-tight">DETECCIÓN DE MOVIMIENTO:<br>ENTRADA PRINCIPAL (14:42)</p>
-            <button onclick="abort()" class="w-full bg-red-600/20 border border-red-600/50 text-red-500 py-4 rounded-xl font-bold uppercase text-[10px] tracking-widest active:bg-red-600 active:text-white transition-all">ABRIR CÁMARAS EN VIVO</button>
+            <h2 class="text-xl font-bold text-white mb-2 uppercase tracking-tighter">ALERTA CRÍTICA</h2>
+            <p class="text-sm text-zinc-400 mb-8 px-4 leading-relaxed">Se ha detectado movimiento inusual en: <b>Sensor Pasillo</b>.</p>
+            <button onclick="abort()" class="w-full bg-red-600/10 border border-red-600/30 text-red-500 py-4 rounded-2xl font-bold uppercase text-[11px] tracking-widest active:bg-red-600 active:text-white">Ver cámaras en vivo</button>
         </div>
     </div>
 
-    <!-- Sistema (Alerta Térmica Estilo Apple) -->
-    <div id="alert-system" class="full-screen-alert bg-black font-sans">
-        <div class="w-full max-w-[300px] text-center">
-            <div class="mb-6 flex justify-center">
+    <!-- REALISTIC ALERT: SYSTEM THERMAL -->
+    <div id="alert-system" class="full-screen-alert bg-black font-sans items-center justify-center">
+        <div class="w-full max-w-[280px] text-center">
+            <div class="mb-8 flex justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" stroke-width="1.2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             </div>
-            <h2 class="text-2xl font-semibold text-white mb-4">Temperatura</h2>
-            <p class="text-base text-zinc-400 mb-12 leading-snug px-4">El dispositivo necesita enfriarse antes de que puedas usarlo.</p>
-            <button onclick="abort()" class="text-blue-500 text-lg font-normal">Aceptar</button>
+            <h2 class="text-2xl font-semibold text-white mb-3">Temperatura</h2>
+            <p class="text-base text-zinc-400 mb-12 leading-tight px-2">El iPhone necesita enfriarse antes de que puedas usarlo.</p>
+            <button onclick="abort()" class="text-[#007aff] text-xl font-normal active:opacity-40 transition-opacity">Aceptar</button>
         </div>
     </div>
 
     <script>
         let config = { type: 'call', minutes: 15 };
         let timer = null;
-        let audioContext = null;
-        let deferredPrompt = null;
+        let audioCtx = null;
+        let wakeLock = null;
 
-        // --- Lógica de PWA ---
-        const manifest = {
-            "name": "Social Battery CORE",
-            "short_name": "S.Battery",
-            "start_url": "./social_battery.html",
-            "display": "standalone",
-            "background_color": "#050505",
-            "theme_color": "#2563eb",
-            "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/3570/3570171.png", "sizes": "512x512", "type": "image/png" }]
-        };
-        document.getElementById('pwa-manifest').setAttribute('href', 'data:application/json;base64,' + btoa(JSON.stringify(manifest)));
-
-        // Service Worker Dinámico
-        const swCode = `
-            self.addEventListener('install', e => self.skipWaiting());
-            self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
-        `;
-        const swBlob = new Blob([swCode], {type: 'application/javascript'});
-        const swUrl = URL.createObjectURL(swBlob);
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register(swUrl);
-        }
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            document.getElementById('installBtn').classList.remove('hidden');
-        });
-
-        document.getElementById('installBtn').addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    document.getElementById('installBtn').classList.add('hidden');
+        // --- Wake Lock para evitar reposo ---
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
                 }
-                deferredPrompt = null;
-            }
-        });
-
-        // --- Lógica de la App ---
+            } catch (err) { console.log(err); }
+        }
 
         function updateTime(val) {
             config.minutes = parseInt(val);
-            document.getElementById('time-display').innerText = val + " min";
+            document.getElementById('time-display').innerText = val;
         }
 
         function setType(t) {
@@ -219,87 +250,106 @@
             document.getElementById('btn-' + t).classList.add('active');
         }
 
-        function createBeep(freq, type, vol, duration) {
-            try {
-                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = audioContext.createOscillator();
-                const g = audioContext.createGain();
-                osc.connect(g);
-                g.connect(audioContext.destination);
-                osc.frequency.value = freq;
-                osc.type = type;
-                g.gain.setValueAtTime(vol, audioContext.currentTime);
-                g.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration);
-                osc.start();
-                osc.stop(audioContext.currentTime + duration);
-            } catch(e) {}
+        // Motor de Audio Avanzado (Simula llamada iPhone/WhatsApp)
+        function playAlertSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            const now = audioCtx.currentTime;
+            
+            if (config.type === 'call') {
+                // Tono de llamada bitonal suave
+                [440, 480].forEach(freq => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 1.5);
+                });
+            } else if (config.type === 'security') {
+                // Beep de alerta tipo domótica
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.value = 880;
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            }
         }
 
         function armSystem() {
             document.getElementById('setup-ui').classList.add('hidden');
             document.getElementById('countdown-ui').classList.remove('hidden');
             
-            let remainingSeconds = config.minutes * 60;
-            updateCountdownDisplay(remainingSeconds);
+            requestWakeLock();
+            
+            let totalSeconds = config.minutes * 60;
+            updateDisplay(totalSeconds);
 
             timer = setInterval(() => {
-                remainingSeconds--;
-                updateCountdownDisplay(remainingSeconds);
-                if (remainingSeconds <= 0) {
+                totalSeconds--;
+                updateDisplay(totalSeconds);
+                if (totalSeconds <= 0) {
                     clearInterval(timer);
                     triggerAlert();
                 }
             }, 1000);
         }
 
-        // Abortar con toque largo en pantalla negra
-        let touchTimer;
-        const abortTrigger = document.getElementById('abort-trigger');
-        abortTrigger.addEventListener('touchstart', () => {
-            touchTimer = setTimeout(abort, 2000); // 2 segundos para abortar
-        });
-        abortTrigger.addEventListener('touchend', () => {
-            clearTimeout(touchTimer);
-        });
-
-        function updateCountdownDisplay(s) {
+        function updateDisplay(s) {
             const m = Math.floor(s / 60).toString().padStart(2, '0');
             const sec = (s % 60).toString().padStart(2, '0');
             document.getElementById('countdown-timer').innerText = `${m}:${sec}`;
         }
 
+        // Cancelación por presión larga
+        let touchStart = 0;
+        const trigger = document.getElementById('abort-trigger');
+        
+        trigger.addEventListener('touchstart', (e) => {
+            touchStart = Date.now();
+        });
+
+        trigger.addEventListener('touchend', (e) => {
+            if (Date.now() - touchStart > 2000) { // 2 segundos
+                abort();
+            }
+        });
+
         function triggerAlert() {
             document.getElementById('countdown-ui').classList.add('hidden');
-            const alertEl = document.getElementById('alert-' + config.type);
-            alertEl.style.display = 'flex';
+            const el = document.getElementById('alert-' + config.type);
+            el.style.display = 'flex';
             
-            // Intentar Fullscreen para mayor realismo
-            if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(() => {});
+            // Vibración
+            if ("vibrate" in navigator) {
+                const patterns = {
+                    call: [1000, 800, 1000, 800],
+                    security: [200, 100, 200, 100, 500],
+                    system: [1000]
+                };
+                navigator.vibrate(patterns[config.type]);
             }
-            
-            // Lógica de Sonido Repetitivo
-            if (config.type === 'call') {
-                const callLoop = setInterval(() => {
-                    if (alertEl.style.display === 'none') return clearInterval(callLoop);
-                    createBeep(440, 'sine', 0.1, 1.0);
-                }, 2500);
-                if ("vibrate" in navigator) navigator.vibrate([1000, 500, 1000, 500, 1000]);
-            } else if (config.type === 'security') {
-                const alarmLoop = setInterval(() => {
-                    if (alertEl.style.display === 'none') return clearInterval(alarmLoop);
-                    createBeep(880, 'square', 0.05, 0.2);
-                }, 1000);
-                if ("vibrate" in navigator) navigator.vibrate([200, 100, 200, 100, 200]);
-            } else {
-                // El sistema suele ser silencioso pero vibrar una vez fuerte
-                if ("vibrate" in navigator) navigator.vibrate(800);
+
+            // Audio loop
+            if (config.type !== 'system') {
+                const audioInterval = setInterval(() => {
+                    if (el.style.display === 'none') return clearInterval(audioInterval);
+                    playAlertSound();
+                }, config.type === 'call' ? 3000 : 1500);
             }
         }
 
         function abort() {
             if (timer) clearInterval(timer);
-            if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+            if (wakeLock) { wakeLock.release(); wakeLock = null; }
             
             document.getElementById('countdown-ui').classList.add('hidden');
             ['call', 'security', 'system'].forEach(id => {
@@ -307,6 +357,18 @@
             });
             document.getElementById('setup-ui').classList.remove('hidden');
         }
+
+        // Manifest dinámico
+        const manifest = {
+            "name": "Social Battery CORE",
+            "short_name": "S-Battery",
+            "start_url": "sbattery.html",
+            "display": "standalone",
+            "background_color": "#000000",
+            "theme_color": "#2563eb",
+            "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/3570/3570171.png", "sizes": "512x512", "type": "image/png" }]
+        };
+        document.getElementById('pwa-manifest').setAttribute('href', 'data:application/json;base64,' + btoa(JSON.stringify(manifest)));
     </script>
 </body>
 </html>
