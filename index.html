@@ -11,6 +11,7 @@
             font-family: 'JetBrains+Mono', monospace;
             background-color: #050505;
             color: #a1a1aa;
+            overflow-x: hidden;
         }
         .tool-card {
             background: linear-gradient(145deg, #0f0f0f, #151515);
@@ -30,15 +31,33 @@
         }
         .status-online { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
         .status-offline { background-color: #ef4444; }
+        
+        /* Animación para el botón de instalación */
+        @keyframes pulse-border {
+            0% { border-color: #27272a; }
+            50% { border-color: #3b82f6; }
+            100% { border-color: #27272a; }
+        }
+        .install-prompt {
+            animation: pulse-border 2s infinite;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
     <div class="max-w-6xl mx-auto w-full p-6 md:p-12 flex-grow">
         <!-- Header Principal -->
-        <header class="mb-12 border-l-4 border-blue-600 pl-6">
-            <h1 class="text-3xl font-bold text-white tracking-tighter uppercase italic">CORE Toolset</h1>
-            <p class="text-zinc-500 text-sm tracking-widest mt-1">SISTEMA OPERATIVO DE UTILIDAD URBANA | V 1.3</p>
+        <header class="mb-12 border-l-4 border-blue-600 pl-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-white tracking-tighter uppercase italic">CORE Toolset</h1>
+                <p class="text-zinc-500 text-sm tracking-widest mt-1">SISTEMA OPERATIVO DE UTILIDAD URBANA | V 1.4</p>
+            </div>
+            
+            <!-- Botón de Instalación PWA -->
+            <button id="installBtn" class="hidden flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-2 px-4 rounded border border-blue-400 transition-all uppercase tracking-widest">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x1="12" y1="15" y2="3"/></svg>
+                Instalar Sistema
+            </button>
         </header>
 
         <!-- Grid de Aplicaciones -->
@@ -71,14 +90,14 @@
             </a>
 
             <!-- WhatsApp Scheduler -->
-            <a href="wascheduler.html" class="hidden tool-card p-6 rounded-lg group border-blue-500/30 shadow-lg shadow-blue-500/5">
+            <a href="wascheduler.html" class="tool-card p-6 rounded-lg group border-blue-500/30 shadow-lg shadow-blue-500/5">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-green-900/20 rounded border border-green-500/30 text-green-400">
+                    <div class="p-3 bg-blue-900/20 rounded border border-blue-500/30 text-blue-400">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>
                     </div>
                     <span class="status-dot status-online"></span>
                 </div>
-                <h2 class="text-white font-bold uppercase mb-1 group-hover:text-green-400">WS Scheduler</h2>
+                <h2 class="text-white font-bold uppercase mb-1 group-hover:text-blue-400">WS Scheduler</h2>
                 <p class="text-[10px] text-blue-400 font-bold tracking-tighter uppercase mb-2">The Ghostwriter</p>
                 <p class="text-xs text-zinc-500 leading-relaxed italic">Redacción y programación de comunicaciones asíncronas tácticas.</p>
                 <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">QUEUE_READY</div>
@@ -93,7 +112,7 @@
                     <span class="status-dot status-online"></span>
                 </div>
                 <h2 class="text-white font-bold uppercase mb-2 group-hover:text-blue-400">Wish Catcher</h2>
-                <p class="text-xs text-zinc-500 leading-relaxed italic">Captura ideas de regalos o deseos en el momento exacto en que surgen.</p>
+                <p class="text-xs text-zinc-500 leading-relaxed italic">Captura ideas de deseos en el momento exacto en que surgen.</p>
                 <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">CAPTURING_WISHES</div>
             </a>
 
@@ -152,18 +171,19 @@
         </div>
 
         <!-- Terminal Footer -->
-        <div class="mt-16 p-4 bg-zinc-900/30 border border-zinc-800 rounded flex items-center justify-between">
+        <div class="mt-16 p-4 bg-zinc-900/30 border border-zinc-800 rounded flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-4">
-                <div class="animate-pulse h-2 w-2 bg-green-500 rounded-full"></div>
-                <span class="text-[10px] uppercase font-bold tracking-[0.2em] text-zinc-500">Núcleo CORE Operativo</span>
+                <div id="statusIndicator" class="animate-pulse h-2 w-2 bg-green-500 rounded-full"></div>
+                <span id="statusText" class="text-[10px] uppercase font-bold tracking-[0.2em] text-zinc-500">Núcleo CORE Operativo</span>
             </div>
             <div class="text-[10px] font-mono text-zinc-600">
-                Uptime: <span id="uptime">00:00:00</span>
+                Uptime: <span id="uptime">00:00:00</span> | SW_STATUS: <span id="swStatus">INACTIVE</span>
             </div>
         </div>
     </div>
 
     <script>
+        // --- LÓGICA DE UPTIME ---
         let startTime = Date.now();
         setInterval(() => {
             let diff = Math.floor((Date.now() - startTime) / 1000);
@@ -172,6 +192,88 @@
             let s = (diff % 60).toString().padStart(2, '0');
             document.getElementById('uptime').innerText = `${h}:${m}:${s}`;
         }, 1000);
+
+        // --- LÓGICA PWA (MANIFEST & SERVICE WORKER) ---
+        const manifest = {
+            "name": "CORE Toolset",
+            "short_name": "CORE",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#050505",
+            "theme_color": "#3b82f6",
+            "description": "Sistema operativo de utilidad urbana",
+            "icons": [
+                {
+                    "src": "https://cdn-icons-png.flaticon.com/512/3665/3665923.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "any maskable"
+                }
+            ]
+        };
+
+        // Generar Manifest dinámicamente
+        const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = manifestURL;
+        document.head.appendChild(manifestLink);
+
+        // Generar Service Worker dinámicamente
+        const swContent = `
+            const CACHE_NAME = 'core-v1.4';
+            self.addEventListener('install', (e) => {
+                self.skipWaiting();
+            });
+            self.addEventListener('fetch', (e) => {
+                e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+            });
+        `;
+        const swBlob = new Blob([swContent], {type: 'text/javascript'});
+        const swURL = URL.createObjectURL(swBlob);
+
+        // Registro del Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(swURL).then(() => {
+                document.getElementById('swStatus').innerText = 'ACTIVE_SECURE';
+            });
+        }
+
+        // --- MANEJO DE INSTALACIÓN ---
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+        const statusText = document.getElementById('statusText');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevenir que el navegador muestre su propio prompt
+            e.preventDefault();
+            deferredPrompt = e;
+            // Mostrar nuestro botón táctico
+            installBtn.classList.remove('hidden');
+            statusText.innerText = "INSTALACIÓN_DISPONIBLE";
+            statusText.classList.add('text-blue-400');
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                console.log('User accepted the install prompt');
+                installBtn.classList.add('hidden');
+            }
+            deferredPrompt = null;
+        });
+
+        window.addEventListener('appinstalled', () => {
+            installBtn.classList.add('hidden');
+            statusText.innerText = "SISTEMA_CORE_INSTALADO";
+            statusText.classList.remove('text-blue-400');
+            statusText.classList.add('text-green-500');
+        });
     </script>
 </body>
 </html>
