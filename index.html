@@ -274,6 +274,78 @@
             statusText.classList.remove('text-blue-400');
             statusText.classList.add('text-green-500');
         });
+
+         // --- SISTEMA DE TELEMETRÍA CORE ---
+const telemetry = {
+    db: db, // Asumiendo que ya tienes inicializado Firebase Firestore como 'db'
+
+    async init() {
+        this.trackVisitor();
+        this.trackPWAStatus();
+        this.setupToolTracking();
+    },
+
+    // 1. Número total de personas (Usuarios Únicos)
+    async trackVisitor() {
+        const isReturningUser = localStorage.getItem('core_user_registered');
+        if (!isReturningUser) {
+            const statsRef = doc(this.db, "stats", "core_hub");
+            await updateDoc(statsRef, {
+                total_users: increment(1)
+            });
+            localStorage.setItem('core_user_registered', 'true');
+            console.log("Telemetry: New unique operator registered.");
+        }
+    },
+
+    // 2. Uso de herramientas específicas
+    async logToolAccess(toolName) {
+        const statsRef = doc(this.db, "stats", "core_hub");
+        const field = `tool_usage.${toolName}`;
+        await updateDoc(statsRef, {
+            [field]: increment(1)
+        });
+    },
+
+    // 3. Tracking de instalación PWA
+    trackPWAStatus() {
+        // Detecta si la app ya está instalada y se abre como app
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            const hasLoggedInstall = localStorage.getItem('core_pwa_installed_logged');
+            if (!hasLoggedInstall) {
+                const statsRef = doc(this.db, "stats", "core_hub");
+                updateDoc(statsRef, {
+                    pwa_installations: increment(1)
+                });
+                localStorage.setItem('core_pwa_installed_logged', 'true');
+            }
+        }
+
+        // Listener para el momento exacto en que le dan a "Instalar"
+        window.addEventListener('appinstalled', async () => {
+            const statsRef = doc(this.db, "stats", "core_hub");
+            await updateDoc(statsRef, {
+                pwa_installations: increment(1)
+            });
+            localStorage.setItem('core_pwa_installed_logged', 'true');
+            console.log('Telemetry: PWA Installation confirmed.');
+        });
+    },
+
+    setupToolTracking() {
+        // Vincula el click de los botones del HUB a la telemetría
+        document.querySelectorAll('.tool-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const toolId = card.getAttribute('data-tool-id');
+                if (toolId) this.logToolAccess(toolId);
+            });
+        });
+    }
+};
+
+// Ejecutar al cargar el DOM
+document.addEventListener('DOMContentLoaded', () => telemetry.init());
+            
     </script>
 </body>
 </html>
