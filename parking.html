@@ -2,50 +2,141 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Parking Ghost | CORE</title>
     <link rel="manifest" id="pwa-manifest">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-        body { font-family: 'JetBrains+Mono', monospace; background-color: #050505; color: #eee; }
-        .arrow { width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-bottom: 30px solid #3b82f6; transition: transform 0.1s linear; }
+        body { 
+            font-family: 'JetBrains+Mono', monospace; 
+            background-color: #050505; 
+            color: #eee; 
+            overflow: hidden; /* Evitar scroll innecesario en navegación */
+        }
+        
+        /* Flecha táctica con punta roja */
+        .arrow-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            transition: transform 0.2s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+        }
+        .arrow-body {
+            position: absolute;
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 50%;
+            background: #3b82f6;
+        }
+        .arrow-head {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 30px solid #ef4444; /* Punta Roja */
+        }
+
+        .radar-pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+            70% { box-shadow: 0 0 0 20px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
     </style>
 </head>
 <body class="p-6 flex flex-col min-h-screen">
-    <header class="mb-6 border-l-4 border-blue-600 pl-4 flex justify-between items-center">
+    <header class="mb-4 border-l-4 border-blue-600 pl-4 flex justify-between items-center">
         <div>
             <a href="index.html" class="text-[10px] text-zinc-600 uppercase">← Hub</a>
-            <h1 class="text-xl font-bold uppercase italic text-white">Parking Ghost</h1>
+            <h1 class="text-xl font-bold uppercase italic text-white tracking-tighter">Parking Ghost</h1>
         </div>
-        <button id="installBtn" class="hidden bg-white text-black px-3 py-1 rounded text-[10px] font-bold uppercase">Instalar</button>
+        <div id="sensorStatus" class="w-2 h-2 rounded-full bg-zinc-800" title="Estado de Brújula"></div>
     </header>
 
-    <main class="flex-grow space-y-4">
-        <div id="radar" class="hidden bg-zinc-900 border border-zinc-800 p-8 rounded-full aspect-square flex flex-col items-center justify-center mx-auto max-w-[250px]">
-            <div id="arrow" class="arrow mb-4"></div>
-            <p id="dist" class="text-xl font-bold text-blue-400">--- M</p>
+    <main class="flex-grow flex flex-col space-y-4">
+        <!-- Radar Visual -->
+        <div id="radar" class="hidden bg-zinc-900 border border-zinc-800 p-8 rounded-full aspect-square flex flex-col items-center justify-center mx-auto w-full max-w-[280px] radar-pulse">
+            <div id="arrow" class="arrow-container">
+                <div class="arrow-head"></div>
+                <div class="arrow-body"></div>
+            </div>
+            <p id="dist" class="text-3xl font-bold text-white mt-4">--- M</p>
+            <p id="accuracy" class="text-[9px] text-zinc-500 uppercase">GPS: --</p>
         </div>
 
-        <div class="bg-zinc-900 p-6 rounded-lg text-center border border-zinc-800">
+        <!-- Info del Registro -->
+        <div class="bg-zinc-900 p-4 rounded-lg text-center border border-zinc-800 relative overflow-hidden">
             <p class="text-[10px] text-zinc-500 uppercase mb-1">Último registro:</p>
-            <div id="note" class="text-2xl font-bold text-white uppercase italic">Libre</div>
-            <div id="ts" class="text-[9px] text-zinc-600 mt-2">---</div>
+            <div id="note" class="text-xl font-bold text-white uppercase italic">Libre</div>
+            <div id="ts" class="text-[9px] text-zinc-600 mt-1 uppercase tracking-widest">Esperando señal...</div>
         </div>
 
-        <div class="space-y-3">
-            <input type="text" id="manual" placeholder="PLTA / COLOR / LETRA" class="w-full p-4 bg-zinc-900 border border-zinc-800 rounded text-center text-white outline-none">
-            <button onclick="setParking()" class="w-full bg-blue-600 py-4 rounded font-bold uppercase text-sm">Fijar Posición GPS</button>
-            <button onclick="resetParking()" class="w-full text-zinc-700 text-[10px] uppercase font-bold py-2">Resetear</button>
+        <!-- Controles -->
+        <div class="space-y-2 mt-auto">
+            <input type="text" id="manual" placeholder="PLTA / COLOR / PISO" class="w-full p-4 bg-zinc-900 border border-zinc-800 rounded text-center text-white outline-none focus:border-blue-600 transition-colors uppercase font-bold text-xs">
+            <button onclick="requestPermissions()" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded font-bold uppercase text-sm shadow-lg shadow-blue-900/20 active:scale-95 transition-transform">
+                Fijar Posición GPS
+            </button>
+            <button onclick="resetParking()" class="w-full text-zinc-700 text-[10px] uppercase font-bold py-2 tracking-[0.2em]">Resetear Sistema</button>
         </div>
     </main>
 
     <script>
         let watchId = null;
-        let target = JSON.parse(localStorage.getItem('p_ghost_v2')) || null;
+        let target = JSON.parse(localStorage.getItem('p_ghost_v3')) || null;
+        let deviceHeading = 0; // Rotación del móvil
+        let targetBearing = 0; // Rumbo absoluto al coche
+
+        // 1. Manejo de Permisos (Crítico para iOS)
+        async function requestPermissions() {
+            // Solicitar GPS
+            if (!navigator.geolocation) return showStatus("GPS NO SOPORTADO", "red");
+
+            // Solicitar Orientación (iOS 13+)
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission === 'granted') {
+                        initOrientation();
+                    }
+                } catch (e) {
+                    console.error("Permiso brújula denegado");
+                }
+            } else {
+                initOrientation();
+            }
+
+            setParking();
+        }
+
+        function initOrientation() {
+            window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+            window.addEventListener('deviceorientation', handleOrientation, true);
+            document.getElementById('sensorStatus').classList.replace('bg-zinc-800', 'bg-blue-500');
+        }
+
+        function handleOrientation(event) {
+            // Obtener heading según plataforma
+            if (event.webkitCompassHeading) {
+                deviceHeading = event.webkitCompassHeading; // iOS
+            } else if (event.absolute && event.alpha) {
+                deviceHeading = 360 - event.alpha; // Android
+            } else if (event.alpha) {
+                deviceHeading = 360 - event.alpha; // Fallback Android
+            }
+            updateArrow();
+        }
 
         function setParking() {
-            if (!navigator.geolocation) return alert("GPS No disponible");
             navigator.geolocation.getCurrentPosition(pos => {
                 target = {
                     lat: pos.coords.latitude,
@@ -53,22 +144,34 @@
                     note: document.getElementById('manual').value.toUpperCase() || "SIN NOTA",
                     ts: new Date().toLocaleTimeString()
                 };
-                localStorage.setItem('p_ghost_v2', JSON.stringify(target));
+                localStorage.setItem('p_ghost_v3', JSON.stringify(target));
                 startTrack();
                 render();
-            }, null, {enableHighAccuracy: true});
+            }, err => showStatus("ERROR GPS: " + err.message, "red"), 
+            {enableHighAccuracy: true, timeout: 10000});
         }
 
         function startTrack() {
             if (!target) return;
             document.getElementById('radar').classList.remove('hidden');
+            
             if (watchId) navigator.geolocation.clearWatch(watchId);
+            
             watchId = navigator.geolocation.watchPosition(pos => {
                 const dist = calculateDist(pos.coords.latitude, pos.coords.longitude, target.lat, target.lng);
-                const bearing = calculateBearing(pos.coords.latitude, pos.coords.longitude, target.lat, target.lng);
+                targetBearing = calculateBearing(pos.coords.latitude, pos.coords.longitude, target.lat, target.lng);
+                
                 document.getElementById('dist').innerText = `${Math.round(dist)} M`;
-                document.getElementById('arrow').style.transform = `rotate(${bearing}deg)`;
+                document.getElementById('accuracy').innerText = `Precisión: ±${Math.round(pos.coords.accuracy)}m`;
+                
+                updateArrow();
             }, null, {enableHighAccuracy: true});
+        }
+
+        function updateArrow() {
+            // El ángulo final es: Rumbo al Objetivo - Rotación del Teléfono
+            const finalAngle = (targetBearing - deviceHeading + 360) % 360;
+            document.getElementById('arrow').style.transform = `rotate(${finalAngle}deg)`;
         }
 
         function calculateDist(lat1, lon1, lat2, lon2) {
@@ -82,13 +185,17 @@
         }
 
         function calculateBearing(lat1, lon1, lat2, lon2) {
-            const y = Math.sin((lon2-lon1)*Math.PI/180) * Math.cos(lat2*Math.PI/180);
-            const x = Math.cos(lat1*Math.PI/180)*Math.sin(lat2*Math.PI/180)-Math.sin(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.cos((lon2-lon1)*Math.PI/180);
-            return (Math.atan2(y, x)*180/Math.PI + 360) % 360;
+            const λ1 = lon1 * Math.PI/180;
+            const λ2 = lon2 * Math.PI/180;
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const y = Math.sin(λ2-λ1) * Math.cos(φ2);
+            const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(λ2-λ1);
+            return (Math.atan2(y, x) * 180/Math.PI + 360) % 360;
         }
 
         function resetParking() {
-            localStorage.removeItem('p_ghost_v2');
+            localStorage.removeItem('p_ghost_v3');
             target = null;
             if (watchId) navigator.geolocation.clearWatch(watchId);
             document.getElementById('radar').classList.add('hidden');
@@ -99,15 +206,30 @@
             if (target) {
                 document.getElementById('note').innerText = target.note;
                 document.getElementById('ts').innerText = `FIJADO: ${target.ts}`;
+                document.getElementById('manual').value = target.note;
             } else {
                 document.getElementById('note').innerText = "LIBRE";
                 document.getElementById('ts').innerText = "---";
+                document.getElementById('manual').value = "";
             }
         }
 
-        window.onload = () => { render(); startTrack(); };
+        function showStatus(msg, color) {
+            const ts = document.getElementById('ts');
+            ts.innerText = msg;
+            ts.style.color = color === 'red' ? '#ef4444' : '#666';
+        }
 
-        const manifest = { "name": "Parking Ghost", "short_name": "ParkGhost", "start_url": "parking.html", "display": "standalone", "theme_color": "#3b82f6" };
+        window.onload = () => { 
+            render(); 
+            if (target) {
+                initOrientation();
+                startTrack();
+            }
+        };
+
+        // PWA Manifest dinámico
+        const manifest = { "name": "Parking Ghost", "short_name": "ParkGhost", "start_url": "parking.html", "display": "standalone", "theme_color": "#050505", "background_color": "#050505" };
         document.getElementById('pwa-manifest').setAttribute('href', 'data:application/json;base64,' + btoa(JSON.stringify(manifest)));
     </script>
 </body>
