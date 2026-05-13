@@ -3,91 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Extractor de Puntos Resolutivos</title>
+    <title>Listener</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        body {
+            font-family: 'JetBrains+Mono', monospace;
+            background-color: #050505;
+            color: #a1a1aa;
+        }
+        .terminal-box {
+            background: #0a0a0a;
+            border: 1px solid #27272a;
+        }
         .dot-flashing {
             position: relative;
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 5px;
-            background-color: #ef4444;
-            color: #ef4444;
+            background-color: #3b82f6;
             animation: dot-flashing 1s infinite linear alternate;
-            animation-delay: .5s;
         }
         @keyframes dot-flashing {
-            0% { background-color: #ef4444; }
-            50%, 100% { background-color: #fee2e2; }
+            0% { opacity: 0.2; }
+            100% { opacity: 1; }
         }
-        /* Optimización para scroll en móviles */
-        #transcript-box, #resolutive-box {
-            -webkit-overflow-scrolling: touch;
-        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #27272a; }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen p-4 md:p-8">
+<body class="min-h-screen p-4 md:p-8">
     <div class="max-w-4xl mx-auto">
-        <header class="mb-6 border-b border-gray-700 pb-4">
-            <h1 class="text-2xl md:text-3xl font-bold text-white uppercase tracking-tight">Extracción Resolutiva</h1>
-            <p class="text-gray-400 mt-1 text-sm">Filtro de retórica en tiempo real.</p>
+        <!-- Header -->
+        <header class="mb-8 border-l-4 border-blue-600 pl-6">
+            <div class="flex items-center gap-2 text-blue-500 mb-1">
+                <a href="index.html" class="hover:underline text-[10px] font-bold uppercase tracking-[0.2em]">← Volver al HUB</a>
+            </div>
+            <h1 class="text-2xl font-bold text-white tracking-tighter uppercase italic">LISTENER</h1>
+            <p class="text-zinc-500 text-[10px] tracking-[0.3em] uppercase">Módulo de Extracción Resolutiva V 1.0</p>
         </header>
 
-        <div class="flex flex-col gap-6">
-            <!-- Panel de Control y Transmisión -->
-            <div class="bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700 order-1">
-                <h2 class="text-lg font-semibold mb-3 flex items-center">
-                    <span id="status-dot" class="hidden mr-2 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
-                    Entrada de Audio
-                </h2>
-                
-                <div id="transcript-box" class="h-48 md:h-64 overflow-y-auto bg-gray-950 p-4 rounded border border-gray-700 text-sm text-gray-400 mb-4 font-mono leading-relaxed">
-                    Presione el botón para iniciar...
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Columna STT -->
+            <div class="space-y-4">
+                <div class="terminal-box rounded p-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-[10px] font-bold text-zinc-500 tracking-widest uppercase italic">Audio_Stream</span>
+                        <div id="status-dot" class="hidden h-2 w-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]"></div>
+                    </div>
+                    <div id="transcript-box" class="h-48 md:h-64 overflow-y-auto text-xs leading-relaxed text-zinc-400 font-mono">
+                        SISTEMA_LISTO: Esperando inicialización de operador...
+                    </div>
                 </div>
 
-                <div class="flex flex-col gap-3">
-                    <button id="start-btn" class="w-full bg-blue-600 active:bg-blue-800 text-white font-bold py-4 px-4 rounded-lg transition-all flex justify-center items-center text-lg shadow-lg">
-                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
-                        Comenzar Escucha
-                    </button>
-                    <button id="stop-btn" class="w-full bg-red-900/40 hover:bg-red-900/60 text-red-200 font-bold py-4 px-4 rounded-lg border border-red-800 transition-all hidden text-lg">
-                        Detener y Finalizar
-                    </button>
-                </div>
+                <button id="start-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded text-xs uppercase tracking-[0.2em] transition-all border border-blue-400/50">
+                    Iniciar Captura
+                </button>
+                <button id="stop-btn" class="hidden w-full bg-zinc-900 hover:bg-zinc-800 text-zinc-400 font-bold py-4 rounded text-xs uppercase tracking-[0.2em] border border-zinc-700 transition-all">
+                    Finalizar Sesión
+                </button>
             </div>
 
-            <!-- Panel de Resultados (Resolutivo) -->
-            <div class="bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-700 order-2">
-                <h2 class="text-lg font-semibold mb-3 text-green-400 flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Puntos Resolutivos (IA)
-                </h2>
-                <div id="resolutive-box" class="h-64 md:h-[400px] overflow-y-auto bg-gray-950 p-4 rounded border border-gray-700">
-                    <div id="ai-loading" class="hidden items-center justify-center py-10">
-                        <div class="dot-flashing"></div>
-                    </div>
-                    <ul id="points-list" class="space-y-4">
-                        <!-- Puntos generados aquí -->
+            <!-- Columna IA -->
+            <div class="terminal-box rounded p-4 border-blue-900/30">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-[10px] font-bold text-blue-400 tracking-widest uppercase italic">Puntos_Resolutivos</span>
+                    <div id="ai-loading" class="hidden"><div class="dot-flashing"></div></div>
+                </div>
+                <div id="resolutive-box" class="h-80 md:h-[400px] overflow-y-auto space-y-4">
+                    <ul id="points-list" class="space-y-3">
+                        <!-- Inyección de puntos -->
                     </ul>
-                    <div id="placeholder-text" class="text-gray-600 italic text-center mt-12 text-sm">
-                        Las decisiones clave aparecerán aquí automáticamente.
+                    <div id="placeholder-text" class="text-[10px] text-zinc-700 italic text-center mt-20 uppercase tracking-widest">
+                        Escaneando discurso en busca de acuerdos...
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-6 p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
-            <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Lógica de Extracción:</h3>
-            <p class="text-xs text-gray-400 italic leading-snug">Se omiten introducciones, anécdotas y fundamentos ideológicos. Se priorizan: mandatos, plazos, responsables y montos.</p>
-        </div>
+        <footer class="mt-8 pt-4 border-t border-zinc-900">
+            <p class="text-[9px] text-zinc-600 uppercase leading-loose tracking-widest">
+                Protocolo: Omisión de fundamentos / Captura de decisiones / Plazos / Responsables.
+            </p>
+        </footer>
     </div>
 
     <script>
-        const apiKey = ""; 
+        const apiKey = "TU_API_KEY_AQUÍ"; 
         let recognition;
         let fullTranscript = "";
         let bufferText = "";
-        const BUFFER_LIMIT = 250; // Umbral de procesamiento
+        const BUFFER_LIMIT = 280;
 
         const startBtn = document.getElementById('start-btn');
         const stopBtn = document.getElementById('stop-btn');
@@ -97,56 +103,44 @@
         const placeholderText = document.getElementById('placeholder-text');
         const aiLoading = document.getElementById('ai-loading');
 
-        if ('webkitSpeechRecognition' in window || 'speechRecognition' in window) {
-            const SpeechRecognition = window.webkitSpeechRecognition || window.speechRecognition;
-            recognition = new SpeechRecognition();
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = 'es-ES';
 
             recognition.onresult = (event) => {
-                let interimTranscript = '';
+                let interim = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         const text = event.results[i][0].transcript;
                         fullTranscript += text + ' ';
                         bufferText += text + ' ';
-                        
                         if (bufferText.length > BUFFER_LIMIT) {
                             processResolutive(bufferText);
                             bufferText = ""; 
                         }
                     } else {
-                        interimTranscript += event.results[i][0].transcript;
+                        interim += event.results[i][0].transcript;
                     }
                 }
-                transcriptBox.innerHTML = `<span class="text-gray-300">${fullTranscript}</span><span class="text-blue-500 italic">${interimTranscript}</span>`;
+                transcriptBox.innerHTML = `<span>${fullTranscript}</span><span class="text-blue-600 italic">${interim}</span>`;
                 transcriptBox.scrollTop = transcriptBox.scrollHeight;
             };
-
-            recognition.onerror = (e) => {
-                console.error("Error STT:", e.error);
-                if(e.error === 'not-allowed') alert("Permiso de micrófono denegado.");
-                stopRecognition();
-            };
-        } else {
-            transcriptBox.innerText = "Error: Este navegador no permite reconocimiento de voz.";
-            startBtn.disabled = true;
-            startBtn.classList.add('opacity-50');
         }
 
-        async function processResolutive(textChunk) {
+        async function processResolutive(text) {
             placeholderText.classList.add('hidden');
             aiLoading.classList.remove('hidden');
 
-            const systemPrompt = "Actúa como relator oficial. Extrae EXCLUSIVAMENTE los puntos resolutivos, decisiones, órdenes o acuerdos del texto. Omite CUALQUIER fundamento, contexto, saludo o justificación. Sé directo. Si no hay una decisión clara, no escribas nada.";
+            const systemPrompt = "Actúa como relator. Extrae SOLO los puntos resolutivos, decisiones o acuerdos. Ignora fundamentos, saludos y contexto. Sé extremadamente directo.";
 
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: `Analiza y extrae solo lo resolutivo de este fragmento: ${textChunk}` }] }],
+                        contents: [{ parts: [{ text: `Extrae lo resolutivo: ${text}` }] }],
                         systemInstruction: { parts: [{ text: systemPrompt }] }
                     })
                 });
@@ -156,40 +150,27 @@
 
                 if (aiText && aiText.trim().length > 5) {
                     const li = document.createElement('li');
-                    li.className = "bg-gray-800 p-4 rounded-lg border-l-4 border-green-600 shadow-sm text-gray-100 text-sm md:text-base leading-relaxed";
+                    li.className = "bg-zinc-900/50 p-3 rounded border-l-2 border-blue-500 text-xs text-zinc-200 leading-relaxed";
                     li.innerText = aiText.replace(/[*#]/g, '').trim();
                     pointsList.appendChild(li);
-                    const container = document.getElementById('resolutive-box');
-                    container.scrollTop = container.scrollHeight;
+                    document.getElementById('resolutive-box').scrollTop = document.getElementById('resolutive-box').scrollHeight;
                 }
-            } catch (error) {
-                console.error("Error API:", error);
-            } finally {
-                aiLoading.classList.add('hidden');
-            }
+            } catch (e) { console.error("API_ERR", e); }
+            finally { aiLoading.classList.add('hidden'); }
         }
 
-        function startRecognition() {
-            fullTranscript = "";
-            bufferText = "";
-            pointsList.innerHTML = "";
-            transcriptBox.innerHTML = "Escuchando...";
+        startBtn.addEventListener('click', () => {
             recognition.start();
             startBtn.classList.add('hidden');
             stopBtn.classList.remove('hidden');
             statusDot.classList.remove('hidden');
-        }
+            transcriptBox.innerText = "CAPTURA_ACTIVA...";
+        });
 
-        function stopRecognition() {
+        stopBtn.addEventListener('click', () => {
             recognition.stop();
-            if (bufferText.length > 5) processResolutive(bufferText);
-            startBtn.classList.remove('hidden');
-            stopBtn.classList.add('hidden');
-            statusDot.classList.add('hidden');
-        }
-
-        startBtn.addEventListener('click', startRecognition);
-        stopBtn.addEventListener('click', stopRecognition);
+            location.reload(); // Reset limpio
+        });
     </script>
 </body>
-</html>
+    </html>
