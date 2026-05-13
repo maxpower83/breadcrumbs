@@ -77,8 +77,7 @@
     </div>
 
     <script>
-        // En este entorno, la apiKey se inyecta automáticamente si la dejamos así
-        const apiKey = ""; 
+        const apiKey = ""; // El entorno inyectará la clave aquí
         const modelName = "gemini-2.5-flash-preview-09-2025";
         
         let recognition;
@@ -124,8 +123,8 @@
             pointsList.innerHTML = "";
 
             const payload = {
-                contents: [{ parts: [{ text: `Analiza el siguiente discurso y extrae exclusivamente los PUNTOS RESOLUTIVOS, DECISIONES, ACUERDOS, FECHAS Y RESPONSABLES. Ignora fundamentos, retórica y contexto previo. Sé directo y breve: ${textToProcess}` }] }],
-                systemInstruction: { parts: [{ text: "Eres un relator ejecutivo. Tu única función es extraer lo resolutivo de un discurso. No resumas, extrae decisiones concretas en forma de lista." }] }
+                contents: [{ parts: [{ text: `TEXTO: ${textToProcess}` }] }],
+                systemInstruction: { parts: [{ text: "ACTÚA COMO RELATOR EJECUTIVO. Extrae exclusivamente PUNTOS RESOLUTIVOS, DECISIONES, ACUERDOS, PLAZOS Y RESPONSABLES. Ignora fundamentos, retórica, saludos y contexto. Sé extremadamente directo y breve. Responde en español." }] }
             };
 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
@@ -161,7 +160,7 @@
                 } catch (e) {
                     retries--;
                     if (retries === 0) {
-                        pointsList.innerHTML = `<li class="text-red-500 text-[10px] p-2 bg-red-900/10 border border-red-900">ERROR: ${e.message}</li>`;
+                        pointsList.innerHTML = `<li class="text-red-500 text-[10px] p-2 bg-red-900/10 border border-red-900">ERROR: ${e.message}. Asegúrate de que la clave de API sea válida.</li>`;
                     } else {
                         await new Promise(r => setTimeout(r, delay));
                         delay *= 2;
@@ -175,7 +174,7 @@
         startBtn.addEventListener('click', () => {
             isRecording = true;
             finalTranscript = "";
-            transcriptBox.innerText = "CAPTURA_ACTIVA...";
+            transcriptBox.innerText = "CAPTURANDO AUDIO...";
             recognition.start();
             startBtn.classList.add('hidden');
             finishBtn.classList.remove('hidden');
