@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LISTENER - Extracción Final</title>
+    <title>LISTENER V2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
@@ -34,60 +34,49 @@
     <div class="max-w-2xl mx-auto w-full flex flex-col h-[95vh]">
         
         <header class="mb-4 border-l-4 border-blue-600 pl-4 shrink-0">
-            <h1 class="text-xl font-bold text-white tracking-tighter uppercase italic">LISTENER</h1>
-            <p class="text-zinc-500 text-[9px] tracking-[0.2em] uppercase font-bold">Modo: Procesamiento Post-Sesión</p>
+            <h1 class="text-xl font-bold text-white tracking-tighter uppercase italic">LISTENER V2</h1>
+            <p class="text-zinc-500 text-[9px] tracking-[0.2em] uppercase font-bold">Extracción Resolutiva Estricta</p>
         </header>
 
         <div class="flex-1 flex flex-col gap-4 overflow-hidden">
-            <!-- Transcripción en vivo -->
+            <!-- Transcripción -->
             <div class="terminal-box rounded p-3 h-1/2 flex flex-col">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-[9px] font-bold text-zinc-500 uppercase">Captura_Cruda</span>
-                    <div id="status-indicator" class="hidden flex items-center gap-2">
-                        <span class="text-[9px] text-red-500 font-bold animate-pulse">GRABANDO</span>
-                        <div class="h-2 w-2 bg-red-600 rounded-full animate-pulse"></div>
-                    </div>
+                <div class="flex justify-between items-center mb-2 text-[9px] font-bold text-zinc-500 uppercase">
+                    <span>Captura_Audio</span>
+                    <div id="status-label" class="hidden text-red-600 animate-pulse">REC_ACTIVO</div>
                 </div>
-                <div id="transcript-box" class="flex-1 overflow-y-auto text-[12px] leading-relaxed text-zinc-400 font-mono italic">
-                    Esperando inicio de captura...
+                <div id="transcript-box" class="flex-1 overflow-y-auto text-[13px] leading-snug text-zinc-400 font-mono italic">
+                    Esperando operador...
                 </div>
             </div>
 
-            <!-- Resultado IA -->
-            <div class="terminal-box rounded p-3 h-1/2 border-blue-900/30 flex flex-col relative">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-[9px] font-bold text-blue-400 uppercase">Puntos_Resolutivos_Finales</span>
+            <!-- Resolutivo -->
+            <div class="terminal-box rounded p-3 h-1/2 border-blue-900/30 flex flex-col">
+                <div class="flex justify-between items-center mb-2 text-[9px] font-bold text-blue-400 uppercase">
+                    <span>Resultados_Resolutivos</span>
                     <div id="ai-loading" class="hidden"><div class="dot-flashing"></div></div>
                 </div>
                 <div id="resolutive-box" class="flex-1 overflow-y-auto">
                     <ul id="points-list" class="space-y-3"></ul>
                     <div id="placeholder-text" class="text-[10px] text-zinc-800 text-center mt-20 uppercase tracking-[0.3em]">
-                        El resumen aparecerá al finalizar la sesión.
+                        Sin datos procesados.
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Botonera -->
-        <div class="mt-4 grid grid-cols-1 gap-3 shrink-0">
-            <button id="start-btn" class="bg-blue-600 active:bg-blue-800 text-white font-bold py-5 rounded text-xs uppercase tracking-widest transition-all">
-                Iniciar Captura de Audio
+        <!-- Controles -->
+        <div class="mt-4 grid grid-cols-1 gap-2 shrink-0">
+            <button id="start-btn" class="bg-blue-600 text-white font-bold py-5 rounded text-xs uppercase tracking-widest">
+                Iniciar Grabación
             </button>
-            
-            <button id="finish-btn" class="hidden bg-white text-black font-bold py-5 rounded text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                Finalizar y Procesar Resumen
+            <button id="finish-btn" class="hidden bg-white text-black font-bold py-5 rounded text-xs uppercase tracking-widest">
+                Finalizar y Extraer
             </button>
-
-            <button id="reset-btn" class="hidden bg-zinc-900 text-zinc-500 font-bold py-3 rounded text-[10px] uppercase tracking-widest border border-zinc-800">
-                Reiniciar Sistema
+            <button id="reset-btn" class="hidden bg-zinc-900 text-zinc-500 font-bold py-3 rounded text-[10px] uppercase tracking-widest">
+                Reset
             </button>
         </div>
-
-        <footer class="mt-4 shrink-0 text-center">
-            <p class="text-[8px] text-zinc-700 uppercase tracking-widest">
-                Protocolo: Extracción de acuerdos, decisiones y plazos omitiendo fundamentos.
-            </p>
-        </footer>
     </div>
 
     <script>
@@ -95,14 +84,15 @@
         const modelName = "gemini-2.5-flash-preview-09-2025";
         
         let recognition;
-        let fullTranscript = "";
-        
+        let finalTranscript = "";
+        let isRecording = false;
+
         const startBtn = document.getElementById('start-btn');
         const finishBtn = document.getElementById('finish-btn');
         const resetBtn = document.getElementById('reset-btn');
         const transcriptBox = document.getElementById('transcript-box');
         const pointsList = document.getElementById('points-list');
-        const statusIndicator = document.getElementById('status-indicator');
+        const statusLabel = document.getElementById('status-label');
         const placeholderText = document.getElementById('placeholder-text');
         const aiLoading = document.getElementById('ai-loading');
 
@@ -114,105 +104,100 @@
             recognition.lang = 'es-ES';
 
             recognition.onresult = (event) => {
-                let interim = '';
+                let interimTranscript = '';
+                // Limpiamos el manejo de resultados para evitar duplicados en móviles
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    const transcript = event.results[i][0].transcript;
                     if (event.results[i].isFinal) {
-                        fullTranscript += event.results[i][0].transcript + ' ';
+                        finalTranscript += transcript + ' ';
                     } else {
-                        interim += event.results[i][0].transcript;
+                        interimTranscript += transcript;
                     }
                 }
-                transcriptBox.innerHTML = `<span class="text-zinc-300">${fullTranscript}</span><span class="text-blue-500">${interim}</span>`;
+                transcriptBox.innerHTML = `<span class="text-zinc-200">${finalTranscript}</span><span class="text-blue-600">${interimTranscript}</span>`;
                 transcriptBox.scrollTop = transcriptBox.scrollHeight;
+            };
+
+            recognition.onend = () => {
+                if (isRecording) recognition.start(); // Auto-restart si el sistema lo corta (común en móviles)
             };
         }
 
-        async function fetchWithRetry(url, options, retries = 5, backoff = 1000) {
-            try {
-                const response = await fetch(url, options);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return await response.json();
-            } catch (err) {
-                if (retries > 0) {
-                    await new Promise(r => setTimeout(r, backoff));
-                    return fetchWithRetry(url, options, retries - 1, backoff * 2);
+        async function callGemini(prompt) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { 
+                    parts: [{ text: "Eres un extractor de puntos resolutivos. Ignora introducciones, fundamentos, contexto y retórica. Extrae SOLO decisiones, acuerdos, fechas y responsables en forma de lista directa." }] 
                 }
-                throw err;
+            };
+
+            let retries = 5;
+            let delay = 1000;
+
+            while (retries > 0) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error();
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                } catch (e) {
+                    retries--;
+                    if (retries === 0) throw e;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
             }
         }
 
-        async function processFinalSummary() {
-            if (fullTranscript.trim().length < 10) return;
+        async function processSummary() {
+            if (!finalTranscript.trim()) return;
 
             aiLoading.classList.remove('hidden');
             placeholderText.classList.add('hidden');
-            pointsList.innerHTML = "";
-
-            const systemPrompt = `ACTÚA COMO UN SECRETARIO DE ACTAS DE ALTA PRECISIÓN. 
-            Tu tarea es analizar el discurso completo y extraer exclusivamente los PUNTOS RESOLUTIVOS.
             
-            REGLAS CRÍTICAS:
-            1. OMITE: Saludos, agradecimientos, fundamentos técnicos, explicaciones de motivos y contexto histórico.
-            2. EXTRAE: Acuerdos finales, decisiones tomadas, plazos establecidos y responsables asignados.
-            3. FORMATO: Lista de puntos directos, breves y ejecutivos.
-            4. IDIOMA: Responde siempre en Español.
-            5. Si no hay decisiones claras, indica "NO SE DETECTARON ACUERDOS RESOLUTIVOS".`;
-
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-                const result = await fetchWithRetry(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: `Extrae la parte resolutiva de este discurso: ${fullTranscript}` }] }],
-                        systemInstruction: { parts: [{ text: systemPrompt }] }
-                    })
-                });
-
-                const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                if (aiResponse) {
-                    const lines = aiResponse.split('\n').filter(l => l.trim().length > 3);
-                    lines.forEach(line => {
-                        const li = document.createElement('li');
-                        li.className = "bg-zinc-900/80 p-4 rounded border-l-4 border-blue-500 text-[12px] text-white font-bold uppercase leading-tight tracking-tight";
-                        li.innerText = line.replace(/^[•\-\*#\d\.]+\s*/, '').trim();
-                        pointsList.appendChild(li);
-                    });
+                const response = await callGemini(`Extrae los puntos resolutivos de este texto: ${finalTranscript}`);
+                if (response) {
+                    const lines = response.split('\n').filter(l => l.trim().length > 2);
+                    pointsList.innerHTML = lines.map(line => `
+                        <li class="bg-zinc-900/80 p-3 rounded border-l-4 border-blue-500 text-[11px] text-white font-bold uppercase">
+                            ${line.replace(/^[•\-\*#\d\.]+\s*/, '').trim()}
+                        </li>
+                    `).join('');
                 }
             } catch (e) {
-                const errLi = document.createElement('li');
-                errLi.className = "text-red-500 text-[10px] font-bold";
-                errLi.innerText = "ERROR_DE_COMUNICACIÓN: Reintente el procesamiento.";
-                pointsList.appendChild(errLi);
+                pointsList.innerHTML = `<li class="text-red-600 text-[10px]">ERROR CRÍTICO: No se pudo conectar con el motor de IA.</li>`;
             } finally {
                 aiLoading.classList.add('hidden');
             }
         }
 
         startBtn.addEventListener('click', () => {
+            isRecording = true;
+            finalTranscript = "";
+            transcriptBox.innerText = "";
             recognition.start();
             startBtn.classList.add('hidden');
             finishBtn.classList.remove('hidden');
-            statusIndicator.classList.remove('hidden');
-            transcriptBox.innerText = "";
+            statusLabel.classList.remove('hidden');
         });
 
         finishBtn.addEventListener('click', () => {
+            isRecording = false;
             recognition.stop();
-            statusIndicator.classList.add('hidden');
             finishBtn.classList.add('hidden');
             resetBtn.classList.remove('hidden');
-            processFinalSummary();
+            statusLabel.classList.add('hidden');
+            processSummary();
         });
 
         resetBtn.addEventListener('click', () => {
-            fullTranscript = "";
-            transcriptBox.innerText = "Esperando inicio de captura...";
-            pointsList.innerHTML = "";
-            placeholderText.classList.remove('hidden');
-            resetBtn.classList.add('hidden');
-            startBtn.classList.remove('hidden');
+            location.reload();
         });
     </script>
 </body>
