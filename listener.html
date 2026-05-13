@@ -3,95 +3,101 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LISTENER V5</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizador Resolutivo Real-Time</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-        body {
-            font-family: 'JetBrains+Mono', monospace;
-            background-color: #050505;
-            color: #a1a1aa;
-        }
-        .terminal-box {
-            background: #0a0a0a;
-            border: 1px solid #27272a;
-        }
         .dot-flashing {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
+            display: inline-block;
+            position: relative;
+            width: 10px;
+            height: 10px;
+            border-radius: 5px;
             background-color: #3b82f6;
+            color: #3b82f6;
             animation: dot-flashing 1s infinite linear alternate;
+            animation-delay: .5s;
         }
         @keyframes dot-flashing {
-            0% { opacity: 0.2; }
-            100% { opacity: 1; }
+            0% { background-color: #3b82f6; }
+            50%, 100% { background-color: #ebe6ff; }
+        }
+        #results-container {
+            height: calc(100vh - 320px);
         }
     </style>
 </head>
-<body class="min-h-screen p-4 flex flex-col">
-    <div class="max-w-2xl mx-auto w-full flex flex-col h-[95vh]">
-        
-        <header class="mb-4 border-l-4 border-blue-600 pl-4 shrink-0">
-            <h1 class="text-xl font-bold text-white tracking-tighter uppercase italic">LISTENER V5</h1>
-            <p class="text-zinc-500 text-[9px] tracking-[0.2em] uppercase font-bold text-blue-400">Extracción Resolutiva Directa</p>
+<body class="bg-gray-900 text-gray-100 font-sans">
+
+    <div class="max-w-md mx-auto p-4 flex flex-col h-screen">
+        <header class="mb-4">
+            <h1 class="text-xl font-bold text-blue-400">Extractor Resolutivo</h1>
+            <p class="text-xs text-gray-400">Filtra fundamentos, captura decisiones.</p>
         </header>
 
-        <div class="flex-1 flex flex-col gap-4 overflow-hidden">
-            <!-- Audio Input -->
-            <div class="terminal-box rounded p-3 h-1/2 flex flex-col border-zinc-800">
-                <div class="flex justify-between items-center mb-2 text-[9px] font-bold text-zinc-500 uppercase">
-                    <span>Captura_Voz</span>
-                    <div id="status-label" class="hidden text-red-600 animate-pulse font-bold">● REC</div>
-                </div>
-                <div id="transcript-box" class="flex-1 overflow-y-auto text-[13px] leading-snug text-zinc-400 font-mono italic">
-                    Sistema listo para grabar.
-                </div>
-            </div>
-
-            <!-- AI Output -->
-            <div class="terminal-box rounded p-3 h-1/2 border-blue-900/30 flex flex-col">
-                <div class="flex justify-between items-center mb-2 text-[9px] font-bold text-blue-400 uppercase">
-                    <span>Puntos_Resolutivos</span>
-                    <div id="ai-loading" class="hidden"><div class="dot-flashing"></div></div>
-                </div>
-                <div id="resolutive-box" class="flex-1 overflow-y-auto">
-                    <ul id="points-list" class="space-y-3"></ul>
-                </div>
-            </div>
-        </div>
+        <!-- Configuración de API Key -->
+        <section class="mb-4 bg-gray-800 p-3 rounded-lg shadow-inner">
+            <label class="block text-xs font-semibold text-gray-400 mb-1">GEMINI API KEY</label>
+            <input type="password" id="api-key" placeholder="Introduce tu API Key aquí" 
+                   class="w-full bg-gray-700 border-none rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </section>
 
         <!-- Controles -->
-        <div class="mt-4 grid grid-cols-1 gap-2 shrink-0">
-            <button id="start-btn" class="bg-blue-600 text-white font-bold py-5 rounded text-xs uppercase tracking-widest shadow-lg shadow-blue-900/20">
-                Iniciar Grabación
+        <div class="flex gap-2 mb-4">
+            <button id="start-btn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+                Iniciar
             </button>
-            <button id="finish-btn" class="hidden bg-white text-black font-bold py-5 rounded text-xs uppercase tracking-widest">
-                Finalizar y Extraer Resolutivo
+            <button id="stop-btn" disabled class="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H10a1 1 0 01-1-1v-4z" />
+                </svg>
+                Detener
             </button>
-            <button id="reset-btn" class="hidden bg-zinc-900 text-zinc-500 font-bold py-3 rounded text-[10px] uppercase tracking-widest border border-zinc-800">
-                Reiniciar
-            </button>
+        </div>
+
+        <!-- Estado -->
+        <div id="status" class="text-xs mb-2 text-center text-gray-500 italic">Listo para escuchar</div>
+
+        <!-- Resultados -->
+        <div id="results-container" class="flex-1 bg-gray-800 rounded-lg p-4 overflow-y-auto border border-gray-700 space-y-4">
+            <div id="placeholder-msg" class="text-gray-500 text-center mt-10">
+                La síntesis resolutiva aparecerá aquí...
+            </div>
+            <!-- Los bloques de texto aparecerán aquí -->
+        </div>
+
+        <footer class="mt-4 pb-2">
+            <button id="clear-btn" class="w-full text-xs text-gray-500 underline">Limpiar historial</button>
+        </footer>
+    </div>
+
+    <!-- Modal de error -->
+    <div id="error-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 p-6 rounded-xl border border-red-500 max-w-xs w-full text-center">
+            <h2 class="text-red-400 font-bold mb-2">Error</h2>
+            <p id="error-text" class="text-sm text-gray-300 mb-4"></p>
+            <button onclick="document.getElementById('error-modal').classList.add('hidden')" class="bg-red-600 px-4 py-2 rounded text-sm">Cerrar</button>
         </div>
     </div>
 
     <script>
-        const apiKey = ""; // El entorno inyectará la clave aquí
-        const modelName = "gemini-2.5-flash-preview-09-2025";
-        
         let recognition;
-        let finalTranscript = "";
         let isRecording = false;
+        let accumulatedText = "";
+        const BUFFER_LIMIT = 200; // Caracteres mínimos para enviar a procesar
 
         const startBtn = document.getElementById('start-btn');
-        const finishBtn = document.getElementById('finish-btn');
-        const resetBtn = document.getElementById('reset-btn');
-        const transcriptBox = document.getElementById('transcript-box');
-        const pointsList = document.getElementById('points-list');
-        const statusLabel = document.getElementById('status-label');
-        const aiLoading = document.getElementById('ai-loading');
+        const stopBtn = document.getElementById('stop-btn');
+        const apiKeyInput = document.getElementById('api-key');
+        const resultsContainer = document.getElementById('results-container');
+        const statusDiv = document.getElementById('status');
+        const placeholderMsg = document.getElementById('placeholder-msg');
 
+        // Inicializar reconocimiento de voz
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
@@ -103,94 +109,136 @@
                 let interimTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript + ' ';
+                        accumulatedText += event.results[i][0].transcript + " ";
+                        checkBuffer();
                     } else {
                         interimTranscript += event.results[i][0].transcript;
                     }
                 }
-                transcriptBox.innerHTML = `<span class="text-zinc-200">${finalTranscript}</span><span class="text-blue-600">${interimTranscript}</span>`;
-                transcriptBox.scrollTop = transcriptBox.scrollHeight;
+                statusDiv.innerHTML = `Escuchando... <span class="text-blue-400">${interimTranscript}</span>`;
             };
 
-            recognition.onend = () => { if (isRecording) recognition.start(); };
+            recognition.onerror = (event) => {
+                showError("Error de reconocimiento: " + event.error);
+                stopRecording();
+            };
+
+            recognition.onend = () => {
+                if (isRecording) recognition.start(); // Reiniciar si se detiene solo
+            };
+        } else {
+            showError("Tu navegador no soporta reconocimiento de voz.");
+            startBtn.disabled = true;
         }
 
-        async function processSummary() {
-            const textToProcess = finalTranscript.trim();
-            if (!textToProcess) return;
+        startBtn.onclick = () => {
+            const key = apiKeyInput.value.trim();
+            if (!key) {
+                showError("Por favor, ingresa tu Gemini API Key.");
+                return;
+            }
+            startRecording();
+        };
 
-            aiLoading.classList.remove('hidden');
-            pointsList.innerHTML = "";
+        stopBtn.onclick = () => {
+            stopRecording();
+            // Procesar lo que haya quedado en el buffer
+            if (accumulatedText.trim().length > 5) {
+                processWithGemini(accumulatedText);
+                accumulatedText = "";
+            }
+        };
 
-            const payload = {
-                contents: [{ parts: [{ text: `TEXTO: ${textToProcess}` }] }],
-                systemInstruction: { parts: [{ text: "ACTÚA COMO RELATOR EJECUTIVO. Extrae exclusivamente PUNTOS RESOLUTIVOS, DECISIONES, ACUERDOS, PLAZOS Y RESPONSABLES. Ignora fundamentos, retórica, saludos y contexto. Sé extremadamente directo y breve. Responde en español." }] }
-            };
+        document.getElementById('clear-btn').onclick = () => {
+            resultsContainer.innerHTML = '<div id="placeholder-msg" class="text-gray-500 text-center mt-10">La síntesis resolutiva aparecerá aquí...</div>';
+        };
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        function startRecording() {
+            isRecording = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            accumulatedText = "";
+            placeholderMsg?.remove();
+            recognition.start();
+            statusDiv.textContent = "Micrófono activo...";
+        }
 
-            let retries = 5;
-            let delay = 1000;
+        function stopRecording() {
+            isRecording = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            recognition.stop();
+            statusDiv.textContent = "Detenido.";
+        }
 
-            while (retries > 0) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error?.message || "Error desconocido");
-                    }
-
-                    const data = await response.json();
-                    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                    if (aiText) {
-                        const lines = aiText.split('\n').filter(l => l.trim().length > 3);
-                        pointsList.innerHTML = lines.map(line => `
-                            <li class="bg-zinc-900/80 p-4 rounded border-l-4 border-blue-500 text-[12px] text-white font-bold uppercase tracking-tight shadow-md">
-                                ${line.replace(/^[•\-\*#\d\.]+\s*/, '').trim()}
-                            </li>
-                        `).join('');
-                    }
-                    break;
-                } catch (e) {
-                    retries--;
-                    if (retries === 0) {
-                        pointsList.innerHTML = `<li class="text-red-500 text-[10px] p-2 bg-red-900/10 border border-red-900">ERROR: ${e.message}. Asegúrate de que la clave de API sea válida.</li>`;
-                    } else {
-                        await new Promise(r => setTimeout(r, delay));
-                        delay *= 2;
-                    }
-                } finally {
-                    aiLoading.classList.add('hidden');
-                }
+        function checkBuffer() {
+            if (accumulatedText.length >= BUFFER_LIMIT) {
+                const textToProcess = accumulatedText;
+                accumulatedText = "";
+                processWithGemini(textToProcess);
             }
         }
 
-        startBtn.addEventListener('click', () => {
-            isRecording = true;
-            finalTranscript = "";
-            transcriptBox.innerText = "CAPTURANDO AUDIO...";
-            recognition.start();
-            startBtn.classList.add('hidden');
-            finishBtn.classList.remove('hidden');
-            statusLabel.classList.remove('hidden');
-        });
+        async function processWithGemini(text, retries = 0) {
+            const apiKey = apiKeyInput.value.trim();
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const systemPrompt = "Eres un transcriptor jurídico/administrativo. Tu tarea es extraer EXCLUSIVAMENTE la parte resolutiva y los puntos esenciales del discurso que se te entregue. Omite introducciones, fundamentos, retórica, saludos y divagaciones. Si el fragmento no contiene una resolución o punto esencial, responde únicamente con '---'. Formato: Viñetas concisas.";
+            
+            const payload = {
+                contents: [{ parts: [{ text: `Fragmento de discurso: "${text}"` }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
 
-        finishBtn.addEventListener('click', () => {
-            isRecording = false;
-            recognition.stop();
-            finishBtn.classList.add('hidden');
-            resetBtn.classList.remove('hidden');
-            statusLabel.classList.add('hidden');
-            processSummary();
-        });
+            // Crear entrada visual de "procesando"
+            const loadingId = "loader-" + Date.now();
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = loadingId;
+            loadingDiv.className = "bg-gray-700 p-3 rounded border-l-4 border-blue-500 animate-pulse text-sm text-gray-400";
+            loadingDiv.textContent = "Analizando bloque...";
+            resultsContainer.appendChild(loadingDiv);
+            resultsContainer.scrollTop = resultsContainer.scrollHeight;
 
-        resetBtn.addEventListener('click', () => { location.reload(); });
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    if (response.status === 429 && retries < 5) {
+                        const delay = Math.pow(2, retries) * 1000;
+                        setTimeout(() => processWithGemini(text, retries + 1), delay);
+                        return;
+                    }
+                    throw new Error(`Error API: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sin respuesta";
+                
+                loadingDiv.remove();
+                
+                if (resultText.trim() !== "---") {
+                    const entry = document.createElement('div');
+                    entry.className = "bg-gray-700 p-3 rounded border-l-4 border-green-500 shadow-sm";
+                    entry.innerHTML = `<div class="text-xs text-gray-500 mb-1 uppercase font-bold tracking-widest">${new Date().toLocaleTimeString()}</div>
+                                       <div class="text-sm leading-relaxed">${resultText.replace(/\n/g, '<br>')}</div>`;
+                    resultsContainer.appendChild(entry);
+                    resultsContainer.scrollTop = resultsContainer.scrollHeight;
+                }
+
+            } catch (error) {
+                loadingDiv.className = "bg-red-900/30 p-2 rounded text-xs text-red-400";
+                loadingDiv.textContent = "Fallo en procesamiento: " + error.message;
+            }
+        }
+
+        function showError(msg) {
+            document.getElementById('error-text').textContent = msg;
+            document.getElementById('error-modal').classList.remove('hidden');
+        }
     </script>
 </body>
 </html>
