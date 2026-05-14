@@ -1,528 +1,190 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Desgrabador Resolutivo</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
-
-:root {
-  --bg: #09090f;
-  --surface: #10101a;
-  --border: #1a1a2e;
-  --accent: #d4ff47;
-  --accent2: #47d4ff;
-  --red: #ef4444;
-  --text: #dde0f0;
-  --muted: #4a4a6a;
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'IBM Plex Sans', sans-serif;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  max-width: 520px;
-  margin: 0 auto;
-}
-
-header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.logo-title {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 1.5rem;
-  letter-spacing: .12em;
-  color: var(--accent);
-  line-height: 1;
-}
-.logo-sub {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: .6rem;
-  color: var(--muted);
-  letter-spacing: .1em;
-  margin-top: 2px;
-}
-
-.status-pill { display: flex; align-items: center; gap: 7px; }
-.status-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--muted);
-  transition: background .3s;
-}
-.status-dot.listening  { background: var(--red);    animation: pulse 1.2s infinite; }
-.status-dot.processing { background: var(--accent2); animation: pulse .7s infinite; }
-.status-dot.ready      { background: var(--accent); }
-.status-label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: .65rem;
-  color: var(--muted);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
-
-.proc-bar { height: 2px; background: var(--border); position: relative; overflow: hidden; }
-.proc-bar.active::after {
-  content: '';
-  position: absolute;
-  top: 0; left: -40%;
-  width: 40%; height: 100%;
-  background: linear-gradient(90deg, transparent, var(--accent2), transparent);
-  animation: scanbar 1.1s ease-in-out infinite;
-}
-@keyframes scanbar { to { left: 140%; } }
-
-.setup-panel {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 14px 18px;
-}
-.setup-panel p {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: .68rem;
-  color: var(--muted);
-  margin-bottom: 10px;
-  line-height: 1.6;
-  letter-spacing: .03em;
-}
-.setup-panel a { color: var(--accent2); }
-.input-row { display: flex; gap: 8px; }
-.api-input {
-  flex: 1;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: .75rem;
-  padding: 10px 12px;
-  border-radius: 6px;
-  outline: none;
-}
-.api-input:focus { border-color: var(--accent2); }
-.btn-save {
-  background: var(--accent);
-  color: var(--bg);
-  border: none;
-  border-radius: 6px;
-  padding: 10px 14px;
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: .95rem;
-  letter-spacing: .08em;
-  cursor: pointer;
-}
-
-.controls {
-  padding: 14px 18px;
-  display: flex;
-  gap: 8px;
-  border-bottom: 1px solid var(--border);
-}
-.btn-main {
-  flex: 1; padding: 13px; border: none; border-radius: 6px;
-  font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: .12em;
-  cursor: pointer; transition: opacity .2s;
-}
-.btn-main:active { opacity: .8; }
-.btn-start { background: var(--accent); color: var(--bg); }
-.btn-stop  { background: var(--red);   color: #fff; }
-.btn-icon {
-  padding: 13px 15px; background: var(--border); border: 1px solid #2a2a40;
-  border-radius: 6px; cursor: pointer; color: var(--muted); font-size: .95rem;
-}
-.btn-icon:active { color: var(--text); }
-
-.settings { background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 18px; display: none; }
-.settings.open { display: block; }
-.setting-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 0; border-bottom: 1px solid var(--border);
-}
-.setting-row:last-child { border: none; }
-.setting-label { font-family: 'IBM Plex Mono', monospace; font-size: .67rem; color: var(--muted); letter-spacing: .05em; }
-.setting-select {
-  background: var(--border); border: 1px solid #2a2a40; color: var(--text);
-  font-family: 'IBM Plex Mono', monospace; font-size: .7rem; padding: 5px 8px; border-radius: 4px;
-}
-
-.wave-wrap { display: flex; align-items: center; gap: 3px; padding: 8px 18px; height: 42px; }
-.wave-bar { flex: 1; background: var(--border); border-radius: 2px; height: 4px; transition: height .12s ease; }
-
-.panel { border-bottom: 1px solid var(--border); }
-.panel-header {
-  background: var(--surface); padding: 9px 18px;
-  display: flex; justify-content: space-between; align-items: center; cursor: pointer;
-}
-.panel-label-res  { font-family: 'IBM Plex Mono', monospace; font-size: .63rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
-.panel-label-live { font-family: 'IBM Plex Mono', monospace; font-size: .63rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent2); }
-.badge { font-family: 'IBM Plex Mono', monospace; font-size: .6rem; color: var(--muted); background: var(--border); padding: 2px 8px; border-radius: 10px; }
-
-.panel-body { max-height: 260px; overflow-y: auto; padding: 12px 18px; }
-
-.res-list { display: flex; flex-direction: column; gap: 9px; }
-.res-item {
-  background: #0a1a0a; border-left: 3px solid var(--accent);
-  border-radius: 0 6px 6px 0; padding: 10px 14px; cursor: pointer;
-  animation: slideIn .35s ease;
-}
-@keyframes slideIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
-.res-num { font-family: 'IBM Plex Mono', monospace; font-size: .58rem; color: var(--accent); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
-.res-text { font-size: .88rem; font-weight: 600; color: #c0ffc0; line-height: 1.55; }
-
-.empty-state { font-family: 'IBM Plex Mono', monospace; font-size: .7rem; color: #2a2a4a; text-align: center; padding: 18px 0; letter-spacing: .05em; line-height: 1.7; }
-
-.transcript-box { font-family: 'IBM Plex Mono', monospace; font-size: .75rem; color: #4a4a7a; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
-.interim { color: #2a2a50; font-style: italic; }
-
-.toast {
-  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
-  background: var(--accent2); color: var(--bg);
-  font-family: 'IBM Plex Mono', monospace; font-size: .7rem; letter-spacing: .06em;
-  padding: 8px 20px; border-radius: 20px;
-  opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 999; white-space: nowrap;
-}
-.toast.show { opacity: 1; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transcripción Resolutiva</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    </style>
 </head>
-<body>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col font-sans">
 
-<header>
-  <div>
-    <div class="logo-title">RESOLUT</div>
-    <div class="logo-sub">desgrabador resolutivo</div>
-  </div>
-  <div class="status-pill">
-    <div class="status-dot ready" id="dot"></div>
-    <span class="status-label" id="status-txt">Listo</span>
-  </div>
-</header>
+    <header class="p-4 border-b border-gray-800 bg-gray-900 sticky top-0 z-10">
+        <h1 class="text-xl font-bold text-blue-400">Transcripción Resolutiva</h1>
+        <p class="text-xs text-gray-400">Uso interno - Procesamiento Gemini</p>
+    </header>
 
-<div class="proc-bar" id="proc-bar"></div>
+    <main class="flex-1 p-4 space-y-4 overflow-y-auto">
+        <!-- Configuración API -->
+        <div id="api-config" class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+            <label class="block text-sm font-medium mb-2">API Key de Gemini</label>
+            <input type="password" id="api-key" placeholder="Pega tu API key aquí..." 
+                class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <p class="text-[10px] text-gray-500 mt-2 italic">Se guarda solo en la sesión del navegador.</p>
+        </div>
 
-<div class="setup-panel" id="setup-panel">
-  <p>Ingresá tu API key de Gemini gratuita:<br>
-  <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a> → Get API key → Create API key.<br>
-  Se guarda solo en este dispositivo.</p>
-  <div class="input-row">
-    <input class="api-input" type="password" id="api-key-input" placeholder="AIza...">
-    <button class="btn-save" onclick="saveKey()">GUARDAR</button>
-  </div>
-</div>
+        <!-- Estado y Control -->
+        <div class="flex items-center justify-between gap-4">
+            <button id="start-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50">
+                Iniciar Escucha
+            </button>
+            <button id="stop-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold transition-all hidden">
+                Detener y Procesar
+            </button>
+        </div>
 
-<div class="controls">
-  <button class="btn-main btn-start" id="btn-toggle" onclick="toggleListening()">▶ INICIAR ESCUCHA</button>
-  <button class="btn-icon" onclick="toggleSettings()">⚙</button>
-  <button class="btn-icon" onclick="clearAll()">✕</button>
-</div>
+        <!-- Transcripción en vivo -->
+        <div class="space-y-2">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider text-xs">Voz detectada (Borrador)</h2>
+            <div id="live-transcript" class="bg-black/30 p-3 rounded-lg min-h-[100px] text-sm text-gray-300 border border-dashed border-gray-700 italic">
+                Esperando audio...
+            </div>
+        </div>
 
-<div class="settings" id="settings">
-  <div class="setting-row">
-    <span class="setting-label">Idioma</span>
-    <select class="setting-select" id="sel-lang">
-      <option value="es-AR">Español (AR)</option>
-      <option value="es-ES">Español (ES)</option>
-      <option value="es-MX">Español (MX)</option>
-      <option value="en-US">English (US)</option>
-    </select>
-  </div>
-  <div class="setting-row">
-    <span class="setting-label">Analizar cada</span>
-    <select class="setting-select" id="sel-interval">
-      <option value="20">20 seg</option>
-      <option value="30" selected>30 seg</option>
-      <option value="45">45 seg</option>
-      <option value="60">60 seg</option>
-    </select>
-  </div>
-  <div class="setting-row">
-    <span class="setting-label">Mín. palabras</span>
-    <select class="setting-select" id="sel-minwords">
-      <option value="15">15 palabras</option>
-      <option value="25" selected>25 palabras</option>
-      <option value="40">40 palabras</option>
-    </select>
-  </div>
-</div>
+        <!-- Resultado Final -->
+        <div class="space-y-2">
+            <h2 class="text-sm font-semibold text-blue-400 uppercase tracking-wider text-xs">Puntos Resolutivos</h2>
+            <div id="final-result" class="bg-gray-800 p-4 rounded-lg min-h-[150px] border border-blue-900/30 whitespace-pre-wrap leading-relaxed shadow-lg text-white">
+                Aquí aparecerá el resumen ejecutivo una vez procesado.
+            </div>
+        </div>
 
-<div class="wave-wrap" id="wave-wrap"></div>
+        <div id="loading" class="hidden flex items-center justify-center gap-2 text-blue-400 py-4">
+            <div class="w-2 h-2 bg-blue-400 rounded-full pulse"></div>
+            <span class="text-sm font-medium">IA extrayendo resoluciones...</span>
+        </div>
+    </main>
 
-<div class="panel">
-  <div class="panel-header">
-    <span class="panel-label-res">⚡ Puntos Resolutivos</span>
-    <span class="badge" id="res-count">0</span>
-  </div>
-  <div class="panel-body">
-    <div class="res-list" id="res-list">
-      <div class="empty-state">Sin resoluciones aún.<br>Iniciá la escucha para comenzar.</div>
-    </div>
-  </div>
-</div>
+    <footer class="p-4 text-center">
+        <button id="copy-btn" class="text-xs text-gray-500 underline">Copiar resultado al portapapeles</button>
+    </footer>
 
-<div class="panel">
-  <div class="panel-header" onclick="toggleTranscript()">
-    <span class="panel-label-live">◎ Transcripción en vivo</span>
-    <span style="color:var(--muted);font-size:.75rem" id="tr-arrow">▾</span>
-  </div>
-  <div class="panel-body" id="tr-panel">
-    <div class="transcript-box" id="tr-box"><span class="empty-state">Esperando audio...</span></div>
-  </div>
-</div>
+    <script>
+        let recognition;
+        let fullTranscript = "";
+        let isListening = false;
 
-<div class="toast" id="toast"></div>
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const liveTranscriptDiv = document.getElementById('live-transcript');
+        const finalResultDiv = document.getElementById('final-result');
+        const loadingDiv = document.getElementById('loading');
+        const apiKeyInput = document.getElementById('api-key');
 
-<script>
-const SYSTEM_PROMPT = `Sos un asistente especializado en extraer la parte resolutiva de discursos y exposiciones orales.
+        // Inicializar reconocimiento de voz
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'es-AR';
+            recognition.continuous = true;
+            recognition.interimResults = true;
 
-Analizá fragmentos de discurso y extraé ÚNICAMENTE los puntos resolutivos, decisiones, conclusiones, compromisos o mandatos concretos.
+            recognition.onresult = (event) => {
+                let interimTranscript = "";
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        fullTranscript += event.results[i][0].transcript + " ";
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                liveTranscriptDiv.innerText = fullTranscript + interimTranscript;
+                liveTranscriptDiv.scrollTop = liveTranscriptDiv.scrollHeight;
+            };
 
-IGNORÁ COMPLETAMENTE:
-- Fundamentos, argumentos y justificaciones
-- Citas o referencias a normas
-- Contexto histórico o antecedentes
-- Considerandos y razonamientos
-- Frases de relleno o transiciones
+            recognition.onerror = (event) => {
+                console.error("Error de reconocimiento:", event.error);
+                if(event.error === 'not-allowed') alert("Permiso de micrófono denegado.");
+            };
+        } else {
+            alert("Tu navegador no soporta reconocimiento de voz. Usa Chrome en Android o Safari en iOS.");
+        }
 
-SOLO EXTRAÉ:
-- Decisiones concretas tomadas
-- Mandatos o instrucciones directas
-- Compromisos asumidos
-- Conclusiones accionables
-- Resoluciones o medidas concretas
+        startBtn.onclick = () => {
+            if (!apiKeyInput.value) {
+                alert("Por favor, ingresa tu API Key primero.");
+                return;
+            }
+            fullTranscript = "";
+            liveTranscriptDiv.innerText = "Escuchando...";
+            recognition.start();
+            isListening = true;
+            startBtn.classList.add('hidden');
+            stopBtn.classList.remove('hidden');
+        };
 
-Respondé SOLO con JSON, sin texto adicional ni backticks:
-{"items": ["punto resolutivo 1", "punto resolutivo 2"]}
+        stopBtn.onclick = async () => {
+            recognition.stop();
+            isListening = false;
+            stopBtn.classList.add('hidden');
+            startBtn.classList.remove('hidden');
+            
+            if (fullTranscript.trim().length < 10) {
+                finalResultDiv.innerText = "Texto demasiado corto para procesar.";
+                return;
+            }
 
-Si no hay puntos resolutivos claros, respondé: {"items": []}`;
+            await processWithGemini(fullTranscript);
+        };
 
-let apiKey = localStorage.getItem('gemini_key') || '';
-let recognition = null;
-let isListening = false;
-let fullTranscript = '';
-let pendingText = '';
-let lastAnalyzed = '';
-let resCount = 0;
-let analyzeTimer = null;
-let waveTimer = null;
-let toastTimer = null;
+        async function processWithGemini(text) {
+            loadingDiv.classList.remove('hidden');
+            const apiKey = apiKeyInput.value;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-// Init
-(function() {
-  if (apiKey) document.getElementById('setup-panel').style.display = 'none';
-  const wrap = document.getElementById('wave-wrap');
-  for (let i = 0; i < 26; i++) {
-    const b = document.createElement('div');
-    b.className = 'wave-bar';
-    wrap.appendChild(b);
-  }
-})();
+            const systemPrompt = `Actúa como un relator de actas jurídicas y administrativas. 
+            Tu tarea es recibir una transcripción en bruto de un discurso y extraer ÚNICAMENTE la parte resolutiva y los puntos esenciales. 
+            OMITE: fundamentos, anécdotas, introducciones, agradecimientos y retórica innecesaria. 
+            FORMATO: Lista de puntos claros y directos. Si no hay decisiones tomadas, resume los compromisos asumidos. 
+            Idioma: Español. Estilo: Directo y profesional.`;
 
-function saveKey() {
-  const v = document.getElementById('api-key-input').value.trim();
-  if (!v) { showToast('Ingresá una API key válida'); return; }
-  apiKey = v;
-  localStorage.setItem('gemini_key', v);
-  document.getElementById('setup-panel').style.display = 'none';
-  showToast('API key guardada ✓');
-}
+            const payload = {
+                contents: [{ parts: [{ text: `Transcripción: ${text}` }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
 
-function setStatus(state, text) {
-  document.getElementById('dot').className = 'status-dot ' + state;
-  document.getElementById('status-txt').textContent = text;
-}
+            let delay = 1000;
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) throw new Error('API Error');
+                    
+                    const data = await response.json();
+                    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    finalResultDiv.innerText = resultText || "No se pudo extraer información resolutiva.";
+                    loadingDiv.classList.add('hidden');
+                    return;
+                } catch (error) {
+                    if (i === 4) {
+                        finalResultDiv.innerText = "Error tras varios intentos. Verifica tu API Key o conexión.";
+                        loadingDiv.classList.add('hidden');
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                }
+            }
+        }
 
-function startWave() {
-  waveTimer = setInterval(() => {
-    document.querySelectorAll('.wave-bar').forEach(b => {
-      b.style.height = (4 + Math.random() * 22) + 'px';
-      b.style.background = '#47d4ff';
-      b.style.opacity = 0.3 + Math.random() * 0.7;
-    });
-  }, 130);
-}
-
-function stopWave() {
-  clearInterval(waveTimer);
-  document.querySelectorAll('.wave-bar').forEach(b => {
-    b.style.height = '4px';
-    b.style.background = 'var(--border)';
-    b.style.opacity = 1;
-  });
-}
-
-function toggleListening() {
-  if (!apiKey) { showToast('Primero guardá tu API key'); return; }
-  isListening ? stopListening() : startListening();
-}
-
-function startListening() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { showToast('Tu navegador no soporta reconocimiento de voz'); return; }
-
-  recognition = new SR();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = document.getElementById('sel-lang').value;
-
-  recognition.onresult = (e) => {
-    let interim = '', final = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) final += t + ' ';
-      else interim += t;
-    }
-    if (final) { fullTranscript += final; pendingText += final; }
-    updateTranscript(interim);
-  };
-
-  recognition.onerror = (e) => {
-    if (e.error === 'no-speech') return;
-    showToast('Error de micrófono: ' + e.error);
-  };
-
-  recognition.onend = () => { if (isListening) recognition.start(); };
-  recognition.start();
-  isListening = true;
-
-  const btn = document.getElementById('btn-toggle');
-  btn.textContent = '■ DETENER';
-  btn.className = 'btn-main btn-stop';
-  setStatus('listening', 'Escuchando...');
-  startWave();
-
-  const secs = parseInt(document.getElementById('sel-interval').value) * 1000;
-  analyzeTimer = setInterval(() => maybeAnalyze(false), secs);
-  showToast('Escucha iniciada');
-}
-
-function stopListening() {
-  if (recognition) { recognition.onend = null; recognition.stop(); recognition = null; }
-  clearInterval(analyzeTimer);
-  isListening = false;
-  stopWave();
-  document.getElementById('btn-toggle').textContent = '▶ INICIAR ESCUCHA';
-  document.getElementById('btn-toggle').className = 'btn-main btn-start';
-  setStatus('ready', 'Listo');
-  showToast('Escucha detenida');
-  setTimeout(() => maybeAnalyze(true), 400);
-}
-
-function updateTranscript(interim) {
-  const box = document.getElementById('tr-box');
-  box.innerHTML = (fullTranscript ? `<span>${esc(fullTranscript)}</span>` : '') +
-                  (interim ? `<span class="interim">${esc(interim)}</span>` : '') ||
-                  '<span class="empty-state">Esperando audio...</span>';
-  const p = document.getElementById('tr-panel');
-  p.scrollTop = p.scrollHeight;
-}
-
-async function maybeAnalyze(force) {
-  const minW = parseInt(document.getElementById('sel-minwords').value);
-  const words = pendingText.trim().split(/\s+/).filter(Boolean).length;
-  if (words < minW && !force) return;
-  if (!pendingText.trim() || pendingText.trim() === lastAnalyzed) return;
-
-  const text = pendingText.trim();
-  lastAnalyzed = text;
-  pendingText = '';
-
-  document.getElementById('proc-bar').classList.add('active');
-  setStatus('processing', 'Analizando...');
-
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ parts: [{ text: `Analizá este fragmento:\n\n${text}` }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 800 }
-      })
-    });
-
-    const data = await res.json();
-    if (data.error) {
-      showToast('Error API: ' + data.error.message);
-    } else {
-      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '{"items":[]}';
-      let parsed = { items: [] };
-      try { parsed = JSON.parse(raw.replace(/```json|```/g, '').trim()); } catch {}
-      if (parsed.items?.length > 0) addResolutions(parsed.items);
-    }
-  } catch (err) {
-    showToast('Error de conexión');
-    console.error(err);
-  }
-
-  document.getElementById('proc-bar').classList.remove('active');
-  setStatus(isListening ? 'listening' : 'ready', isListening ? 'Escuchando...' : 'Listo');
-}
-
-function addResolutions(items) {
-  const list = document.getElementById('res-list');
-  const empty = list.querySelector('.empty-state');
-  if (empty) empty.remove();
-  items.forEach(txt => {
-    if (!txt.trim()) return;
-    resCount++;
-    const d = document.createElement('div');
-    d.className = 'res-item';
-    d.title = 'Toca para copiar';
-    d.innerHTML = `<div class="res-num">Punto ${resCount}</div><div class="res-text">${esc(txt)}</div>`;
-    d.onclick = () => navigator.clipboard?.writeText(txt).then(() => showToast('Copiado ✓'));
-    list.appendChild(d);
-    list.parentElement.scrollTop = list.parentElement.scrollHeight;
-  });
-  document.getElementById('res-count').textContent = resCount;
-  showToast(`${items.length} punto(s) extraído(s)`);
-}
-
-function clearAll() {
-  if (isListening) stopListening();
-  fullTranscript = pendingText = lastAnalyzed = '';
-  resCount = 0;
-  document.getElementById('res-list').innerHTML = '<div class="empty-state">Sin resoluciones aún.<br>Iniciá la escucha para comenzar.</div>';
-  document.getElementById('tr-box').innerHTML = '<span class="empty-state">Esperando audio...</span>';
-  document.getElementById('res-count').textContent = '0';
-}
-
-function toggleSettings() { document.getElementById('settings').classList.toggle('open'); }
-
-function toggleTranscript() {
-  const p = document.getElementById('tr-panel');
-  const a = document.getElementById('tr-arrow');
-  const hidden = p.style.display === 'none';
-  p.style.display = hidden ? 'block' : 'none';
-  a.textContent = hidden ? '▾' : '▸';
-}
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
-}
-
-function esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-</script>
+        document.getElementById('copy-btn').onclick = () => {
+            const text = finalResultDiv.innerText;
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert("Copiado!");
+        };
+    </script>
 </body>
 </html>
+
