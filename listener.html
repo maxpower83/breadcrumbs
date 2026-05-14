@@ -1,244 +1,723 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analizador Resolutivo Real-Time</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .dot-flashing {
-            display: inline-block;
-            position: relative;
-            width: 10px;
-            height: 10px;
-            border-radius: 5px;
-            background-color: #3b82f6;
-            color: #3b82f6;
-            animation: dot-flashing 1s infinite linear alternate;
-            animation-delay: .5s;
-        }
-        @keyframes dot-flashing {
-            0% { background-color: #3b82f6; }
-            50%, 100% { background-color: #ebe6ff; }
-        }
-        #results-container {
-            height: calc(100vh - 320px);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Desgrabador Resolutivo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --accent: #e8ff47;
+    --accent2: #47d4ff;
+    --red: #ff4757;
+    --text: #e0e0f0;
+    --muted: #5a5a7a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+  }
+
+  .logo span {
+    color: var(--muted);
+    font-size: 0.95rem;
+    letter-spacing: 0.05em;
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    margin-top: -4px;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+
+  .status-dot.listening { background: var(--red); animation: pulse 1.2s infinite; }
+  .status-dot.processing { background: var(--accent2); animation: pulse 0.6s infinite; }
+  .status-dot.ready { background: var(--accent); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Controls */
+  .controls {
+    padding: 16px 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .btn-main {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 6px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-start {
+    background: var(--accent);
+    color: #0a0a0f;
+  }
+  .btn-start:hover { background: #d4eb2e; }
+
+  .btn-stop {
+    background: var(--red);
+    color: #fff;
+  }
+  .btn-stop:hover { background: #e03040; }
+
+  .btn-icon {
+    padding: 14px 16px;
+    background: var(--border);
+    border: 1px solid #2a2a3e;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 1rem;
+    transition: all 0.2s;
+  }
+  .btn-icon:hover { color: var(--text); border-color: var(--muted); }
+
+  /* Panels */
+  .panels {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  .panel {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-header {
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    background: var(--surface);
+  }
+
+  .panel-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .panel-label.active { color: var(--accent2); }
+  .panel-label.resolved { color: var(--accent); }
+
+  .panel-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    background: var(--border);
+    padding: 2px 7px;
+    border-radius: 10px;
+  }
+
+  .panel-body {
+    padding: 14px 20px;
+    max-height: 280px;
+    overflow-y: auto;
+    font-size: 0.88rem;
+    line-height: 1.65;
+    color: var(--text);
+  }
+
+  .panel-body::-webkit-scrollbar { width: 3px; }
+  .panel-body::-webkit-scrollbar-track { background: transparent; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* Transcript raw */
+  #transcript-box {
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+  }
+
+  #transcript-box .interim {
+    color: #3a3a5a;
+    font-style: italic;
+  }
+
+  /* Resolution items */
+  .resolution-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .res-item {
+    background: #0d1a0d;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 14px;
+    animation: slideIn 0.4s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .res-item .res-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  .res-item .res-text {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #d0ffd0;
+    line-height: 1.5;
+  }
+
+  .empty-state {
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 20px 0;
+    letter-spacing: 0.06em;
+  }
+
+  /* Processing indicator */
+  .processing-bar {
+    height: 2px;
+    background: transparent;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .processing-bar.active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -40%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+    animation: scan 1.2s ease-in-out infinite;
+  }
+
+  @keyframes scan {
+    to { left: 140%; }
+  }
+
+  /* Settings drawer */
+  .settings {
+    padding: 14px 20px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: none;
+  }
+  .settings.open { display: block; }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .setting-row:last-child { border: none; }
+
+  .setting-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  .setting-control {
+    background: var(--border);
+    border: 1px solid #2a2a3e;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    padding: 5px 10px;
+    border-radius: 4px;
+  }
+
+  /* Waveform */
+  .wave-wrap {
+    padding: 10px 20px 6px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 42px;
+  }
+
+  .wave-bar {
+    flex: 1;
+    background: var(--border);
+    border-radius: 2px;
+    height: 4px;
+    transition: height 0.1s;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent2);
+    color: #0a0a0f;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    padding: 8px 18px;
+    border-radius: 20px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 999;
+    letter-spacing: 0.06em;
+  }
+  .toast.show { opacity: 1; }
+</style>
 </head>
-<body class="bg-gray-900 text-gray-100 font-sans">
+<body>
 
-    <div class="max-w-md mx-auto p-4 flex flex-col h-screen">
-        <header class="mb-4">
-            <h1 class="text-xl font-bold text-blue-400">Extractor Resolutivo</h1>
-            <p class="text-xs text-gray-400">Filtra fundamentos, captura decisiones.</p>
-        </header>
+<header>
+  <div class="logo">
+    RESOLUT<span>desgrabador resolutivo</span>
+  </div>
+  <div class="status-pill">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Listo</span>
+  </div>
+</header>
 
-        <!-- Configuración de API Key -->
-        <section class="mb-4 bg-gray-800 p-3 rounded-lg shadow-inner">
-            <label class="block text-xs font-semibold text-gray-400 mb-1">GEMINI API KEY</label>
-            <input type="password" id="api-key" placeholder="Introduce tu API Key aquí" 
-                   class="w-full bg-gray-700 border-none rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-        </section>
+<div class="processing-bar" id="proc-bar"></div>
 
-        <!-- Controles -->
-        <div class="flex gap-2 mb-4">
-            <button id="start-btn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
-                Iniciar
-            </button>
-            <button id="stop-btn" disabled class="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H10a1 1 0 01-1-1v-4z" />
-                </svg>
-                Detener
-            </button>
+<main>
+  <div class="controls">
+    <button class="btn-main btn-start" id="btn-toggle" onclick="toggleListening()">
+      ▶ INICIAR ESCUCHA
+    </button>
+    <button class="btn-icon" onclick="toggleSettings()" title="Configuración">⚙</button>
+    <button class="btn-icon" onclick="clearAll()" title="Limpiar">✕</button>
+  </div>
+
+  <div class="settings" id="settings-panel">
+    <div class="setting-row">
+      <span class="setting-label">Idioma de escucha</span>
+      <select class="setting-control" id="lang-select">
+        <option value="es-AR">Español (AR)</option>
+        <option value="es-ES">Español (ES)</option>
+        <option value="es-MX">Español (MX)</option>
+        <option value="en-US">English (US)</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Analizar cada N segundos</span>
+      <select class="setting-control" id="interval-select">
+        <option value="20">20 seg</option>
+        <option value="30" selected>30 seg</option>
+        <option value="45">45 seg</option>
+        <option value="60">60 seg</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Mín. palabras para analizar</span>
+      <select class="setting-control" id="minwords-select">
+        <option value="15">15 palabras</option>
+        <option value="25" selected>25 palabras</option>
+        <option value="40">40 palabras</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="wave-wrap" id="wave-wrap">
+    <!-- bars injected by JS -->
+  </div>
+
+  <div class="panels">
+
+    <!-- Resolutivos -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-label resolved">⚡ Puntos Resolutivos</span>
+        <span class="panel-count" id="res-count">0</span>
+      </div>
+      <div class="panel-body">
+        <div class="resolution-list" id="resolution-list">
+          <div class="empty-state">Sin resoluciones aún.<br>Iniciá la escucha para comenzar.</div>
         </div>
-
-        <!-- Estado -->
-        <div id="status" class="text-xs mb-2 text-center text-gray-500 italic">Listo para escuchar</div>
-
-        <!-- Resultados -->
-        <div id="results-container" class="flex-1 bg-gray-800 rounded-lg p-4 overflow-y-auto border border-gray-700 space-y-4">
-            <div id="placeholder-msg" class="text-gray-500 text-center mt-10">
-                La síntesis resolutiva aparecerá aquí...
-            </div>
-            <!-- Los bloques de texto aparecerán aquí -->
-        </div>
-
-        <footer class="mt-4 pb-2">
-            <button id="clear-btn" class="w-full text-xs text-gray-500 underline">Limpiar historial</button>
-        </footer>
+      </div>
     </div>
 
-    <!-- Modal de error -->
-    <div id="error-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div class="bg-gray-800 p-6 rounded-xl border border-red-500 max-w-xs w-full text-center">
-            <h2 class="text-red-400 font-bold mb-2">Error</h2>
-            <p id="error-text" class="text-sm text-gray-300 mb-4"></p>
-            <button onclick="document.getElementById('error-modal').classList.add('hidden')" class="bg-red-600 px-4 py-2 rounded text-sm">Cerrar</button>
-        </div>
+    <!-- Transcripción cruda -->
+    <div class="panel">
+      <div class="panel-header" onclick="toggleTranscript()">
+        <span class="panel-label active">◎ Transcripción en vivo</span>
+        <span style="color:var(--muted);font-size:0.75rem;">▾</span>
+      </div>
+      <div class="panel-body" id="transcript-panel">
+        <div id="transcript-box"><span class="empty-state">Esperando audio...</span></div>
+      </div>
     </div>
 
-    <script>
-        let recognition;
-        let isRecording = false;
-        let accumulatedText = "";
-        const BUFFER_LIMIT = 200; // Caracteres mínimos para enviar a procesar
+  </div>
+</main>
 
-        const startBtn = document.getElementById('start-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        const apiKeyInput = document.getElementById('api-key');
-        const resultsContainer = document.getElementById('results-container');
-        const statusDiv = document.getElementById('status');
-        const placeholderMsg = document.getElementById('placeholder-msg');
+<div class="toast" id="toast"></div>
 
-        // Inicializar reconocimiento de voz
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'es-ES';
+<script>
+// ── State
+let recognition = null;
+let isListening = false;
+let fullTranscript = '';
+let pendingText = '';
+let analyzeInterval = null;
+let resolutionCount = 0;
+let lastAnalyzed = '';
 
-            recognition.onresult = (event) => {
-                let interimTranscript = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        accumulatedText += event.results[i][0].transcript + " ";
-                        checkBuffer();
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
-                }
-                statusDiv.innerHTML = `Escuchando... <span class="text-blue-400">${interimTranscript}</span>`;
-            };
+// ── Wave bars
+const waveWrap = document.getElementById('wave-wrap');
+const BARS = 28;
+for (let i = 0; i < BARS; i++) {
+  const b = document.createElement('div');
+  b.className = 'wave-bar';
+  b.id = `wb${i}`;
+  waveWrap.appendChild(b);
+}
 
-            recognition.onerror = (event) => {
-                showError("Error de reconocimiento: " + event.error);
-                stopRecording();
-            };
+function animateWave(active) {
+  const bars = document.querySelectorAll('.wave-bar');
+  if (!active) {
+    bars.forEach(b => b.style.height = '4px');
+    return;
+  }
+  bars.forEach((b, i) => {
+    const h = active ? (4 + Math.random() * 22) : 4;
+    b.style.height = h + 'px';
+    b.style.background = active ? '#47d4ff' : 'var(--border)';
+    b.style.opacity = active ? (0.4 + Math.random() * 0.6) : 1;
+  });
+}
 
-            recognition.onend = () => {
-                if (isRecording) recognition.start(); // Reiniciar si se detiene solo
-            };
-        } else {
-            showError("Tu navegador no soporta reconocimiento de voz.");
-            startBtn.disabled = true;
-        }
+let waveTimer = null;
+function startWave() {
+  waveTimer = setInterval(() => animateWave(isListening), 120);
+}
+function stopWave() {
+  clearInterval(waveTimer);
+  animateWave(false);
+}
 
-        startBtn.onclick = () => {
-            const key = apiKeyInput.value.trim();
-            if (!key) {
-                showError("Por favor, ingresa tu Gemini API Key.");
-                return;
-            }
-            startRecording();
-        };
+// ── Status
+function setStatus(state, text) {
+  const dot = document.getElementById('status-dot');
+  const stxt = document.getElementById('status-text');
+  dot.className = 'status-dot ' + state;
+  stxt.textContent = text;
+}
 
-        stopBtn.onclick = () => {
-            stopRecording();
-            // Procesar lo que haya quedado en el buffer
-            if (accumulatedText.trim().length > 5) {
-                processWithGemini(accumulatedText);
-                accumulatedText = "";
-            }
-        };
+// ── Speech Recognition
+function initRecognition() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    showToast('Tu navegador no soporta reconocimiento de voz');
+    return null;
+  }
+  const r = new SpeechRec();
+  r.continuous = true;
+  r.interimResults = true;
+  r.lang = document.getElementById('lang-select').value;
+  r.maxAlternatives = 1;
 
-        document.getElementById('clear-btn').onclick = () => {
-            resultsContainer.innerHTML = '<div id="placeholder-msg" class="text-gray-500 text-center mt-10">La síntesis resolutiva aparecerá aquí...</div>';
-        };
+  r.onresult = (e) => {
+    let interim = '';
+    let final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t + ' ';
+      else interim += t;
+    }
+    if (final) {
+      fullTranscript += final;
+      pendingText += final;
+    }
+    updateTranscriptDisplay(interim);
+  };
 
-        function startRecording() {
-            isRecording = true;
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-            accumulatedText = "";
-            placeholderMsg?.remove();
-            recognition.start();
-            statusDiv.textContent = "Micrófono activo...";
-        }
+  r.onerror = (e) => {
+    if (e.error === 'no-speech') return;
+    setStatus('', 'Error: ' + e.error);
+    showToast('Error de micrófono: ' + e.error);
+  };
 
-        function stopRecording() {
-            isRecording = false;
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-            recognition.stop();
-            statusDiv.textContent = "Detenido.";
-        }
+  r.onend = () => {
+    if (isListening) r.start(); // restart if still active
+  };
 
-        function checkBuffer() {
-            if (accumulatedText.length >= BUFFER_LIMIT) {
-                const textToProcess = accumulatedText;
-                accumulatedText = "";
-                processWithGemini(textToProcess);
-            }
-        }
+  return r;
+}
 
-        async function processWithGemini(text, retries = 0) {
-            const apiKey = apiKeyInput.value.trim();
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            
-            const systemPrompt = "Eres un transcriptor jurídico/administrativo. Tu tarea es extraer EXCLUSIVAMENTE la parte resolutiva y los puntos esenciales del discurso que se te entregue. Omite introducciones, fundamentos, retórica, saludos y divagaciones. Si el fragmento no contiene una resolución o punto esencial, responde únicamente con '---'. Formato: Viñetas concisas.";
-            
-            const payload = {
-                contents: [{ parts: [{ text: `Fragmento de discurso: "${text}"` }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] }
-            };
+// ── Toggle listening
+function toggleListening() {
+  if (!isListening) startListening();
+  else stopListening();
+}
 
-            // Crear entrada visual de "procesando"
-            const loadingId = "loader-" + Date.now();
-            const loadingDiv = document.createElement('div');
-            loadingDiv.id = loadingId;
-            loadingDiv.className = "bg-gray-700 p-3 rounded border-l-4 border-blue-500 animate-pulse text-sm text-gray-400";
-            loadingDiv.textContent = "Analizando bloque...";
-            resultsContainer.appendChild(loadingDiv);
-            resultsContainer.scrollTop = resultsContainer.scrollHeight;
+function startListening() {
+  recognition = initRecognition();
+  if (!recognition) return;
+  recognition.start();
+  isListening = true;
 
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+  const btn = document.getElementById('btn-toggle');
+  btn.textContent = '■ DETENER';
+  btn.className = 'btn-main btn-stop';
 
-                if (!response.ok) {
-                    if (response.status === 429 && retries < 5) {
-                        const delay = Math.pow(2, retries) * 1000;
-                        setTimeout(() => processWithGemini(text, retries + 1), delay);
-                        return;
-                    }
-                    throw new Error(`Error API: ${response.status}`);
-                }
+  setStatus('listening', 'Escuchando...');
+  startWave();
 
-                const data = await response.json();
-                const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sin respuesta";
-                
-                loadingDiv.remove();
-                
-                if (resultText.trim() !== "---") {
-                    const entry = document.createElement('div');
-                    entry.className = "bg-gray-700 p-3 rounded border-l-4 border-green-500 shadow-sm";
-                    entry.innerHTML = `<div class="text-xs text-gray-500 mb-1 uppercase font-bold tracking-widest">${new Date().toLocaleTimeString()}</div>
-                                       <div class="text-sm leading-relaxed">${resultText.replace(/\n/g, '<br>')}</div>`;
-                    resultsContainer.appendChild(entry);
-                    resultsContainer.scrollTop = resultsContainer.scrollHeight;
-                }
+  const secs = parseInt(document.getElementById('interval-select').value) * 1000;
+  analyzeInterval = setInterval(maybeAnalyze, secs);
 
-            } catch (error) {
-                loadingDiv.className = "bg-red-900/30 p-2 rounded text-xs text-red-400";
-                loadingDiv.textContent = "Fallo en procesamiento: " + error.message;
-            }
-        }
+  showToast('Escucha iniciada');
+}
 
-        function showError(msg) {
-            document.getElementById('error-text').textContent = msg;
-            document.getElementById('error-modal').classList.remove('hidden');
-        }
-    </script>
+function stopListening() {
+  if (recognition) recognition.stop();
+  isListening = false;
+  clearInterval(analyzeInterval);
+  stopWave();
+
+  const btn = document.getElementById('btn-toggle');
+  btn.textContent = '▶ INICIAR ESCUCHA';
+  btn.className = 'btn-main btn-start';
+
+  setStatus('ready', 'Listo');
+
+  // Final analysis
+  if (pendingText.trim().split(' ').length >= 10) maybeAnalyze(true);
+
+  showToast('Escucha detenida');
+}
+
+// ── Transcript display
+function updateTranscriptDisplay(interim) {
+  const box = document.getElementById('transcript-box');
+  const finalHtml = fullTranscript ? `<span>${fullTranscript}</span>` : '';
+  const interimHtml = interim ? `<span class="interim">${interim}</span>` : '';
+  box.innerHTML = finalHtml + interimHtml || '<span class="empty-state">Esperando audio...</span>';
+  box.parentElement.scrollTop = box.parentElement.scrollHeight;
+}
+
+// ── Analyze
+async function maybeAnalyze(force = false) {
+  const minWords = parseInt(document.getElementById('minwords-select').value);
+  const words = pendingText.trim().split(/\s+/).filter(Boolean).length;
+  if (words < minWords && !force) return;
+  if (pendingText.trim() === lastAnalyzed) return;
+
+  const textToAnalyze = pendingText.trim();
+  if (!textToAnalyze) return;
+
+  lastAnalyzed = textToAnalyze;
+  pendingText = ''; // reset buffer
+
+  document.getElementById('proc-bar').classList.add('active');
+  setStatus('processing', 'Analizando...');
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: `Eres un asistente especializado en extraer la parte resolutiva de discursos y exposiciones orales.
+
+Tu tarea es analizar fragmentos de discurso y extraer ÚNICAMENTE los puntos resolutivos, decisiones, conclusiones, compromisos o mandatos concretos.
+
+DEBES IGNORAR COMPLETAMENTE:
+- Fundamentos, argumentos y justificaciones
+- Citas o referencias a normas
+- Contexto histórico o antecedentes
+- Considerandos
+- Razonamientos del orador
+- Frases de relleno o transiciones
+
+SOLO EXTRAE:
+- Decisiones concretas tomadas
+- Mandatos o instrucciones
+- Compromisos asumidos
+- Conclusiones accionables
+- Resoluciones, decretos o medidas
+
+Responde SOLO con un JSON con este formato exacto, sin texto adicional, sin backticks:
+{"items": ["punto resolutivo 1", "punto resolutivo 2"]}
+
+Si no hay puntos resolutivos claros en el fragmento, responde: {"items": []}`,
+        messages: [{ role: 'user', content: `Analiza este fragmento de discurso:\n\n${textToAnalyze}` }]
+      })
+    });
+
+    const data = await response.json();
+    const raw = data.content.map(c => c.text || '').join('').trim();
+
+    let parsed;
+    try {
+      const clean = raw.replace(/```json|```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      parsed = { items: [] };
+    }
+
+    if (parsed.items && parsed.items.length > 0) {
+      addResolutions(parsed.items);
+    }
+
+  } catch (err) {
+    console.error(err);
+    showToast('Error al analizar');
+  }
+
+  document.getElementById('proc-bar').classList.remove('active');
+  setStatus(isListening ? 'listening' : 'ready', isListening ? 'Escuchando...' : 'Listo');
+}
+
+// ── Add resolutions
+function addResolutions(items) {
+  const list = document.getElementById('resolution-list');
+  // Remove empty state
+  const empty = list.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  items.forEach(text => {
+    if (!text.trim()) return;
+    resolutionCount++;
+    const div = document.createElement('div');
+    div.className = 'res-item';
+    div.innerHTML = `
+      <div class="res-num">Punto ${resolutionCount}</div>
+      <div class="res-text">${escapeHtml(text)}</div>
+    `;
+    list.appendChild(div);
+    list.parentElement.scrollTop = list.parentElement.scrollHeight;
+  });
+
+  document.getElementById('res-count').textContent = resolutionCount;
+  showToast(`${items.length} punto(s) resolutivo(s) extraído(s)`);
+}
+
+// ── Helpers
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function clearAll() {
+  if (isListening) stopListening();
+  fullTranscript = '';
+  pendingText = '';
+  lastAnalyzed = '';
+  resolutionCount = 0;
+  document.getElementById('resolution-list').innerHTML = '<div class="empty-state">Sin resoluciones aún.<br>Iniciá la escucha para comenzar.</div>';
+  document.getElementById('transcript-box').innerHTML = '<span class="empty-state">Esperando audio...</span>';
+  document.getElementById('res-count').textContent = '0';
+}
+
+function toggleSettings() {
+  const p = document.getElementById('settings-panel');
+  p.classList.toggle('open');
+}
+
+function toggleTranscript() {
+  const p = document.getElementById('transcript-panel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Init
+setStatus('ready', 'Listo');
+
+// Clipboard copy on long press resolution
+document.getElementById('resolution-list').addEventListener('click', (e) => {
+  const item = e.target.closest('.res-item');
+  if (!item) return;
+  const text = item.querySelector('.res-text').textContent;
+  navigator.clipboard?.writeText(text).then(() => showToast('Copiado al portapapeles'));
+});
+</script>
 </body>
 </html>
