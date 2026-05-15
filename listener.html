@@ -4,193 +4,252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transcripción Resolutiva</title>
+    <title>Extractor Resolutivo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        body { background-color: #f3f4f6; }
+        .recording-pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        /* Custom scrollbar for text areas */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col font-sans">
+<body class="text-gray-800 antialiased min-h-screen pb-10">
 
-    <header class="p-4 border-b border-gray-800 bg-gray-900 sticky top-0 z-10">
-        <h1 class="text-xl font-bold text-blue-400">Transcripción Resolutiva</h1>
-        <p class="text-xs text-gray-400">Uso interno - Procesamiento Gemini 1.5 Flash</p>
+<div class="max-w-md mx-auto p-4 flex flex-col gap-4">
+    
+    <header class="mb-2">
+        <h1 class="text-xl font-bold text-gray-900">Extractor Resolutivo</h1>
+        <p class="text-sm text-gray-500">Transcribe STT y extrae puntos clave.</p>
     </header>
 
-    <main class="flex-1 p-4 space-y-4 overflow-y-auto">
-        <!-- Configuración API -->
-        <div id="api-config" class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-            <label class="block text-sm font-medium mb-2">API Key de Gemini</label>
-            <input type="password" id="api-key" placeholder="Pega tu API key aquí..." 
-                class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-            <p class="text-[10px] text-gray-500 mt-2 italic text-right">Se guarda solo en la sesión local.</p>
+    <div id="error-msg" class="hidden bg-red-100 text-red-700 p-3 rounded-lg text-sm mb-2 border border-red-200"></div>
+
+    <!-- Controles de Micrófono -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
+        <div>
+            <p id="status-text" class="font-semibold text-gray-700">Micrófono inactivo</p>
+            <p class="text-xs text-gray-500">Toca para empezar a transcribir</p>
         </div>
+        <button id="btn-toggle-mic" class="bg-blue-600 text-white w-14 h-14 rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <svg id="icon-mic" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+            <svg id="icon-stop" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path></svg>
+        </button>
+    </div>
 
-        <!-- Estado y Control -->
-        <div class="flex items-center justify-between gap-4">
-            <button id="start-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50 shadow-lg">
-                Iniciar Escucha
-            </button>
-            <button id="stop-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold transition-all hidden shadow-lg">
-                Detener y Procesar
-            </button>
+    <!-- Transcripción cruda -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <div class="flex justify-between items-center mb-2">
+            <h2 class="font-semibold text-sm text-gray-700">Transcripción Bruta</h2>
+            <button id="btn-clear" class="text-xs text-gray-400 hover:text-gray-600">Limpiar</button>
         </div>
+        <div id="transcript-box" class="h-32 overflow-y-auto text-sm text-gray-600 bg-gray-50 p-2 rounded border border-gray-100 whitespace-pre-wrap"></div>
+    </div>
 
-        <!-- Transcripción en vivo -->
-        <div class="space-y-2">
-            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider text-[10px]">Voz detectada (Borrador)</h2>
-            <div id="live-transcript" class="bg-black/30 p-3 rounded-lg min-h-[100px] text-sm text-gray-300 border border-dashed border-gray-700 italic overflow-y-auto max-h-32">
-                Esperando audio...
-            </div>
+    <!-- Acción de procesar -->
+    <button id="btn-process" class="w-full bg-gray-900 text-white font-medium py-3 rounded-xl shadow hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors" disabled>
+        Extraer Puntos Resolutivos
+    </button>
+
+    <!-- Resultado procesado -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <div class="flex justify-between items-center mb-2">
+            <h2 class="font-semibold text-sm text-gray-700">Resoluciones</h2>
+            <button id="btn-copy" class="text-xs text-blue-600 font-medium hidden">Copiar texto</button>
         </div>
-
-        <!-- Resultado Final -->
-        <div class="space-y-2">
-            <h2 class="text-sm font-semibold text-blue-400 uppercase tracking-wider text-[10px]">Puntos Resolutivos</h2>
-            <div id="final-result" class="bg-gray-800 p-4 rounded-lg min-h-[150px] border border-blue-900/30 whitespace-pre-wrap leading-relaxed shadow-lg text-white">
-                Aquí aparecerá el resumen ejecutivo una vez procesado.
-            </div>
+        <div id="result-box" class="min-h-[120px] text-sm text-gray-800 p-2 relative">
+            <span class="text-gray-400 italic">Aquí aparecerán los puntos esenciales omitiendo los fundamentos.</span>
         </div>
+    </div>
 
-        <div id="loading" class="hidden flex items-center justify-center gap-2 text-blue-400 py-4">
-            <div class="w-2 h-2 bg-blue-400 rounded-full pulse"></div>
-            <span class="text-sm font-medium">IA extrayendo resoluciones...</span>
-        </div>
-    </main>
+</div>
 
-    <footer class="p-4 text-center">
-        <button id="copy-btn" class="text-xs text-gray-500 underline uppercase tracking-widest font-bold">Copiar resultado</button>
-    </footer>
+<script>
+    // Variables de estado
+    let isRecording = false;
+    let finalTranscript = '';
+    let recognition;
+    
+    // Elementos del DOM
+    const btnToggleMic = document.getElementById('btn-toggle-mic');
+    const iconMic = document.getElementById('icon-mic');
+    const iconStop = document.getElementById('icon-stop');
+    const statusText = document.getElementById('status-text');
+    const transcriptBox = document.getElementById('transcript-box');
+    const btnClear = document.getElementById('btn-clear');
+    const btnProcess = document.getElementById('btn-process');
+    const resultBox = document.getElementById('result-box');
+    const btnCopy = document.getElementById('btn-copy');
+    const errorMsg = document.getElementById('error-msg');
 
-    <script>
-        let recognition;
-        let fullTranscript = "";
-        let isListening = false;
+    const apiKey = ""; // Environment STT api key in Canvas.
 
-        const startBtn = document.getElementById('start-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        const liveTranscriptDiv = document.getElementById('live-transcript');
-        const finalResultDiv = document.getElementById('final-result');
-        const loadingDiv = document.getElementById('loading');
-        const apiKeyInput = document.getElementById('api-key');
+    function showError(msg) {
+        errorMsg.textContent = msg;
+        errorMsg.classList.remove('hidden');
+        setTimeout(() => errorMsg.classList.add('hidden'), 5000);
+    }
 
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.lang = 'es-AR';
-            recognition.continuous = true;
-            recognition.interimResults = true;
+    // Configuración STT (Speech to Text)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        showError("El navegador no soporta reconocimiento de voz. Usa Google Chrome o Safari.");
+        btnToggleMic.disabled = true;
+        btnToggleMic.classList.add('bg-gray-400');
+    } else {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'es-AR'; // Ajustado a Argentina
 
-            recognition.onresult = (event) => {
-                let interimTranscript = "";
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        fullTranscript += event.results[i][0].transcript + " ";
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
-                }
-                liveTranscriptDiv.innerText = (fullTranscript + interimTranscript) || "Escuchando...";
-                liveTranscriptDiv.scrollTop = liveTranscriptDiv.scrollHeight;
-            };
-
-            recognition.onerror = (event) => {
-                console.error("Error Speech:", event.error);
-                if(event.error === 'not-allowed') alert("Permiso de micrófono denegado.");
-            };
-        } else {
-            alert("Navegador no compatible con Speech API.");
-        }
-
-        startBtn.onclick = () => {
-            if (!apiKeyInput.value) {
-                alert("Ingresa tu API Key.");
-                return;
-            }
-            fullTranscript = "";
-            liveTranscriptDiv.innerText = "Escuchando...";
-            finalResultDiv.innerText = "Aquí aparecerá el resumen...";
-            recognition.start();
-            isListening = true;
-            startBtn.classList.add('hidden');
-            stopBtn.classList.remove('hidden');
+        recognition.onstart = function() {
+            isRecording = true;
+            statusText.textContent = "Escuchando...";
+            statusText.classList.add('text-red-600');
+            btnToggleMic.classList.remove('bg-blue-600');
+            btnToggleMic.classList.add('bg-red-500', 'recording-pulse');
+            iconMic.classList.add('hidden');
+            iconStop.classList.remove('hidden');
         };
 
-        stopBtn.onclick = async () => {
-            recognition.stop();
-            isListening = false;
-            stopBtn.classList.add('hidden');
-            startBtn.classList.remove('hidden');
+        recognition.onresult = function(event) {
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript + ' ';
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
             
-            if (fullTranscript.trim().length < 5) {
-                finalResultDiv.innerText = "No se detectó audio suficiente.";
-                return;
+            transcriptBox.innerHTML = finalTranscript + '<span class="text-gray-400">' + interimTranscript + '</span>';
+            transcriptBox.scrollTop = transcriptBox.scrollHeight;
+            
+            if (finalTranscript.trim().length > 10) {
+                btnProcess.disabled = false;
             }
-
-            await processWithGemini(fullTranscript);
         };
 
-        async function processWithGemini(text) {
-            loadingDiv.classList.remove('hidden');
-            const apiKey = apiKeyInput.value;
-            // Usando Gemini 1.5 Flash que es más estable para la mayoría de las claves
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        recognition.onerror = function(event) {
+            if (event.error === 'no-speech') return;
+            console.error("STT Error:", event.error);
+            showError("Error de audio: " + event.error);
+        };
 
-            const systemPrompt = `Actúa como relator jurídico. 
-            Extrae SOLO la parte resolutiva y puntos esenciales. 
-            OMITE: fundamentos, retórica, saludos y antecedentes. 
-            FORMATO: Lista de puntos directos.
-            Idioma: Español.`;
+        recognition.onend = function() {
+            if (isRecording) {
+                // Reinicio automático si se detiene por silencio (común en móviles)
+                try { recognition.start(); } catch(e) {}
+            } else {
+                statusText.textContent = "Micrófono inactivo";
+                statusText.classList.remove('text-red-600');
+                btnToggleMic.classList.add('bg-blue-600');
+                btnToggleMic.classList.remove('bg-red-500', 'recording-pulse');
+                iconMic.classList.remove('hidden');
+                iconStop.classList.add('hidden');
+            }
+        };
+    }
 
-            const payload = {
-                contents: [{ 
-                    role: "user",
-                    parts: [{ text: `${systemPrompt}\n\nTexto a procesar:\n${text}` }] 
-                }]
-            };
-
-            let delay = 1000;
-            for (let i = 0; i < 3; i++) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        const errorMsg = data.error?.message || "Error desconocido";
-                        throw new Error(`API Error: ${errorMsg}`);
-                    }
-                    
-                    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                    finalResultDiv.innerText = resultText || "La IA no devolvió contenido.";
-                    loadingDiv.classList.add('hidden');
-                    return;
-                } catch (error) {
-                    console.error("Intento", i + 1, error);
-                    if (i === 2) {
-                        finalResultDiv.innerText = `Error: ${error.message}. Verifica tu API Key o si el modelo gemini-1.5-flash está activo en tu cuenta.`;
-                        loadingDiv.classList.add('hidden');
-                    }
-                    await new Promise(r => setTimeout(r, delay));
-                    delay *= 2;
-                }
+    // Toggle Micrófono
+    btnToggleMic.addEventListener('click', () => {
+        if (!recognition) return;
+        
+        if (isRecording) {
+            isRecording = false;
+            recognition.stop();
+        } else {
+            try {
+                recognition.start();
+            } catch(e) {
+                // Previene error si ya estaba arrancando
+                console.log(e);
             }
         }
+    });
 
-        document.getElementById('copy-btn').onclick = () => {
-            const text = finalResultDiv.innerText;
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-        };
-    </script>
+    // Limpiar texto
+    btnClear.addEventListener('click', () => {
+        finalTranscript = '';
+        transcriptBox.innerHTML = '';
+        resultBox.innerHTML = '<span class="text-gray-400 italic">Aquí aparecerán los puntos esenciales omitiendo los fundamentos.</span>';
+        btnProcess.disabled = true;
+        btnCopy.classList.add('hidden');
+    });
+
+    // Procesar con LLM (Gemini)
+    btnProcess.addEventListener('click', async () => {
+        const textToProcess = finalTranscript.trim();
+        if (!textToProcess) return;
+
+        btnProcess.disabled = true;
+        btnProcess.textContent = "Procesando...";
+        resultBox.innerHTML = '<div class="flex justify-center my-4"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div></div>';
+
+        const promptText = `
+        Actúa como un analista estricto. Lee la siguiente transcripción de un discurso.
+        Extrae ÚNICAMENTE la parte resolutiva: las decisiones tomadas, acciones a ejecutar o puntos esenciales acordados.
+        REGLA ESTRICTA: Omite absolutamente todo el contexto, introducciones, saludos, justificaciones o fundamentos que haya dado el orador.
+        Entrega la respuesta directamente en formato de viñetas claras, concisas y ejecutivas. Nada de texto antes ni después de las viñetas.
+
+        Transcripción:
+        "${textToProcess}"
+        `;
+
+        try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: promptText }] }]
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error('Error en la API de procesamiento');
+
+            const data = await response.json();
+            const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No se encontraron resoluciones claras.";
+            
+            // Render basic markdown bullets to HTML
+            const htmlResult = resultText
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\* (.*?)(?=\n|$)/g, '<li class="ml-4 mb-1 border-l-2 border-gray-800 pl-2">$1</li>')
+                .replace(/\n/g, '<br/>')
+                .replace(/(<br\/>)+/g, '<br/>');
+
+            resultBox.innerHTML = `<ul>${htmlResult}</ul>`;
+            btnCopy.classList.remove('hidden');
+
+        } catch (error) {
+            console.error(error);
+            showError("Fallo al procesar el texto. Revisa la conexión.");
+            resultBox.innerHTML = '<span class="text-red-500 text-sm">Error en el análisis.</span>';
+        } finally {
+            btnProcess.disabled = false;
+            btnProcess.textContent = "Extraer Puntos Resolutivos";
+        }
+    });
+
+    // Copiar al portapapeles
+    btnCopy.addEventListener('click', () => {
+        const text = resultBox.innerText;
+        document.execCommand('copy'); // Fallback robusto para iframes/móviles
+        navigator.clipboard.writeText(text).catch(()=> {});
+        
+        const originalText = btnCopy.textContent;
+        btnCopy.textContent = "¡Copiado!";
+        setTimeout(() => btnCopy.textContent = originalText, 2000);
+    });
+
+</script>
 </body>
 </html>
