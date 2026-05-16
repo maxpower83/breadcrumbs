@@ -1,255 +1,178 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extractor Resolutivo</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background-color: #f3f4f6; }
-        .recording-pulse { animation: pulse 1.5s infinite; }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-        /* Custom scrollbar for text areas */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f172a">
+<title>Audio Resumen</title>
+<link rel="manifest" href="data:application/manifest+json,{
+  \"name\": \"Audio Resumen\",
+  \"short_name\": \"Resumen\",
+  \"start_url\": \".\",
+  \"display\": \"standalone\",
+  \"background_color\": \"#0f172a\",
+  \"theme_color\": \"#0f172a\",
+  \"icons\": [{\"src\": \"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9IiNmZmYiPjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQxIDAtOC0zLjU5LTgtOHMzLjU5LTggOC04IDggMy41OSA4IDgtMy41OSA4LTggOHptLTEtOGMwLTEuMS0uOS0yLTItMnMtMiAuOS0yIDJzLjkgMiAyIDIgMi0uOSAyLTJ6bS00IDBjMC0yLjIxIDEuNzktNCA0LTRzNCAxLjc5IDQgNC0xLjc5IDQtNCA0LTQtMS43OS00LTR6Ii8+PC9zdmc+\",\"sizes\":\"192x192\",\"type\":\"image/svg+xml\"}]
+}">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  body{background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column}
+  header{padding:16px;text-align:center;background:#1e293b;border-bottom:1px solid #334155}
+  h1{font-size:1.2rem;font-weight:600}
+  main{flex:1;padding:20px;max-width:700px;margin:0 auto;width:100%}
+ .btn{width:100%;padding:16px;border:none;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;transition:0.2s}
+ .btn-record{background:#ef4444;color:white}
+ .btn-record.recording{background:#dc2626;animation:pulse 1.5s infinite}
+ .btn-process{background:#3b82f6;color:white;margin-top:12px}
+ .btn:disabled{opacity:0.5;cursor:not-allowed}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.7}}
+ .section{margin-top:24px;background:#1e293b;padding:16px;border-radius:12px;border:1px solid #334155}
+ .section h2{font-size:0.9rem;color:#94a3b8;margin-bottom:8px;text-transform:uppercase}
+ .transcript{white-space:pre-wrap;line-height:1.6;color:#cbd5e1}
+ .points li{margin:8px 0 8px 20px;line-height:1.6}
+ .status{font-size:0.9rem;color:#94a3b8;margin-top:8px;text-align:center}
+</style>
 </head>
-<body class="text-gray-800 antialiased min-h-screen pb-10">
+<body>
+<header><h1>🎙️ Audio Resumen</h1></header>
+<main>
+  <button id="recordBtn" class="btn btn-record">Empezar Grabación</button>
+  <div class="status" id="status">Listo para grabar</div>
 
-<div class="max-w-md mx-auto p-4 flex flex-col gap-4">
-    
-    <header class="mb-2">
-        <h1 class="text-xl font-bold text-gray-900">Extractor Resolutivo</h1>
-        <p class="text-sm text-gray-500">Transcribe STT y extrae puntos clave.</p>
-    </header>
+  <div class="section" id="transcriptSection" style="display:none">
+    <h2>Transcripción</h2>
+    <div class="transcript" id="transcript"></div>
+  </div>
 
-    <div id="error-msg" class="hidden bg-red-100 text-red-700 p-3 rounded-lg text-sm mb-2 border border-red-200"></div>
+  <button id="summarizeBtn" class="btn btn-process" style="display:none">Resumir Puntos Clave</button>
 
-    <!-- Controles de Micrófono -->
-    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
-        <div>
-            <p id="status-text" class="font-semibold text-gray-700">Micrófono inactivo</p>
-            <p class="text-xs text-gray-500">Toca para empezar a transcribir</p>
-        </div>
-        <button id="btn-toggle-mic" class="bg-blue-600 text-white w-14 h-14 rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400">
-            <svg id="icon-mic" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
-            <svg id="icon-stop" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path></svg>
-        </button>
-    </div>
-
-    <!-- Transcripción cruda -->
-    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <div class="flex justify-between items-center mb-2">
-            <h2 class="font-semibold text-sm text-gray-700">Transcripción Bruta</h2>
-            <button id="btn-clear" class="text-xs text-gray-400 hover:text-gray-600">Limpiar</button>
-        </div>
-        <div id="transcript-box" class="h-32 overflow-y-auto text-sm text-gray-600 bg-gray-50 p-2 rounded border border-gray-100 whitespace-pre-wrap"></div>
-    </div>
-
-    <!-- Acción de procesar -->
-    <button id="btn-process" class="w-full bg-gray-900 text-white font-medium py-3 rounded-xl shadow hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors" disabled>
-        Extraer Puntos Resolutivos
-    </button>
-
-    <!-- Resultado procesado -->
-    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <div class="flex justify-between items-center mb-2">
-            <h2 class="font-semibold text-sm text-gray-700">Resoluciones</h2>
-            <button id="btn-copy" class="text-xs text-blue-600 font-medium hidden">Copiar texto</button>
-        </div>
-        <div id="result-box" class="min-h-[120px] text-sm text-gray-800 p-2 relative">
-            <span class="text-gray-400 italic">Aquí aparecerán los puntos esenciales omitiendo los fundamentos.</span>
-        </div>
-    </div>
-
-</div>
+  <div class="section" id="summarySection" style="display:none">
+    <h2>Puntos Decisivos Fundamentales</h2>
+    <ul class="points" id="summary"></ul>
+  </div>
+</main>
 
 <script>
-    // Variables de estado
-    let isRecording = false;
-    let finalTranscript = '';
-    let recognition;
-    
-    // Elementos del DOM
-    const btnToggleMic = document.getElementById('btn-toggle-mic');
-    const iconMic = document.getElementById('icon-mic');
-    const iconStop = document.getElementById('icon-stop');
-    const statusText = document.getElementById('status-text');
-    const transcriptBox = document.getElementById('transcript-box');
-    const btnClear = document.getElementById('btn-clear');
-    const btnProcess = document.getElementById('btn-process');
-    const resultBox = document.getElementById('result-box');
-    const btnCopy = document.getElementById('btn-copy');
-    const errorMsg = document.getElementById('error-msg');
+// Registrar Service Worker para PWA
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('data:text/javascript,', {scope: '.'})
+}
 
-    const apiKey = "AIzaSyCX-Syz0wq9zc2-xEkOEiTdDhgE-HuTwRQ"; // Environment STT api key in Canvas.
+let mediaRecorder, audioChunks = [], isRecording = false
+const recordBtn = document.getElementById('recordBtn')
+const status = document.getElementById('status')
+const transcriptDiv = document.getElementById('transcript')
+const summarizeBtn = document.getElementById('summarizeBtn')
+const summaryDiv = document.getElementById('summary')
 
-    function showError(msg) {
-        errorMsg.textContent = msg;
-        errorMsg.classList.remove('hidden');
-        setTimeout(() => errorMsg.classList.add('hidden'), 5000);
+recordBtn.onclick = async () => {
+  if(!isRecording){
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true})
+    mediaRecorder = new MediaRecorder(stream)
+    audioChunks = []
+
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data)
+    mediaRecorder.onstop = transcribeAudio
+
+    mediaRecorder.start()
+    isRecording = true
+    recordBtn.textContent = 'Detener Grabación'
+    recordBtn.classList.add('recording')
+    status.textContent = 'Grabando... habla ahora'
+  } else {
+    mediaRecorder.stop()
+    mediaRecorder.stream.getTracks().forEach(track => track.stop())
+    isRecording = false
+    recordBtn.textContent = 'Empezar Grabación'
+    recordBtn.classList.remove('recording')
+    status.textContent = 'Procesando audio...'
+  }
+}
+
+function transcribeAudio(){
+  // Usa Web Speech API nativa del navegador. Funciona offline en Chrome Android.
+  const audioBlob = new Blob(audioChunks)
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)()
+  recognition.lang = 'es-ES'
+  recognition.continuous = true
+  recognition.interimResults = false
+
+  recognition.onresult = e => {
+    let text = ''
+    for(let i=0; i<e.results.length; i++){
+      text += e.results[i][0].transcript + ' '
     }
+    transcriptDiv.textContent = text.trim()
+    document.getElementById('transcriptSection').style.display = 'block'
+    summarizeBtn.style.display = 'block'
+    status.textContent = 'Transcripción lista'
+  }
 
-    // Configuración STT (Speech to Text)
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        showError("El navegador no soporta reconocimiento de voz. Usa Google Chrome o Safari.");
-        btnToggleMic.disabled = true;
-        btnToggleMic.classList.add('bg-gray-400');
-    } else {
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'es-AR'; // Ajustado a Argentina
+  recognition.onerror = () => {
+    status.textContent = 'Error en transcripción. Usá Chrome en Android para mejor resultado.'
+  }
 
-        recognition.onstart = function() {
-            isRecording = true;
-            statusText.textContent = "Escuchando...";
-            statusText.classList.add('text-red-600');
-            btnToggleMic.classList.remove('bg-blue-600');
-            btnToggleMic.classList.add('bg-red-500', 'recording-pulse');
-            iconMic.classList.add('hidden');
-            iconStop.classList.remove('hidden');
-        };
+  // Truco: convertir blob a audio y reproducir para que SpeechRecognition lo escuche
+  const audio = new Audio(URL.createObjectURL(audioBlob))
+  audio.play()
+  recognition.start()
+}
 
-        recognition.onresult = function(event) {
-            let interimTranscript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript + ' ';
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
-                }
-            }
-            
-            transcriptBox.innerHTML = finalTranscript + '<span class="text-gray-400">' + interimTranscript + '</span>';
-            transcriptBox.scrollTop = transcriptBox.scrollHeight;
-            
-            if (finalTranscript.trim().length > 10) {
-                btnProcess.disabled = false;
-            }
-        };
+summarizeBtn.onclick = () => {
+  const text = transcriptDiv.textContent
+  if(!text) return
 
-        recognition.onerror = function(event) {
-            if (event.error === 'no-speech') return;
-            console.error("STT Error:", event.error);
-            showError("Error de audio: " + event.error);
-        };
+  status.textContent = 'Resumiendo...'
 
-        recognition.onend = function() {
-            if (isRecording) {
-                // Reinicio automático si se detiene por silencio (común en móviles)
-                try { recognition.start(); } catch(e) {}
-            } else {
-                statusText.textContent = "Micrófono inactivo";
-                statusText.classList.remove('text-red-600');
-                btnToggleMic.classList.add('bg-blue-600');
-                btnToggleMic.classList.remove('bg-red-500', 'recording-pulse');
-                iconMic.classList.remove('hidden');
-                iconStop.classList.add('hidden');
-            }
-        };
-    }
+  // Resumen heurístico local: extrae frases con palabras clave y oraciones cortas
+  const sentences = text.split(/[.!?]/).map(s => s.trim()).filter(s => s.length > 20)
 
-    // Toggle Micrófono
-    btnToggleMic.addEventListener('click', () => {
-        if (!recognition) return;
-        
-        if (isRecording) {
-            isRecording = false;
-            recognition.stop();
-        } else {
-            try {
-                recognition.start();
-            } catch(e) {
-                // Previene error si ya estaba arrancando
-                console.log(e);
-            }
-        }
-    });
+  // Palabras que indican puntos importantes
+  const keywords = ['importante','clave','decisivo','conclusión','por lo tanto','resultado','problema','solución','debe','hay que','recomendación']
 
-    // Limpiar texto
-    btnClear.addEventListener('click', () => {
-        finalTranscript = '';
-        transcriptBox.innerHTML = '';
-        resultBox.innerHTML = '<span class="text-gray-400 italic">Aquí aparecerán los puntos esenciales omitiendo los fundamentos.</span>';
-        btnProcess.disabled = true;
-        btnCopy.classList.add('hidden');
-    });
+  let keyPoints = sentences.filter(s =>
+    keywords.some(k => s.toLowerCase().includes(k)) || s.length < 120
+  )
 
-    // Procesar con LLM (Gemini)
-    btnProcess.addEventListener('click', async () => {
-        const textToProcess = finalTranscript.trim();
-        if (!textToProcess) return;
+  // Si no hay suficientes, toma las primeras y últimas 3
+  if(keyPoints.length < 3){
+    keyPoints = [...sentences.slice(0,3),...sentences.slice(-3)]
+  }
 
-        btnProcess.disabled = true;
-        btnProcess.textContent = "Procesando...";
-        resultBox.innerHTML = '<div class="flex justify-center my-4"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div></div>';
+  // Deduplicar y limitar a 7 puntos
+  keyPoints = [...new Set(keyPoints)].slice(0,7)
 
-        const promptText = `
-        Actúa como un analista estricto. Lee la siguiente transcripción de un discurso.
-        Extrae ÚNICAMENTE la parte resolutiva: las decisiones tomadas, acciones a ejecutar o puntos esenciales acordados.
-        REGLA ESTRICTA: Omite absolutamente todo el contexto, introducciones, saludos, justificaciones o fundamentos que haya dado el orador.
-        Entrega la respuesta directamente en formato de viñetas claras, concisas y ejecutivas. Nada de texto antes ni después de las viñetas.
+  summaryDiv.innerHTML = keyPoints.map(p => `<li>${p}</li>`).join('')
+  document.getElementById('summarySection').style.display = 'block'
+  status.textContent = 'Listo'
+}
 
-        Transcripción:
-        "${textToProcess}"
-        `;
+/*
+PARA USAR GPT/CLAUDE EN VEZ DEL RESUMEN LOCAL:
+Reemplaza la función summarizeBtn.onclick por esto:
 
-        try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            const payload = {
-                contents: [{ parts: [{ text: promptText }] }]
-            };
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) throw new Error('Error en la API de procesamiento');
-
-            const data = await response.json();
-            const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No se encontraron resoluciones claras.";
-            
-            // Render basic markdown bullets to HTML
-            const htmlResult = resultText
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\* (.*?)(?=\n|$)/g, '<li class="ml-4 mb-1 border-l-2 border-gray-800 pl-2">$1</li>')
-                .replace(/\n/g, '<br/>')
-                .replace(/(<br\/>)+/g, '<br/>');
-
-            resultBox.innerHTML = `<ul>${htmlResult}</ul>`;
-            btnCopy.classList.remove('hidden');
-
-        } catch (error) {
-            console.error(error);
-            showError("Fallo al procesar el texto. Revisa la conexión.");
-            resultBox.innerHTML = '<span class="text-red-500 text-sm">Error en el análisis.</span>';
-        } finally {
-            btnProcess.disabled = false;
-            btnProcess.textContent = "Extraer Puntos Resolutivos";
-        }
-    });
-
-    // Copiar al portapapeles
-    btnCopy.addEventListener('click', () => {
-        const text = resultBox.innerText;
-        document.execCommand('copy'); // Fallback robusto para iframes/móviles
-        navigator.clipboard.writeText(text).catch(()=> {});
-        
-        const originalText = btnCopy.textContent;
-        btnCopy.textContent = "¡Copiado!";
-        setTimeout(() => btnCopy.textContent = originalText, 2000);
-    });
-
+summarizeBtn.onclick = async () => {
+  const text = transcriptDiv.textContent
+  const res = await fetch('https://api.openai.com/v1/chat/completions',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':'Bearer TU_API_KEY'
+    },
+    body:JSON.stringify({
+      model:'gpt-4o-mini',
+      messages:[{
+        role:'user',
+        content:`Resume en 5 puntos decisivos y concretos este texto. Sin relleno:\n${text}`
+      }]
+    })
+  })
+  const data = await res.json()
+  const summary = data.choices[0].message.content
+  summaryDiv.innerHTML = summary.split('\n').map(l => `<li>${l.replace('- ','')}</li>`).join('')
+  document.getElementById('summarySection').style.display = 'block'
+}
+*/
 </script>
 </body>
 </html>
