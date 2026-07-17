@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carmen Sandiego: Cyber Chase - Evolution</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Share+Tech+Mono&display=swap');
+        
+        body {
+            font-family: 'Fira Code', monospace;
+            background-color: #080c14;
+        }
+        .tech-font {
+            font-family: 'Share Tech Mono', monospace;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b1329;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #f43f5e;
+            border-radius: 3px;
+        }
+        /* Glow effects */
+        .glow-acme {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+        }
+        .glow-vile {
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.25);
+        }
+    </style>
+</head>
+<body class="text-gray-100 min-h-screen flex flex-col justify-between overflow-x-hidden selection:bg-cyan-500 selection:text-slate-900">
+
+    <!-- React App Container -->
+    <div id="root" class="flex-grow flex flex-col"></div>
+
+    <!-- React and Babel via CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Game Logic & UI inside React Script -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- AUDIO ENGINE (Web Audio API) ---
+        class SoundFX {
+            constructor() { this.ctx = null; }
+            init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+            playTone(freq, type, duration, vol = 0.1) {
+                this.init();
+                if (!this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) { console.log(e); }
+            }
+            click() { this.playTone(600, 'sine', 0.08, 0.03); }
+            success() {
+                this.playTone(523, 'sine', 0.1, 0.05);
+                setTimeout(() => this.playTone(659, 'sine', 0.1, 0.05), 80);
+                setTimeout(() => this.playTone(784, 'sine', 0.25, 0.05), 160);
+            }
+            fail() {
+                this.playTone(220, 'sawtooth', 0.2, 0.08);
+                setTimeout(() => this.playTone(150, 'sawtooth', 0.3, 0.1), 150);
+            }
+            xpLoss() {
+                this.playTone(180, 'triangle', 0.4, 0.1);
+            }
+        }
+        const sfx = new SoundFX();
+
+        // --- DATABASE DEL JUEGO ---
+        const LOCATIONS = [
+            {
+                id: 'rome', city: 'Roma', country: 'Italia', currency: 'Euro (€)', language: 'Italiano', food: 'Pasta Carbonara',
+                landmark: 'El Coliseo', flagColors: ['#008f39', '#ffffff', '#f40000'],
+                targetItem: {
+                    title: "El Gladiador de Mármol",
+                    type: "Escultura", material: "Mármol", creator: "Escultor Anónimo", format: "Físico",
+                    clue: "Una escultura de mármol tallada por un escultor anónimo del Imperio que representa a un gladiador en combate."
+                }
+            },
+            {
+                id: 'paris', city: 'París', country: 'Francia', currency: 'Euro (€)', language: 'Francés', food: 'Croissants',
+                landmark: 'Museo del Louvre', flagColors: ['#002395', '#ffffff', '#ed2939'],
+                targetItem: {
+                    title: "La Mona Lisa Digitalizada",
+                    type: "Pintura digital", material: "Código binario", creator: "Leonardo da Vinci", format: "Digital",
+                    clue: "Un archivo digital encriptado con los trazos originales del maestro Leonardo da Vinci."
+                }
+            },
+            {
+                id: 'tokyo', city: 'Tokio', country: 'Japón', currency: 'Yen (¥)', language: 'Japonés', food: 'Ramen',
+                landmark: 'Torre de Tokio', flagColors: ['#ffffff', '#bc002d'],
+                targetItem: {
+                    title: "Katana de Masamune",
+                    type: "Arma antigua", material: "Acero templado", creator: "Masamune", format: "Físico",
+                    clue: "Una reliquia de acero templado forjada a mano por el legendario herrero Masamune."
+                }
+            },
+            {
+                id: 'mexico', city: 'Ciudad de México', country: 'México', currency: 'Peso Mexicano ($)', language: 'Español', food: 'Tacos al Pastor',
+                landmark: 'Pirámide de Chichén Itzá', flagColors: ['#006847', '#ffffff', '#ce1126'],
+                targetItem: {
+                    title: "Máscara de Jade del Rey Pakal",
+                    type: "Máscara funeraria", material: "Jade", creator: "Artesanos Mayas", format: "Físico",
+                    clue: "Una impresionante máscara funeraria de jade verde ensamblada por antiguos artesanos mayas."
+                }
+            },
+            {
+                id: 'cairo', city: 'El Cairo', country: 'Egipto', currency: 'Libra Egipcia (E£)', language: 'Árabe', food: 'Koshary',
+                landmark: 'Pirámides de Giza', flagColors: ['#ce1126', '#ffffff', '#000000'],
+                targetItem: {
+                    title: "Amuleto Dorado de Anubis",
+                    type: "Amuleto", material: "Oro macizo", creator: "Orfebres del Faraón", format: "Físico",
+                    clue: "Un amuleto de oro macizo que representa al dios chacal Anubis, diseñado por los orfebres del faraón."
+                }
+            },
+            {
+                id: 'agra', city: 'Agra', country: 'India', currency: 'Rupia India (₹)', language: 'Hindi', food: 'Pollo Butter Chicken',
+                landmark: 'Taj Mahal', flagColors: ['#ff9933', '#ffffff', '#128807'],
+                targetItem: {
+                    title: "El Manuscrito de Shah Jahan",
+                    type: "Documento histórico", material: "Papel pergamino", creator: "Cronistas del Imperio", format: "Físico",
+                    clue: "Un manuscrito físico en papel pergamino que narra la construcción del mausoleo imperial."
+                }
+            }
+        ];
+
+        // Suspect traits options for warrant check
+        const SUSPECT_TRAITS_METADATA = {
+            sex: ["Masculino", "Femenino", "No binario"],
+            hair: ["Negro", "Rubio", "Pelirrojo", "Castaño"],
+            eyes: ["Azules", "Verdes", "Marrones", "Grises"],
+            accessory: ["Anillo de plata", "Lentes oscuros", "Tatuaje de dragón", "Sombrero fedora"],
+            vehicle: ["Moto eléctrica", "Coche deportivo", "Yate rápido", "Jet privado"]
+        };
+
+        const TRAIT_LABELS = {
+            sex: "Género",
+            hair: "Cabello",
+            eyes: "Ojos",
+            accessory: "Accesorio",
+            vehicle: "Vehículo de huida"
+        };
+
+        // Complete list of potential suspects to match against
+        const ALL_SUSPECT_TEMPLATES = [
+            { name: "Slick Sam", sex: "Masculino", hair: "Negro", eyes: "Marrones", accessory: "Sombrero fedora", vehicle: "Coche deportivo" },
+            { name: "Cyber Carmen", sex: "Femenino", hair: "Pelirrojo", eyes: "Grises", accessory: "Lentes oscuros", vehicle: "Jet privado" },
+            { name: "Binary Bob", sex: "Masculino", hair: "Rubio", eyes: "Azules", accessory: "Tatuaje de dragón", vehicle: "Moto eléctrica" },
+            { name: "Shadow Scarlett", sex: "Femenino", hair: "Castaño", eyes: "Verdes", accessory: "Anillo de plata", vehicle: "Yate rápido" },
+            { name: "Viper Val", sex: "No binario", hair: "Negro", eyes: "Verdes", accessory: "Tatuaje de dragón", vehicle: "Coche deportivo" }
+        ];
+
+        // Main App Component
+        function App() {
+            const [screen, setScreen] = useState('welcome');
+            const [acmeScore, setAcmeScore] = useState(150); // Start with some XP to make loss meaningful
+            const [acmeLevel, setAcmeLevel] = useState(1);
+            const [vileScore, setVileScore] = useState(150);
+            const [vileLevel, setVileLevel] = useState(1);
+
+            // Active Case State
+            const [caseData, setCaseData] = useState(null);
+            const [currentLeg, setCurrentLeg] = useState(0);
+            const [currentLocation, setCurrentLocation] = useState(null);
+            const [timeLimit, setTimeLimit] = useState(72);  // ACME hours
+            const [suspicion, setSuspicion] = useState(0);   // VILE Heat %
+            const [gameLog, setGameLog] = useState([]);
+            
+            // Notification / Alert Overlay State (Custom Alert Replacement)
+            const [customAlert, setCustomAlert] = useState(null); // { title: string, text: string, type: 'success' | 'error' | 'warning', onConfirm: fn }
+
+            // ACME specific play state
+            const [cluesUnlocked, setCluesUnlocked] = useState({ informant: false, ledger: false, photo: false });
+            const [discoveredTraits, setDiscoveredTraits] = useState([]); // List of traits found by reading
+            const [warrantForm, setWarrantForm] = useState({ sex: "", hair: "", eyes: "", accessory: "", vehicle: "" });
+            const [activePhotoCase, setActivePhotoCase] = useState(null);
+            const [scannedPhotoResult, setScannedPhotoResult] = useState(null);
+
+            // VILE specific play state
+            const [vileHeistStatus, setVileHeistStatus] = useState("planning"); // planning, identifying_target, escaping
+            const [selectedTargetItem, setSelectedTargetItem] = useState({ format: "", material: "", creator: "", type: "" });
+            const [craftedFake, setCraftedFake] = useState({ landmark: "", flag: "", food: "" });
+            const [quizQuestion, setQuizQuestion] = useState(null);
+            const [quizSuccess, setQuizSuccess] = useState(null);
+
+            // Procedural Case Generator
+            const startNewCase = (mode) => {
+                sfx.click();
+                const level = mode === 'acme' ? acmeLevel : vileLevel;
+                const pathLength = Math.min(5, 3 + Math.floor(level / 2));
+                
+                // Sort destinations
+                const shuffled = [...LOCATIONS].sort(() => 0.5 - Math.random());
+                const path = shuffled.slice(0, pathLength);
+                
+                // Pick culprit
+                const suspect = ALL_SUSPECT_TEMPLATES[Math.floor(Math.random() * ALL_SUSPECT_TEMPLATES.length)];
+                const hours = Math.max(30, 72 - (level * 5));
+                const startingCity = path[0];
+
+                if (mode === 'acme') {
+                    // Populate clues in the path legs
+                    // Some legs contain physical suspect descriptions
+                    const cluesWithTraits = path.map((loc, idx) => {
+                        if (idx === path.length - 1) return null;
+                        const nextLoc = path[idx + 1];
+                        
+                        // We embed a trait of the suspect in the text clues
+                        let traitClue = "";
+                        if (idx === 0) {
+                            traitClue = `Un testigo menciona: "El sospechoso tenía el cabello de color ${suspect.hair}."`;
+                        } else if (idx === 1) {
+                            traitClue = `Las grabaciones de seguridad muestran que el sospechoso usaba un/a: ${suspect.accessory}.`;
+                        } else if (idx === 2) {
+                            traitClue = `En la aduana registraron el paso de un sospechoso de género ${suspect.sex} en un/a ${suspect.vehicle}.`;
+                        } else {
+                            traitClue = `El análisis biométrico parcial arrojó ojos de tono ${suspect.eyes}.`;
+                        }
+
+                        // Also handle fake photo logic
+                        const isFake = Math.random() > 0.4;
+                        let photoSetup;
+                        if (isFake) {
+                            const decoy = LOCATIONS.filter(l => l.id !== nextLoc.id)[Math.floor(Math.random() * (LOCATIONS.length - 1))];
+                            photoSetup = {
+                                isFake: true,
+                                landmark: nextLoc.landmark,
+                                flagColors: decoy.flagColors,
+                                food: decoy.food,
+                                correctDestination: nextLoc,
+                                baitDestination: decoy
+                            };
+                        } else {
+                            photoSetup = {
+                                isFake: false,
+                                landmark: nextLoc.landmark,
+                                flagColors: nextLoc.flagColors,
+                                food: nextLoc.food,
+                                correctDestination: nextLoc
+                            };
+                        }
+
+                        return { traitClue, photoSetup };
+                    });
+
+                    setCaseData({
+                        mode: 'acme',
+                        path,
+                        cluesWithTraits,
+                        suspect,
+                        item: path[path.length - 1].targetItem.title
+                    });
+                    setCurrentLeg(0);
+                    setTimeLimit(hours);
+                    setCurrentLocation(startingCity);
+                    setCluesUnlocked({ informant: false, ledger: false, photo: false });
+                    setWarrantForm({ sex: "", hair: "", eyes: "", accessory: "", vehicle: "" });
+                    setDiscoveredTraits([]);
+                    setActivePhotoCase(null);
+                    setScannedPhotoResult(null);
+                    setGameLog([
+                        `[ALERTA DETECTIVE] Robo reportado: "${path[path.length - 1].targetItem.title}".`,
+                        `El principal sospechoso fue rastreado inicialmente en la ciudad de ${startingCity.city}.`,
+                        `¡Lee los informes con atención! Debes identificar y registrar al menos 3 rasgos reales del criminal para ordenar el arresto final.`
+                    ]);
+                    setScreen('acme_game');
+                } else {
+                    // VILE MODE
+                    const targetLocation = path[path.length - 1]; // The final target heist
+                    setCaseData({
+                        mode: 'vile',
+                        path,
+                        suspect,
+                        targetItem: targetLocation.targetItem,
+                        stolenObject: targetLocation.targetItem.title
+                    });
+                    setCurrentLeg(0);
+                    setSuspicion(0);
+                    setCurrentLocation(startingCity);
+                    setSelectedTargetItem({ format: "", material: "", creator: "", type: "" });
+                    setVileHeistStatus("planning");
+                    setScreen('vile_game');
+                }
+            };
+
+            const triggerAbort = (mode) => {
+                sfx.xpLoss();
+                const penalty = 50;
+                let currentScore = mode === 'acme' ? acmeScore : vileScore;
+                let newScore = Math.max(0, currentScore - penalty);
+                
+                if (mode === 'acme') {
+                    setAcmeScore(newScore);
+                } else {
+                    setVileScore(newScore);
+                }
+
+                setCustomAlert({
+                    title: "Misión Abortada",
+                    text: `Has abandonado el caso operativo. Como consecuencia de la inactividad, has perdido ${penalty} XP de reputación.`,
+                    type: "warning",
+                    onConfirm: () => {
+                        setCustomAlert(null);
+                        setScreen('welcome');
+                    }
+                });
+            };
+
+            // ACME Investigation Actions
+            const revealAcmeClue = (type) => {
+                if (cluesUnlocked[type]) return;
+                sfx.click();
+                let cost = type === 'photo' ? 6 : 3;
+                
+                if (timeLimit - cost < 0) {
+                    setGameLog(prev => [...prev, `[SISTEMA] Recursos de tiempo insuficientes para esta acción.`]);
+                    return;
+                }
+
+                setTimeLimit(prev => prev - cost);
+                setCluesUnlocked(prev => ({ ...prev, [type]: true }));
+
+                const legData = caseData.cluesWithTraits[currentLeg];
+                const nextDestination = caseData.path[currentLeg + 1];
+
+                if (type === 'informant') {
+                    setGameLog(prev => [
+                        ...prev,
+                        `[INFORMANTE] "El contacto huyó rumbo a una ciudad famosa por ${nextDestination.landmark}. Por cierto... ${legData.traitClue}"`
+                    ]);
+                } else if (type === 'ledger') {
+                    setGameLog(prev => [
+                        ...prev,
+                        `[LEDGER] Transacción procesada por valor de cambio a ${nextDestination.currency}. Metadatos: Idioma configurado en "${nextDestination.language}".`
+                    ]);
+                } else if (type === 'photo') {
+                    setActivePhotoCase(legData.photoSetup);
+                }
+            };
+
+            const toggleWarrantTrait = (category, val) => {
+                sfx.click();
+                setWarrantForm(prev => ({
+                    ...prev,
+                    [category]: prev[category] === val ? "" : val
+                }));
+            };
+
+            const submitPhotoVerdict = (verdict) => {
+                sfx.click();
+                const photo = activePhotoCase;
+                const isCorrect = (verdict === 'fake' && photo.isFake) || (verdict === 'legit' && !photo.isFake);
+                setScannedPhotoResult(isCorrect ? 'correct' : 'wrong');
+
+                if (isCorrect) {
+                    sfx.success();
+                    setGameLog(prev => [
+                        ...prev,
+                        `[FILTRO OSINT] Foto analizada. El destino real inmediato del criminal es: ${photo.correctDestination.city}.`
+                    ]);
+                } else {
+                    sfx.fail();
+                    setTimeLimit(prev => Math.max(0, prev - 12));
+                    setGameLog(prev => [
+                        ...prev,
+                        `[DESINFORMACIÓN] Caíste en la trampa de VILE. La foto te desvió y perdiste 12 horas críticas.`
+                    ]);
+                }
+            };
+
+            const travelToCity = (dest) => {
+                sfx.click();
+                const nextDestination = caseData.path[currentLeg + 1];
+                
+                if (dest.id === nextDestination.id) {
+                    sfx.success();
+                    const nextLegIndex = currentLeg + 1;
+                    setCurrentLeg(nextLegIndex);
+                    setCurrentLocation(dest);
+                    setCluesUnlocked({ informant: false, ledger: false, photo: false });
+                    setActivePhotoCase(null);
+                    setScannedPhotoResult(null);
+
+                    if (nextLegIndex === caseData.path.length - 1) {
+                        setGameLog(prev => [
+                            ...prev, 
+                            `[ACME] ¡Sospechoso acorralado en ${dest.city}! Prepara tu orden de arresto final y cruza las pruebas.`
+                        ]);
+                    } else {
+                        setGameLog(prev => [
+                            ...prev, 
+                            `[RUMBO CORRECTO] Llegaste a ${dest.city}. El criminal sigue un paso adelante.`
+                        ]);
+                    }
+                } else {
+                    sfx.fail();
+                    setTimeLimit(prev => Math.max(0, prev - 18));
+                    setGameLog(prev => [
+                        ...prev,
+                        `[ERROR RUTA] El sospechoso no tiene bases en ${dest.city}. Has perdido 18 horas de vuelo.`
+                    ]);
+                }
+            };
+
+            const executeArrestWarrant = () => {
+                sfx.click();
+                
+                // Count how many traits are manually selected by user
+                const selectedTraits = Object.entries(warrantForm).filter(([k, v]) => v !== "");
+                if (selectedTraits.length < 3) {
+                    setCustomAlert({
+                        title: "Orden de arresto inválida",
+                        text: "Falta de pruebas. Debes consignar por lo menos TRES rasgos físicos identificatorios correctos del sospechoso en tu orden para ejecutar la captura.",
+                        type: "warning",
+                        onConfirm: () => setCustomAlert(null)
+                    });
+                    return;
+                }
+
+                // Check matches with actual suspect
+                const trueSuspect = caseData.suspect;
+                let mistakes = 0;
+                let matches = 0;
+
+                selectedTraits.forEach(([category, val]) => {
+                    if (trueSuspect[category] === val) {
+                        matches++;
+                    } else {
+                        mistakes++;
+                    }
+                });
+
+                if (mistakes > 0) {
+                    sfx.fail();
+                    setCustomAlert({
+                        title: "Arresto Fallido",
+                        text: `¡Catástrofe de procedimiento! Has arrestado a la persona equivocada debido a rasgos mal identificados en la orden. El verdadero agente de VILE (${trueSuspect.name}) escapó.`,
+                        type: "error",
+                        onConfirm: () => {
+                            setCustomAlert(null);
+                            setScreen('welcome');
+                        }
+                    });
+                } else {
+                    // Correct!
+                    sfx.success();
+                    const gainedXp = 100 * acmeLevel;
+                    setAcmeScore(prev => prev + gainedXp);
+                    if ((acmeScore + gainedXp) % 300 === 0) {
+                        setAcmeLevel(prev => prev + 1);
+                    }
+                    setCustomAlert({
+                        title: "¡Sospechoso Capturado!",
+                        text: `Excelente investigación. Detuviste formalmente a ${trueSuspect.name} mediante una orden judicial precisa y recuperaste "${caseData.item}". Has obtenido ${gainedXp} XP.`,
+                        type: "success",
+                        onConfirm: () => {
+                            setCustomAlert(null);
+                            setScreen('welcome');
+                        }
+                    });
+                }
+            };
+
+            // --- VILE CRITICAL SYSTEM (Item Authentication Heist) ---
+            const startHeistExecution = () => {
+                sfx.click();
+                setVileHeistStatus("identifying_target");
+            };
+
+            const submitStolenItemValidation = () => {
+                sfx.click();
+                const realItem = caseData.targetItem;
+                
+                const formatCorrect = selectedTargetItem.format === realItem.format;
+                const materialCorrect = selectedTargetItem.material === realItem.material;
+                const creatorCorrect = selectedTargetItem.creator === realItem.creator;
+                const typeCorrect = selectedTargetItem.type === realItem.type;
+
+                if (formatCorrect && materialCorrect && creatorCorrect && typeCorrect) {
+                    sfx.success();
+                    setVileHeistStatus("escaping");
+                    setupVileCheckpointQuiz();
+                } else {
+                    sfx.fail();
+                    setSuspicion(100); // Instantly trigger fail
+                    setCustomAlert({
+                        title: "Alarma Activada",
+                        text: `¡ERROR DE INFILTRACIÓN! Intentaste sustraer un objeto falso o incorrecto del museo. Los sensores láser y la inteligencia perimetral de ACME se activaron. Heist fallido.`,
+                        type: "error",
+                        onConfirm: () => {
+                            setCustomAlert(null);
+                            setScreen('welcome');
+                        }
+                    });
+                }
+            };
+
+            const setupVileCheckpointQuiz = () => {
+                const nextLegLoc = caseData.path[currentLeg + 1];
+                const questions = [
+                    { q: `¿Qué platillo local debes pedir para mimetizarte en ${nextLegLoc.city}?`, a: nextLegLoc.food },
+                    { q: `¿Qué idioma necesitas utilizar para encriptar tus comunicaciones en ${nextLegLoc.city}?`, a: nextLegLoc.language },
+                    { q: `¿Cuál es el símbolo del tipo de cambio monetario para transacciones en ${nextLegLoc.city}?`, a: nextLegLoc.currency }
+                ];
+                const picked = questions[Math.floor(Math.random() * questions.length)];
+                setQuizQuestion(picked);
+                setQuizSuccess(null);
+            };
+
+            const answerVileQuiz = (option) => {
+                const nextLegLoc = caseData.path[currentLeg + 1];
+                let isCorrect = false;
+
+                if (quizQuestion.q.includes("platillo") && option === nextLegLoc.food) isCorrect = true;
+                if (quizQuestion.q.includes("idioma") && option === nextLegLoc.language) isCorrect = true;
+                if (quizQuestion.q.includes("monetario") && option === nextLegLoc.currency) isCorrect = true;
+
+                if (isCorrect) {
+                    sfx.success();
+                    setQuizSuccess(true);
+                    setTimeout(() => {
+                        const nextIndex = currentLeg + 1;
+                        setCurrentLeg(nextIndex);
+                        setCurrentLocation(nextLegLoc);
+                        setVileHeistStatus("planning");
+
+                        if (nextIndex === caseData.path.length - 1) {
+                            // Perfect Heist Escape
+                            sfx.success();
+                            const gainedXp = 150 * vileLevel;
+                            setVileScore(prev => prev + gainedXp);
+                            if ((vileScore + gainedXp) % 300 === 0) {
+                                setVileLevel(prev => prev + 1);
+                            }
+                            setCustomAlert({
+                                title: "¡Golpe del Siglo Completado!",
+                                text: `Has asegurado exitosamente "${caseData.stolenObject}" en el búnker secreto de VILE en ${nextLegLoc.city}. Reputación aumentada por +${gainedXp} XP.`,
+                                type: "success",
+                                onConfirm: () => {
+                                    setCustomAlert(null);
+                                    setScreen('welcome');
+                                }
+                            });
+                        }
+                    }, 1200);
+                } else {
+                    sfx.fail();
+                    setQuizSuccess(false);
+                    setSuspicion(prev => {
+                        const nextSusp = Math.min(100, prev + 35);
+                        if (nextSusp >= 100) {
+                            setTimeout(() => {
+                                setCustomAlert({
+                                    title: "Agentes de ACME en ruta",
+                                    text: "Tu incapacidad para encajar con las costumbres de tránsito llamó la atención de las agencias de inteligencia. Has sido capturado en la terminal de transporte.",
+                                    type: "error",
+                                    onConfirm: () => {
+                                        setCustomAlert(null);
+                                        setScreen('welcome');
+                                    }
+                                });
+                            }, 500);
+                        }
+                        return nextSusp;
+                    });
+                }
+            };
+
+            return (
+                <div class="flex-grow flex flex-col justify-between">
+                    
+                    {/* CUSTOM ALERT DIALOG OVERLAY */}
+                    {customAlert && (
+                        <div class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div class={`max-w-md w-full border rounded-2xl p-6 shadow-2xl ${
+                                customAlert.type === 'success' ? 'border-emerald-500/50 bg-slate-900/95 shadow-emerald-500/10' :
+                                customAlert.type === 'error' ? 'border-red-500/50 bg-slate-900/95 shadow-red-500/10' :
+                                'border-yellow-500/50 bg-slate-900/95 shadow-yellow-500/10'
+                            }`}>
+                                <div class="flex items-center gap-3 mb-4">
+                                    <span class={`text-2xl ${
+                                        customAlert.type === 'success' ? 'text-emerald-400' :
+                                        customAlert.type === 'error' ? 'text-red-400' : 'text-yellow-400'
+                                    }`}>■</span>
+                                    <h3 class="text-lg font-bold uppercase tracking-wider text-slate-100 tech-font">
+                                        {customAlert.title}
+                                    </h3>
+                                </div>
+                                <p class="text-sm text-slate-300 leading-relaxed mb-6">
+                                    {customAlert.text}
+                                </p>
+                                <button 
+                                    onClick={customAlert.onConfirm}
+                                    class={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition ${
+                                        customAlert.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-500 text-white' :
+                                        customAlert.type === 'error' ? 'bg-red-600 hover:bg-red-500 text-white' :
+                                        'bg-yellow-600 hover:bg-yellow-500 text-slate-950'
+                                    }`}
+                                >
+                                    Confirmar Transmisión
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Header */}
+                    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-red-600 text-white font-bold px-3 py-1 rounded text-[10px] tracking-wider uppercase">Ciber-Rastreador</div>
+                            <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 to-pink-500 bg-clip-text text-transparent tech-font">
+                                CARMEN SANDIEGO: CYBER CHASE
+                            </h1>
+                        </div>
+                        <div class="flex gap-6 text-xs font-semibold">
+                            <span class="text-cyan-400 border-b border-cyan-500/20 pb-0.5">ACME: Lvl {acmeLevel} ({acmeScore} XP)</span>
+                            <span class="text-pink-400 border-b border-pink-500/20 pb-0.5">VILE: Lvl {vileLevel} ({vileScore} XP)</span>
+                        </div>
+                    </header>
+
+                    {/* Dynamic Viewport */}
+                    <main class="flex-grow p-4 md:p-6 flex flex-col justify-center items-center max-w-7xl w-full mx-auto">
+                        
+                        {/* 1. WELCOME SCREEN */}
+                        {screen === 'welcome' && (
+                            <div class="w-full max-w-4xl grid md:grid-cols-2 gap-8 py-8">
+                                {/* ACME Side */}
+                                <div class="border border-cyan-500/20 bg-slate-950/60 p-6 rounded-2xl flex flex-col justify-between hover:border-cyan-400 transition duration-300 glow-acme">
+                                    <div>
+                                        <div class="flex items-center justify-between mb-4">
+                                            <span class="text-cyan-400 font-bold tracking-widest text-xs uppercase">Inteligencia ACME</span>
+                                        </div>
+                                        <h2 class="text-xl font-bold mb-3 text-cyan-100">Campaña de Investigación</h2>
+                                        <p class="text-gray-400 text-xs leading-relaxed mb-6">
+                                            Rastrea pistas, analiza fotos manipuladas por IA para evitar desvíos, y construye el perfil criminal. **Debes identificar manualmente y registrar al menos 3 rasgos correctos** en la orden de arresto antes de proceder con la detención.
+                                        </p>
+                                    </div>
+                                    <button 
+                                        onClick={() => startNewCase('acme')}
+                                        class="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-3 rounded-xl transition text-xs tracking-wider uppercase font-mono"
+                                    >
+                                        Iniciar Rastreo ACME
+                                    </button>
+                                </div>
+
+                                {/* VILE Side */}
+                                <div class="border border-pink-500/20 bg-slate-950/60 p-6 rounded-2xl flex flex-col justify-between hover:border-pink-400 transition duration-300 glow-vile">
+                                    <div>
+                                        <div class="flex items-center justify-between mb-4">
+                                            <span class="text-pink-500 font-bold tracking-widest text-xs uppercase">Sindicato VILE</span>
+                                        </div>
+                                        <h2 class="text-xl font-bold mb-3 text-pink-100">Campaña Operativa Criminal</h2>
+                                        <p class="text-gray-400 text-xs leading-relaxed mb-6">
+                                            Prepara robos de reliquias históricas. **Debes validar e identificar correctamente las propiedades físicas y el autor** del objetivo para evadir los controles tecnológicos. Diseña coartadas falsas impecables basadas en la cultura del país señuelo.
+                                        </p>
+                                    </div>
+                                    <button 
+                                        onClick={() => startNewCase('vile')}
+                                        class="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-3 rounded-xl transition text-xs tracking-wider uppercase font-mono"
+                                    >
+                                        Planificar Heist VILE
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 2. ACME GAME VIEW */}
+                        {screen === 'acme_game' && caseData && (
+                            <div class="w-full grid lg:grid-cols-12 gap-6 items-start">
+                                {/* Left: Operational stats & logs */}
+                                <div class="lg:col-span-4 flex flex-col gap-4">
+                                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="text-xs text-gray-400 uppercase tracking-widest font-bold">Autonomía de Tiempo</span>
+                                            <span class="text-cyan-400 font-bold text-xs">
+                                                ⏱ {timeLimit} horas restantes
+                                            </span>
+                                        </div>
+                                        <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                                            <div class="bg-cyan-500 h-full transition-all" style={{ width: `${(timeLimit / 72) * 100}%` }}></div>
+                                        </div>
+                                    </div>
+
+                                    {/* Console output */}
+                                    <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-4 h-64 flex flex-col">
+                                        <h3 class="text-xs text-cyan-400 font-bold tracking-widest uppercase mb-2">Terminal Operativa</h3>
+                                        <div class="flex-grow overflow-y-auto space-y-2 text-xs text-slate-300 pr-2">
+                                            {gameLog.map((log, i) => (
+                                                <div key={i} class="border-l-2 border-cyan-500/40 pl-2 py-1 bg-slate-900/30">
+                                                    {log}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Interactive warrant configuration panel */}
+                                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
+                                        <h3 class="text-xs font-bold text-cyan-300 uppercase tracking-wider border-b border-slate-800 pb-2">
+                                            Orden Judicial: Perfil Criminal
+                                        </h3>
+                                        <p class="text-[10px] text-slate-400 leading-relaxed">
+                                            Lee atentamente los testimonios e informes en la Terminal Operativa. Selecciona los rasgos físicos exactos que correspondan para validar el arresto. (Requisito mínimo: 3 correctos).
+                                        </p>
+
+                                        {Object.entries(SUSPECT_TRAITS_METADATA).map(([category, options]) => (
+                                            <div key={category} class="space-y-1">
+                                                <span class="text-[9px] text-slate-400 font-bold uppercase">{TRAIT_LABELS[category]}:</span>
+                                                <div class="flex flex-wrap gap-1">
+                                                    {options.map(opt => (
+                                                        <button
+                                                            key={opt}
+                                                            onClick={() => toggleWarrantTrait(category, opt)}
+                                                            class={`text-[9px] px-2 py-1 rounded transition border ${
+                                                                warrantForm[category] === opt
+                                                                    ? 'bg-cyan-950 border-cyan-500 text-cyan-300 font-bold'
+                                                                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                                                            }`}
+                                                        >
+                                                            {opt}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Center Panel: Clue Interception */}
+                                <div class="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col gap-6">
+                                    <div class="border-b border-slate-800 pb-3 flex justify-between items-center">
+                                        <div>
+                                            <span class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Base de Operaciones</span>
+                                            <h2 class="text-lg font-bold text-gray-100">
+                                                {currentLocation.city}, {currentLocation.country}
+                                            </h2>
+                                        </div>
+                                    </div>
+
+                                    {currentLeg < caseData.path.length - 1 ? (
+                                        <div class="space-y-4">
+                                            <h3 class="text-xs font-bold text-slate-300 tracking-wider">Intercepción de Señal Digital</h3>
+                                            
+                                            <div class="grid grid-cols-3 gap-2">
+                                                <button 
+                                                    onClick={() => revealAcmeClue('informant')}
+                                                    disabled={cluesUnlocked.informant}
+                                                    class={`p-3 rounded-lg flex flex-col items-center gap-1 border text-center transition ${cluesUnlocked.informant ? 'bg-cyan-950/30 border-cyan-500/20 text-cyan-400' : 'bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-cyan-500/40'}`}
+                                                >
+                                                    <span class="text-[10px] font-bold">Informante</span>
+                                                    <span class="text-[8px] text-slate-500">-3 horas</span>
+                                                </button>
+                                                
+                                                <button 
+                                                    onClick={() => revealAcmeClue('ledger')}
+                                                    disabled={cluesUnlocked.ledger}
+                                                    class={`p-3 rounded-lg flex flex-col items-center gap-1 border text-center transition ${cluesUnlocked.ledger ? 'bg-cyan-950/30 border-cyan-500/20 text-cyan-400' : 'bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-cyan-500/40'}`}
+                                                >
+                                                    <span class="text-[10px] font-bold">Ledger Bancario</span>
+                                                    <span class="text-[8px] text-slate-500">-3 horas</span>
+                                                </button>
+
+                                                <button 
+                                                    onClick={() => revealAcmeClue('photo')}
+                                                    disabled={cluesUnlocked.photo}
+                                                    class={`p-3 rounded-lg flex flex-col items-center gap-1 border text-center transition ${cluesUnlocked.photo ? 'bg-cyan-950/30 border-cyan-500/20 text-cyan-400' : 'bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-cyan-500/40'}`}
+                                                >
+                                                    <span class="text-[10px] font-bold">Foto Redes</span>
+                                                    <span class="text-[8px] text-slate-500">-6 horas</span>
+                                                </button>
+                                            </div>
+
+                                            {cluesUnlocked.photo && activePhotoCase && (
+                                                <div class="bg-slate-900/90 border border-cyan-500/20 p-4 rounded-xl mt-2">
+                                                    <div class="flex items-center justify-between mb-2 border-b border-slate-800 pb-2">
+                                                        <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">Análisis de Deepfakes</span>
+                                                        <span class="text-[8px] text-slate-500">Compara los datos para ver si coinciden</span>
+                                                    </div>
+
+                                                    <div class="aspect-video bg-slate-950 border border-slate-800 rounded-lg flex flex-col justify-between p-3">
+                                                        <div class="bg-slate-900/90 border border-slate-800/80 px-2 py-1 rounded text-[10px]">
+                                                            <span class="text-slate-400">Estructura / Hito:</span> <strong class="text-white">{activePhotoCase.landmark}</strong>
+                                                        </div>
+                                                        <div class="flex justify-between items-end">
+                                                            <div class="bg-slate-900/90 border border-slate-800/80 p-2 rounded text-[10px]">
+                                                                <span class="text-slate-400">Bandera:</span>
+                                                                <div class="flex h-3 w-6 rounded overflow-hidden mt-1 border border-slate-700">
+                                                                    {activePhotoCase.flagColors.map((color, idx) => (
+                                                                        <div key={idx} class="flex-grow h-full" style={{ backgroundColor: color }}></div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                            <div class="bg-slate-900/90 border border-slate-800/80 p-2 rounded text-[10px]">
+                                                                <span class="text-slate-400">Plato servido:</span>
+                                                                <strong class="text-cyan-200 block text-[9px] mt-0.5">{activePhotoCase.food}</strong>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {scannedPhotoResult === null ? (
+                                                        <div class="grid grid-cols-2 gap-3 mt-3">
+                                                            <button 
+                                                                onClick={() => submitPhotoVerdict('fake')}
+                                                                class="bg-red-950 hover:bg-red-900 text-red-200 border border-red-500/30 text-[10px] font-bold py-2 rounded-lg transition"
+                                                            >
+                                                                Detectar Fake
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => submitPhotoVerdict('legit')}
+                                                                class="bg-emerald-950 hover:bg-emerald-900 text-emerald-200 border border-emerald-500/30 text-[10px] font-bold py-2 rounded-lg transition"
+                                                            >
+                                                                Aprobar Legítimo
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div class={`mt-3 p-2.5 rounded-lg text-xs font-semibold ${scannedPhotoResult === 'correct' ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/10' : 'bg-red-950/40 text-red-300 border border-red-500/10'}`}>
+                                                            {scannedPhotoResult === 'correct' ? (
+                                                                <span>Filtro aprobado. Próximo paradero confirmado: <strong>{activePhotoCase.correctDestination.city}</strong>.</span>
+                                                            ) : (
+                                                                <span>Análisis fallido. El sistema cayó en la redirección falsa.</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div class="bg-red-950/10 border border-red-500/20 p-4 rounded-xl space-y-4">
+                                            <h3 class="text-xs font-bold text-red-400 tracking-wider uppercase border-b border-red-500/20 pb-2">
+                                                Ejecución de Redada: {currentLocation.city}
+                                            </h3>
+                                            <p class="text-xs text-slate-300 leading-relaxed">
+                                                Has arrinconado al sospechoso en su nodo de comunicaciones central. Los agentes policiales de ACME se encuentran posicionados perimetralmente.
+                                            </p>
+                                            <button 
+                                                onClick={executeArrestWarrant}
+                                                class="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-3 rounded-lg text-xs uppercase tracking-wider transition"
+                                            >
+                                                Confirmar Datos y Arrestar
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Right Panel: Aviation Flight Desk */}
+                                <div class="lg:col-span-3 bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col gap-4">
+                                    <h3 class="text-xs font-bold text-cyan-400 uppercase tracking-widest border-b border-slate-800 pb-2">Destinos de Vuelo</h3>
+                                    
+                                    {currentLeg < caseData.path.length - 1 ? (
+                                        <div class="space-y-2">
+                                            {(() => {
+                                                const nextLegLoc = caseData.path[currentLeg + 1];
+                                                const options = [nextLegLoc];
+                                                
+                                                // If photo is open and is fake, put the bait
+                                                const currentPhoto = caseData.cluesWithTraits[currentLeg]?.photoSetup;
+                                                if (currentPhoto && currentPhoto.isFake) {
+                                                    options.push(currentPhoto.baitDestination);
+                                                }
+
+                                                LOCATIONS.forEach(l => {
+                                                    if (options.length < 3 && l.id !== currentLocation.id && !options.some(o => o.id === l.id)) {
+                                                        options.push(l);
+                                                    }
+                                                });
+
+                                                return options.sort(() => 0.5 - Math.random()).map((dest, i) => (
+                                                    <button 
+                                                        key={i}
+                                                        onClick={() => travelToCity(dest)}
+                                                        class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/30 rounded-xl p-3 text-left flex justify-between items-center transition"
+                                                    >
+                                                        <div>
+                                                            <div class="text-xs font-bold text-white">{dest.city}</div>
+                                                            <span class="text-[9px] text-slate-500">{dest.country}</span>
+                                                        </div>
+                                                    </button>
+                                                ));
+                                            })()}
+                                        </div>
+                                    ) : (
+                                        <div class="p-4 bg-slate-900 rounded-lg text-center text-xs text-slate-500 italic">
+                                            Estás en la última parada de la huella digital. No hay vuelos adicionales de escape disponibles.
+                                        </div>
+                                    )}
+
+                                    <button 
+                                        onClick={() => triggerAbort('acme')}
+                                        class="mt-4 w-full bg-slate-900 hover:bg-slate-800 text-slate-500 hover:text-red-400 border border-slate-800 py-2 rounded-lg text-xs font-semibold transition"
+                                    >
+                                        Abortar (-50 XP)
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. VILE GAME VIEW */}
+                        {screen === 'vile_game' && caseData && (
+                            <div class="w-full grid lg:grid-cols-12 gap-6 items-start">
+                                {/* Left Column: Suspicion Tracker */}
+                                <div class="lg:col-span-4 flex flex-col gap-4">
+                                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg space-y-4">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-gray-400 uppercase tracking-widest font-bold">Búsqueda Policial (Heat)</span>
+                                            <span class="text-pink-500 font-bold text-xs">
+                                                🚨 {suspicion}% Sospecha
+                                            </span>
+                                        </div>
+                                        <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                                            <div class="bg-pink-500 h-full transition-all" style={{ width: `${suspicion}%` }}></div>
+                                        </div>
+                                    </div>
+
+                                    {/* Objectives Briefing */}
+                                    <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
+                                        <h3 class="text-xs font-bold text-pink-400 uppercase tracking-wider border-b border-slate-800 pb-2">
+                                            Briefing de Inteligencia VILE
+                                        </h3>
+                                        <p class="text-[10px] text-slate-400 leading-relaxed italic">
+                                            "El botín objetivo es: **{caseData.targetItem.title}** en {caseData.path[caseData.path.length-1].city}."
+                                        </p>
+                                        <div class="bg-slate-900 p-3 rounded-lg border border-pink-500/10 text-xs text-slate-300 leading-relaxed">
+                                            <strong>Pistas del Objetivo:</strong> {caseData.targetItem.clue}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Center: Heist Execution Area */}
+                                <div class="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-xl">
+                                    <div class="border-b border-slate-800 pb-3 mb-4">
+                                        <span class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Línea Operativa</span>
+                                        <h2 class="text-lg font-bold text-gray-100">{currentLocation.city}</h2>
+                                    </div>
+
+                                    {/* Action Route 1: Route Planning */}
+                                    {vileHeistStatus === 'planning' && (
+                                        <div class="space-y-4">
+                                            <h3 class="text-xs font-bold text-slate-300 tracking-wider uppercase">Fase de Escape de Fronteras</h3>
+                                            <p class="text-xs text-slate-400 leading-relaxed">
+                                                Has evadido las defensas en {currentLocation.city}. Para saltar sin levantar sospechas al siguiente nodo logístico de la organización, debes consolidar el escape.
+                                            </p>
+
+                                            <div class="space-y-2">
+                                                {(() => {
+                                                    const nextLegLoc = caseData.path[currentLeg + 1];
+                                                    const options = [nextLegLoc];
+                                                    LOCATIONS.forEach(l => {
+                                                        if (options.length < 3 && l.id !== currentLocation.id && !options.some(o => o.id === l.id)) {
+                                                            options.push(l);
+                                                        }
+                                                    });
+
+                                                    return options.sort(() => 0.5 - Math.random()).map((dest, i) => (
+                                                        <button 
+                                                            key={i}
+                                                            onClick={() => {
+                                                                sfx.click();
+                                                                if (dest.id === nextLegLoc.id) {
+                                                                    // If we are at the last leg, we need to authenticate the item before completing
+                                                                    if (currentLeg + 1 === caseData.path.length - 1) {
+                                                                        setVileHeistStatus("identifying_target");
+                                                                    } else {
+                                                                        // Proceed to check question
+                                                                        setVileHeistStatus("escaping");
+                                                                        setupVileCheckpointQuiz();
+                                                                    }
+                                                                } else {
+                                                                    // Wrong flight path increases heat heavily
+                                                                    sfx.fail();
+                                                                    setSuspicion(prev => Math.min(100, prev + 30));
+                                                                    setCustomAlert({
+                                                                        title: "Vuelo erróneo interceptado",
+                                                                        text: "Tomaste un vuelo hacia una ruta muerta de VILE. Los radares de ACME detectaron tu desvío operacional.",
+                                                                        type: "warning",
+                                                                        onConfirm: () => setCustomAlert(null)
+                                                                    });
+                                                                }
+                                                            }}
+                                                            class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-pink-500/30 rounded-xl p-3 text-left transition"
+                                                        >
+                                                            <div class="text-xs font-bold text-white">Transbordo: {dest.city}</div>
+                                                        </button>
+                                                    ));
+                                                })()}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Action Route 2: Identifying/Authenticating the item (The heist point) */}
+                                    {vileHeistStatus === 'identifying_target' && (
+                                        <div class="space-y-4">
+                                            <h3 class="text-xs font-bold text-pink-400 tracking-wider uppercase flex items-center gap-2">
+                                                🔑 Consola de Infiltración de Redes
+                                            </h3>
+                                            <p class="text-xs text-slate-400 leading-relaxed">
+                                                Estás dentro del centro logístico en {caseData.path[caseData.path.length-1].city}. Para burlar los sistemas de detección óptica de ACME, configura el plano del golpe con las características auténticas del objetivo detalladas en el briefing.
+                                            </p>
+
+                                            <div class="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                                                <div>
+                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Formato de Archivo/Reliquia:</label>
+                                                    <div class="flex gap-2">
+                                                        {["Físico", "Digital"].map(opt => (
+                                                            <button
+                                                                key={opt}
+                                                                onClick={() => setSelectedTargetItem(p => ({ ...p, format: opt }))}
+                                                                class={`text-xs px-3 py-1.5 rounded transition border ${
+                                                                    selectedTargetItem.format === opt ? 'bg-pink-950 border-pink-500 text-pink-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-400'
+                                                                }`}
+                                                            >
+                                                                {opt}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Material predominante:</label>
+                                                    <select
+                                                        value={selectedTargetItem.material}
+                                                        onChange={(e) => setSelectedTargetItem(p => ({ ...p, material: e.target.value }))}
+                                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white"
+                                                    >
+                                                        <option value="">-- Elige Material --</option>
+                                                        <option value="Mármol">Mármol tallado</option>
+                                                        <option value="Código binario">Código encriptado</option>
+                                                        <option value="Acero templado">Acero templado</option>
+                                                        <option value="Jade">Gema de Jade</option>
+                                                        <option value="Oro macizo">Oro macizo</option>
+                                                        <option value="Papel pergamino">Papel pergamino antiguo</option>
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Autor / Creador:</label>
+                                                    <select
+                                                        value={selectedTargetItem.creator}
+                                                        onChange={(e) => setSelectedTargetItem(p => ({ ...p, creator: e.target.value }))}
+                                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white"
+                                                    >
+                                                        <option value="">-- Selecciona Autor --</option>
+                                                        <option value="Escultor Anónimo">Escultor Anónimo</option>
+                                                        <option value="Leonardo da Vinci">Leonardo da Vinci</option>
+                                                        <option value="Masamune">Masamune</option>
+                                                        <option value="Artesanos Mayas">Artesanos Mayas</option>
+                                                        <option value="Orfebres del Faraón">Orfebres del Faraón</option>
+                                                        <option value="Cronistas del Imperio">Cronistas del Imperio</option>
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Tipo de Objeto:</label>
+                                                    <select
+                                                        value={selectedTargetItem.type}
+                                                        onChange={(e) => setSelectedTargetItem(p => ({ ...p, type: e.target.value }))}
+                                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white"
+                                                    >
+                                                        <option value="">-- Selecciona Tipo --</option>
+                                                        <option value="Escultura">Escultura física</option>
+                                                        <option value="Pintura digital">Pintura digitalizada</option>
+                                                        <option value="Arma antigua">Armamento antiguo</option>
+                                                        <option value="Máscara funeraria">Máscara arqueológica</option>
+                                                        <option value="Amuleto">Amuleto sagrado</option>
+                                                        <option value="Documento histórico">Documento manuscrito</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <button 
+                                                onClick={submitStolenItemValidation}
+                                                disabled={!selectedTargetItem.format || !selectedTargetItem.material || !selectedTargetItem.creator || !selectedTargetItem.type}
+                                                class="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-3 rounded-lg text-xs uppercase tracking-wider transition disabled:opacity-50"
+                                            >
+                                                Iniciar Secuestro de Reliquia
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Action Route 3: Customs Verification quiz */}
+                                    {vileHeistStatus === 'escaping' && quizQuestion && (
+                                        <div class="space-y-4">
+                                            <h3 class="text-xs font-bold text-yellow-500 tracking-wider uppercase">
+                                                🚨 Aduana de Control de Pasajeros
+                                            </h3>
+                                            <p class="text-xs text-slate-400 leading-relaxed">
+                                                Para mimetizarte y no levantar sospechas en los aeropuertos del siguiente paradero, responde correctamente la pregunta del oficial de migración:
+                                            </p>
+
+                                            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+                                                <p class="text-xs font-bold text-white leading-relaxed">{quizQuestion.q}</p>
+                                            </div>
+
+                                            <div class="space-y-2">
+                                                {(() => {
+                                                    const nextLegLoc = caseData.path[currentLeg + 1];
+                                                    let pool = [];
+
+                                                    if (quizQuestion.q.includes("platillo")) {
+                                                        pool = LOCATIONS.map(l => l.food);
+                                                    } else if (quizQuestion.q.includes("idioma")) {
+                                                        pool = LOCATIONS.map(l => l.language);
+                                                    } else if (quizQuestion.q.includes("monetario")) {
+                                                        pool = LOCATIONS.map(l => l.currency);
+                                                    }
+
+                                                    // Deduplicate and pull options
+                                                    const uniquePool = Array.from(new Set(pool)).slice(0, 3).sort(() => 0.5 - Math.random());
+
+                                                    return uniquePool.map((option, idx) => (
+                                                        <button 
+                                                            key={idx}
+                                                            onClick={() => answerVileQuiz(option)}
+                                                            class="w-full text-left p-3 rounded-lg text-xs font-semibold border bg-slate-900 hover:bg-slate-800 border-slate-800 text-white transition"
+                                                        >
+                                                            {option}
+                                                        </button>
+                                                    ));
+                                                })()}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Right Column: Flight Path Tracker */}
+                                <div class="lg:col-span-3 bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col justify-between h-full min-h-[300px]">
+                                    <div>
+                                        <h3 class="text-xs font-bold text-pink-500 uppercase tracking-widest border-b border-slate-800 pb-2">Plan Operacional</h3>
+                                        <div class="space-y-3 mt-4">
+                                            <div class="text-xs text-slate-400">Ruta de Escape:</div>
+                                            <div class="space-y-1.5">
+                                                {caseData.path.map((loc, i) => (
+                                                    <div key={i} class="flex items-center gap-2 text-xs">
+                                                        <span class={`h-2 w-2 rounded-full ${i <= currentLeg ? 'bg-pink-500' : 'bg-slate-800'}`}></span>
+                                                        <span class={i === currentLeg ? 'text-white font-bold' : 'text-slate-500'}>
+                                                            {loc.city}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => triggerAbort('vile')}
+                                        class="mt-6 w-full bg-slate-900 hover:bg-slate-800 text-slate-500 hover:text-red-400 border border-slate-800 py-2 rounded-lg text-xs font-semibold transition"
+                                    >
+                                        Abortar Heist (-50 XP)
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Footer */}
+                    <footer class="border-t border-slate-800/80 bg-slate-950 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500">
+                        <span>© 2026 ACME & VILE Cyber-Intelligence. Evolution Engine Activo.</span>
+                        <span class="text-[10px] bg-slate-900 px-2 py-0.5 border border-slate-800 rounded text-slate-400">Build 3.4.1 (No-Alert Guardrail)</span>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
