@@ -1,0 +1,1143 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Murdoku: Multi-Dimension & Escape</title>
+   <!-- Tailwind CSS -->
+   <script src="https://cdn.tailwindcss.com"></script>
+   <script>
+       tailwind.config = {
+           theme: {
+               extend: {
+                   colors: {
+                       noir: {
+                           950: '#05070c',
+                           900: '#0b0f19',
+                           800: '#161f30',
+                           700: '#243147',
+                           gold: '#d97706',
+                           crimson: '#dc2626'
+                       }
+                   }
+               }
+           }
+       }
+   </script>
+   <style>
+       .custom-scrollbar::-webkit-scrollbar {
+           width: 6px;
+           height: 6px;
+       }
+       .custom-scrollbar::-webkit-scrollbar-track {
+           background: #0b0f19;
+       }
+       .custom-scrollbar::-webkit-scrollbar-thumb {
+           background: #243147;
+           border-radius: 3px;
+       }
+       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+           background: #d97706;
+       }
+       .clue-struck {
+           text-decoration: line-through;
+           opacity: 0.3;
+       }
+   </style>
+</head>
+<body class="bg-noir-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-noir-gold selection:text-noir-950 overflow-x-hidden">
+
+   <!-- Header -->
+   <header class="border-b border-noir-800 bg-noir-900/90 backdrop-blur sticky top-0 z-40 px-4 py-3">
+       <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+           <div class="flex items-center gap-3">
+               <div class="bg-noir-crimson text-white p-2.5 rounded-lg font-bold shadow-lg shadow-noir-crimson/30">
+                   M
+               </div>
+               <div>
+                   <h1 class="text-xl font-black tracking-wider text-slate-100 flex items-center gap-2">
+                       MURDOKU <span class="text-xs bg-noir-gold/20 text-noir-gold px-2 py-0.5 rounded border border-noir-gold/30">MECÁNICA DE ESCAPE</span>
+                   </h1>
+                   <p class="text-xs text-slate-400">Deducción de crimen a escala dinámica sin spoilers</p>
+               </div>
+           </div>
+           
+           <div class="flex items-center gap-2 flex-wrap justify-center">
+               <!-- Size Selector -->
+               <div class="flex items-center gap-1.5 bg-noir-800 px-2 py-1 rounded-lg border border-noir-700">
+                   <span class="text-xs text-slate-400 font-bold uppercase px-1">Mapa:</span>
+                   <select id="grid-size" class="bg-transparent text-slate-100 text-xs font-bold focus:outline-none cursor-pointer">
+                       <option value="4" class="bg-noir-800 text-slate-100">4 x 4 (Fácil)</option>
+                       <option value="6" selected class="bg-noir-800 text-slate-100">6 x 6 (Medio)</option>
+                       <option value="9" class="bg-noir-800 text-slate-100">9 x 9 (Difícil)</option>
+                   </select>
+               </div>
+
+               <button id="btn-new-game" class="bg-noir-gold hover:bg-amber-600 text-noir-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md shadow-noir-gold/15 flex items-center gap-2">
+                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17.5M12 8v4l3 3"></path></svg>
+                   Generar Caso
+               </button>
+           </div>
+       </div>
+   </header>
+
+   <!-- Main Workspace -->
+   <main class="flex-1 max-w-7xl w-full mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+       
+       <!-- Left Side: Clues & Rules -->
+       <section class="lg:col-span-4 flex flex-col gap-4 h-full">
+           <!-- Rules -->
+           <div class="bg-noir-900 border border-noir-800 rounded-xl p-4 shadow-xl">
+               <h3 class="text-xs font-bold uppercase tracking-wider text-noir-gold mb-2 flex items-center gap-2">
+                   <svg class="w-4 h-4 text-noir-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                   Reglas del Sumario
+               </h3>
+               <p class="text-xs text-slate-300 leading-relaxed mb-2">
+                   En esta mansión de <span id="mansion-size-text" class="text-slate-100 font-bold">36</span> habitaciones hay <span id="elements-count-text" class="text-slate-100 font-bold">6</span> sospechosos y <span id="weapons-count-text" class="text-slate-100 font-bold">6</span> armas.
+               </p>
+               <ul class="text-xs text-slate-400 space-y-1 list-disc list-inside">
+                   <li>Cada fila y columna tiene exactamente <strong class="text-slate-200">1 sospechoso</strong> y <strong class="text-slate-200">1 arma</strong> (sin repetir).</li>
+                   <li>Existe <strong class="text-noir-crimson font-bold">una sola habitación</strong> donde coinciden sospechoso y arma: es el <strong class="text-slate-100">crimen</strong>.</li>
+                   <li><strong class="text-amber-500">Alerta de Escape:</strong> Las acusaciones fallidas alertan al asesino. Si los intentos llegan a cero, ¡escapará!</li>
+               </ul>
+           </div>
+
+           <!-- Clues Box -->
+           <div class="bg-noir-900 border border-noir-800 rounded-xl flex-1 flex flex-col shadow-xl overflow-hidden min-h-[400px] lg:max-h-[600px]">
+               <div class="bg-noir-800/60 px-4 py-3 border-b border-noir-800 flex justify-between items-center">
+                   <h2 class="font-bold text-sm tracking-wide text-slate-200 flex items-center gap-2">
+                       <svg class="w-4 h-4 text-noir-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                       Evidencias Descubiertas
+                   </h2>
+                   <span class="text-[10px] text-slate-500 italic">Clic para tachar</span>
+               </div>
+               <div id="clues-container" class="p-4 overflow-y-auto custom-scrollbar flex-1 space-y-2.5">
+                   <!-- Loaded dynamically -->
+               </div>
+           </div>
+       </section>
+
+       <!-- Right Side: Interactive Board & Accusation -->
+       <section class="lg:col-span-8 flex flex-col gap-4">
+           <!-- Board Wrapper -->
+           <div class="bg-noir-900 border border-noir-800 rounded-xl p-4 sm:p-6 shadow-xl">
+               <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+                   <div>
+                       <h2 class="text-lg font-bold text-slate-100">Plano de Habitaciones</h2>
+                       <p class="text-xs text-slate-400">Pulsa sobre una casilla para editar tus sospechas o asignaciones definitivas.</p>
+                   </div>
+                   <button id="btn-clear-board" class="border border-noir-700 hover:border-slate-500 hover:bg-noir-800 text-slate-300 text-xs px-3 py-1.5 rounded transition">
+                       Limpiar Mapa
+                   </button>
+               </div>
+
+               <!-- Variable Grid Board -->
+               <div class="bg-noir-950 p-3 rounded-xl border border-noir-800 overflow-auto custom-scrollbar max-h-[600px] flex items-center justify-center">
+                   <div id="board-grid" class="grid gap-2 p-1 min-w-[320px] max-w-full w-full aspect-square">
+                       <!-- Dynamic columns classes handled by JS -->
+                   </div>
+               </div>
+
+               <!-- Final Order of Arrest Panel -->
+               <div class="border-t border-noir-800 pt-5 mt-6">
+                   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
+                       <div class="flex items-center gap-2">
+                           <span class="w-2.5 h-2.5 rounded-full bg-noir-crimson inline-block animate-pulse"></span>
+                           <h3 class="text-xs font-bold uppercase tracking-wider text-noir-crimson">
+                               Emitir Orden de Arresto Final
+                           </h3>
+                       </div>
+                       <!-- Escape Status Widget -->
+                       <div class="bg-noir-950 border border-noir-800 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                           <span class="text-[10px] font-bold text-slate-400 uppercase">Intentos restantes:</span>
+                           <div id="attempts-badges-container" class="flex gap-1">
+                               <!-- Generated Dynamically (e.g. 🚨 🚨 🚨) -->
+                           </div>
+                       </div>
+                   </div>
+                   
+                   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                       <!-- Select Murderer -->
+                       <div>
+                           <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Sospechoso de Asesinato</label>
+                           <select id="accuse-suspect" class="w-full bg-noir-800 border border-noir-700 rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-noir-crimson cursor-pointer">
+                               <option value="">-- Seleccionar --</option>
+                           </select>
+                       </div>
+                       <!-- Select Weapon -->
+                       <div>
+                           <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Arma Homicida</label>
+                           <select id="accuse-weapon" class="w-full bg-noir-800 border border-noir-700 rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-noir-crimson cursor-pointer">
+                               <option value="">-- Seleccionar --</option>
+                           </select>
+                       </div>
+                       <!-- Select Room -->
+                       <div>
+                           <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Lugar del Crimen</label>
+                           <select id="accuse-room" class="w-full bg-noir-800 border border-noir-700 rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-noir-crimson cursor-pointer">
+                               <option value="">-- Seleccionar --</option>
+                           </select>
+                       </div>
+                   </div>
+
+                   <button id="btn-submit-accusation" class="w-full bg-noir-crimson hover:bg-red-700 text-white font-bold text-sm py-3 rounded-lg transition shadow-lg shadow-noir-crimson/20 tracking-widest uppercase">
+                       Presentar Cargos ante el Juez
+                   </button>
+               </div>
+           </div>
+       </section>
+
+   </main>
+
+   <!-- Modal: Cell Editor (Assingment / Notes) -->
+   <div id="editor-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+       <div class="bg-noir-900 border border-noir-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+           <div class="bg-noir-800/80 px-6 py-4 border-b border-noir-800 flex justify-between items-center flex-shrink-0">
+               <div>
+                   <h3 id="modal-room-title" class="font-bold text-lg text-slate-100">Habitación</h3>
+                   <p class="text-xs text-noir-gold uppercase tracking-wider font-semibold">Hipótesis del Investigador</p>
+               </div>
+               <button id="modal-close" class="text-slate-400 hover:text-slate-100 transition p-1 rounded-lg hover:bg-noir-700">
+                   <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+               </button>
+           </div>
+
+           <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+               <!-- Tabs -->
+               <div class="grid grid-cols-2 gap-2 bg-noir-950 p-1 rounded-lg border border-noir-800">
+                   <button id="tab-assign" class="py-1.5 text-xs font-bold rounded-md transition bg-noir-gold text-noir-950 shadow">
+                       Asignación Fija
+                   </button>
+                   <button id="tab-notes" class="py-1.5 text-xs font-bold rounded-md transition text-slate-400 hover:text-slate-200">
+                       Anotar Posibles (Notas)
+                   </button>
+               </div>
+
+               <!-- Assignment Tab -->
+               <div id="section-assign" class="space-y-4">
+                   <div>
+                       <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Asignar Sospechoso</label>
+                       <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5" id="assign-suspects-grid"></div>
+                   </div>
+                   <div>
+                       <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Asignar Arma</label>
+                       <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5" id="assign-weapons-grid"></div>
+                   </div>
+               </div>
+
+               <!-- Notes Tab -->
+               <div id="section-notes" class="space-y-4 hidden">
+                   <p class="text-xs text-slate-400 italic">Marca los elementos que descartas o contemplas para esta habitación.</p>
+                   <div>
+                       <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Candidatos Sospechosos</label>
+                       <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5" id="note-suspects-grid"></div>
+                   </div>
+                   <div>
+                       <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Candidatos Armas</label>
+                       <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5" id="note-weapons-grid"></div>
+                   </div>
+               </div>
+           </div>
+
+           <div class="bg-noir-950/50 px-6 py-4 border-t border-noir-800/80 flex justify-end gap-2 flex-shrink-0">
+               <button id="modal-clear-cell" class="text-xs text-rose-500 hover:text-rose-400 font-medium px-4 py-2 rounded-lg transition hover:bg-rose-500/10">
+                   Limpiar Casilla
+               </button>
+               <button id="modal-save" class="bg-noir-gold hover:bg-amber-600 text-noir-950 font-bold text-xs px-5 py-2.5 rounded-lg transition shadow-md shadow-noir-gold/10">
+                   Aplicar y Cerrar
+               </button>
+           </div>
+       </div>
+   </div>
+
+   <!-- Modal: Verdict -->
+   <div id="verdict-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+       <div class="bg-noir-900 border border-noir-800 rounded-2xl w-full max-w-lg shadow-2xl p-6 sm:p-8 text-center relative overflow-hidden">
+           <div class="absolute top-0 inset-x-0 h-1" id="verdict-bar"></div>
+           
+           <div class="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4" id="verdict-icon-container"></div>
+
+           <h2 id="verdict-title" class="text-2xl font-black mb-2 tracking-wide">Veredicto</h2>
+           <p id="verdict-desc" class="text-slate-300 text-sm mb-6 max-w-md mx-auto"></p>
+
+           <div id="solution-detail" class="bg-noir-950/80 border border-noir-800 rounded-xl p-4 mb-6 text-left space-y-2 hidden">
+               <h4 class="text-xs font-bold text-noir-gold uppercase tracking-wider">Expediente de la Policía Judicial:</h4>
+               <p id="solution-text" class="text-xs text-slate-400 leading-relaxed"></p>
+           </div>
+
+           <div class="flex justify-center gap-3">
+               <button id="verdict-close" class="border border-noir-700 hover:bg-noir-800 text-slate-300 font-bold text-xs px-5 py-2.5 rounded-lg transition">
+                   Revisar Pruebas
+               </button>
+               <button id="verdict-restart" class="bg-noir-gold hover:bg-amber-600 text-noir-950 font-bold text-xs px-5 py-2.5 rounded-lg transition">
+                   Siguiente Misterio
+               </button>
+           </div>
+       </div>
+   </div>
+
+   <!-- Footer -->
+   <footer class="border-t border-noir-800 bg-noir-900/40 text-center py-4 px-4 text-xs text-slate-500 mt-auto">
+       <p>© 2026 Murdoku: Deducción Ciega Procedural Multidimensión.</p>
+   </footer>
+
+   <!-- Game Logic Scripts -->
+   <script>
+       // --- MASTER DICTIONARY FOR PROCEDURAL GENERATION ---
+       const ALL_SUSPECTS = [
+           { id: 's1', name: 'Sra. Amapola', color: 'text-red-500', bg: 'bg-red-500/10 border-red-500/20', activeBg: 'bg-red-500 text-white', icon: '🔴', sym: 'AP' },
+           { id: 's2', name: 'Cnel. Mostaza', color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500/20', activeBg: 'bg-amber-500 text-noir-950', icon: '🟡', sym: 'MO' },
+           { id: 's3', name: 'Prof. Ciruela', color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', activeBg: 'bg-purple-500 text-white', icon: '🟣', sym: 'CI' },
+           { id: 's4', name: 'Sra. Celeste', color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/20', activeBg: 'bg-cyan-500 text-noir-950', icon: '🔵', sym: 'CE' },
+           { id: 's5', name: 'Sr. Prado', color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500/20', activeBg: 'bg-emerald-500 text-noir-950', icon: '🟢', sym: 'PR' },
+           { id: 's6', name: 'Cda. Rubí', color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/20', activeBg: 'bg-rose-500 text-white', icon: '🌸', sym: 'RU' },
+           { id: 's7', name: 'Dr. Orquídea', color: 'text-pink-500', bg: 'bg-pink-500/10 border-pink-500/20', activeBg: 'bg-pink-500 text-white', icon: '🌺', sym: 'OR' },
+           { id: 's8', name: 'Inspector Gris', color: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-500/20', activeBg: 'bg-zinc-500 text-noir-950', icon: '⚫', sym: 'GR' },
+           { id: 's9', name: 'Sra. Blanca', color: 'text-slate-100', bg: 'bg-slate-100/10 border-slate-100/20', activeBg: 'bg-slate-100 text-noir-950', icon: '⚪', sym: 'BL' }
+       ];
+
+       const ALL_WEAPONS = [
+           { id: 'w1', name: 'Daga', color: 'text-slate-300', bg: 'bg-slate-300/10 border-slate-300/20', activeBg: 'bg-slate-300 text-noir-950', icon: '🗡️', sym: 'Da' },
+           { id: 'w2', name: 'Veneno', color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/20', activeBg: 'bg-emerald-400 text-noir-950', icon: '🧪', sym: 'Ve' },
+           { id: 'w3', name: 'Revólver', color: 'text-zinc-400', bg: 'bg-zinc-400/10 border-zinc-400/20', activeBg: 'bg-zinc-400 text-noir-950', icon: '🔫', sym: 'Re' },
+           { id: 'w4', name: 'Cuerda', color: 'text-amber-600', bg: 'bg-amber-600/10 border-amber-600/20', activeBg: 'bg-amber-600 text-white', icon: '🪢', sym: 'Cu' },
+           { id: 'w5', name: 'Tubería', color: 'text-stone-400', bg: 'bg-stone-400/10 border-stone-400/20', activeBg: 'bg-stone-400 text-noir-950', icon: '🔩', sym: 'Tu' },
+           { id: 'w6', name: 'Candelabro', color: 'text-yellow-500', bg: 'bg-yellow-500/10 border-yellow-500/20', activeBg: 'bg-yellow-500 text-noir-950', icon: '🕯️', sym: 'Ca' },
+           { id: 'w7', name: 'Hacha', color: 'text-red-400', bg: 'bg-red-400/10 border-red-400/20', activeBg: 'bg-red-400 text-white', icon: '🪓', sym: 'Ha' },
+           { id: 'w8', name: 'Llave Inglesa', color: 'text-blue-400', bg: 'bg-blue-400/10 border-blue-400/20', activeBg: 'bg-blue-400 text-noir-950', icon: '🔧', sym: 'Ll' },
+           { id: 'w9', name: 'Trofeo', color: 'text-yellow-600', bg: 'bg-yellow-600/10 border-yellow-600/20', activeBg: 'bg-yellow-600 text-noir-950', icon: '🏆', sym: 'Tr' }
+       ];
+
+       // Procedural room generators
+       const ROOM_PREFIXES = ['Biblioteca', 'Cocina', 'Salón', 'Invernadero', 'Estudio', 'Comedor', 'Dormitorio', 'Sótano', 'Ático', 'Vestíbulo', 'Baño', 'Oficina', 'Terraza', 'Despensa', 'Garaje', 'Galería', 'Pasillo', 'Búnker', 'Cripta', 'Mirador', 'Solárium', 'Gimnasio', 'Teatro', 'Laboratorio'];
+       const ROOM_ADJECTIVES = ['Imperial', 'Sombrío', 'Antiguo', 'Moderno', 'Secreto', 'Occidental', 'Oriental', 'Abandonado', 'Principal', 'Siniestro', 'Acogedor', 'Polvoriento', 'Lujoso', 'Gótico', 'Olvidado', 'Prohibido'];
+
+       function generateProceduralRooms(size) {
+           const count = size * size;
+           let rooms = [];
+           let unusedPrefixes = shuffle([...ROOM_PREFIXES]);
+           let unusedAdjectives = shuffle([...ROOM_ADJECTIVES]);
+
+           for (let i = 0; i < count; i++) {
+               if (unusedPrefixes.length === 0) unusedPrefixes = shuffle([...ROOM_PREFIXES]);
+               if (unusedAdjectives.length === 0) unusedAdjectives = shuffle([...ROOM_ADJECTIVES]);
+
+               const prefix = unusedPrefixes.pop();
+               const adj = unusedAdjectives.pop();
+               
+               rooms.push(`${prefix} ${adj}`);
+           }
+           return rooms;
+       }
+
+       // --- AUDIO ENGINE ---
+       const playSound = (type) => {
+           try {
+               const ctx = new (window.AudioContext || window.webkitAudioContext)();
+               const osc = ctx.createOscillator();
+               const gain = ctx.createGain();
+               osc.connect(gain);
+               gain.connect(ctx.destination);
+
+               if (type === 'click') {
+                   osc.type = 'sine';
+                   osc.frequency.setValueAtTime(550, ctx.currentTime);
+                   osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.08);
+                   gain.gain.setValueAtTime(0.03, ctx.currentTime);
+                   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+                   osc.start();
+                   osc.stop(ctx.currentTime + 0.08);
+               } else if (type === 'success') {
+                   osc.type = 'sine';
+                   const notes = [261.63, 329.63, 392.00, 523.25];
+                   notes.forEach((freq, idx) => {
+                       osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
+                   });
+                   gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.55);
+                   osc.start();
+                   osc.stop(ctx.currentTime + 0.55);
+               } else if (type === 'fail') {
+                   osc.type = 'sawtooth';
+                   osc.frequency.setValueAtTime(120, ctx.currentTime);
+                   osc.frequency.linearRampToValueAtTime(70, ctx.currentTime + 0.45);
+                   gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                   osc.start();
+                   osc.stop(ctx.currentTime + 0.5);
+               }
+           } catch (e) {}
+       };
+
+       // --- GAME STATE ---
+       let gameState = {
+           size: 6, 
+           suspects: [], 
+           weapons: [],   
+           rooms: [],     
+           solution: {
+               suspects: [], 
+               weapons: []   
+           },
+           player: {
+               suspects: [], 
+               weapons: [],
+               notes: []     
+           },
+           clues: [],
+           murdererId: null,
+           murderWeaponId: null,
+           crimeSceneIndex: null,
+           activeCellIndex: null,
+           activeModalTab: 'assign',
+           attemptsRemaining: 3,
+           maxAttempts: 3,
+           gameOver: false
+       };
+
+       function shuffle(arr) {
+           const newArr = [...arr];
+           for (let i = newArr.length - 1; i > 0; i--) {
+               const j = Math.floor(Math.random() * (i + 1));
+               [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+           }
+           return newArr;
+       }
+
+       // --- SOLVER & GENERATOR ENGINE ---
+
+       function generateSolution() {
+           const N = gameState.size;
+           let suspectsGrid = Array(N * N).fill(null);
+           let weaponsGrid = Array(N * N).fill(null);
+
+           gameState.suspects = ALL_SUSPECTS.slice(0, N);
+           gameState.weapons = ALL_WEAPONS.slice(0, N);
+           gameState.rooms = generateProceduralRooms(N);
+
+           let sCols = [];
+           for (let i = 0; i < N; i++) sCols.push(i);
+           sCols = shuffle(sCols);
+
+           for (let r = 0; r < N; r++) {
+               const sId = gameState.suspects[r].id;
+               const col = sCols[r];
+               suspectsGrid[r * N + col] = sId;
+           }
+
+           let wCols;
+           let attempts = 0;
+           while (attempts < 3000) {
+               wCols = [];
+               for (let i = 0; i < N; i++) wCols.push(i);
+               wCols = shuffle(wCols);
+
+               let intersections = 0;
+               for (let r = 0; r < N; r++) {
+                   if (sCols[r] === wCols[r]) {
+                       intersections++;
+                   }
+               }
+               if (intersections === 1) {
+                   break;
+               }
+               attempts++;
+           }
+
+           const shuffledWeaponIds = shuffle(gameState.weapons.map(w => w.id));
+           for (let r = 0; r < N; r++) {
+               const wId = shuffledWeaponIds[r];
+               const col = wCols[r];
+               weaponsGrid[r * N + col] = wId;
+           }
+
+           gameState.solution.suspects = suspectsGrid;
+           gameState.solution.weapons = weaponsGrid;
+
+           for (let i = 0; i < N * N; i++) {
+               if (suspectsGrid[i] && weaponsGrid[i]) {
+                   gameState.crimeSceneIndex = i;
+                   gameState.murdererId = suspectsGrid[i];
+                   gameState.murderWeaponId = weaponsGrid[i];
+                   break;
+               }
+           }
+       }
+
+       function generateClues() {
+           const N = gameState.size;
+           const sGrid = gameState.solution.suspects;
+           const wGrid = gameState.solution.weapons;
+           const crimeIdx = gameState.crimeSceneIndex;
+
+           let cluesPool = [];
+
+           const getPos = (index) => ({
+               r: Math.floor(index / N) + 1,
+               c: (index % N) + 1,
+               room: gameState.rooms[index]
+           });
+
+           let suspectLocations = {};
+           let weaponLocations = {};
+           for(let i = 0; i < N * N; i++) {
+               if(sGrid[i]) suspectLocations[sGrid[i]] = i;
+               if(wGrid[i]) weaponLocations[wGrid[i]] = i;
+           }
+
+           gameState.suspects.forEach(s => {
+               const idx = suspectLocations[s.id];
+               if (idx !== crimeIdx) {
+                   const pos = getPos(idx);
+                   cluesPool.push({
+                       text: `Una huella digital asocia a <strong>${s.name}</strong> directamente con la habitación: <strong>${pos.room}</strong>.`,
+                       category: 'direct'
+                   });
+               }
+           });
+
+           gameState.weapons.forEach(w => {
+               const idx = weaponLocations[w.id];
+               if (idx !== crimeIdx) {
+                   const pos = getPos(idx);
+                   cluesPool.push({
+                       text: `Se ha hallado una funda vacía para el arma <strong>${w.name}</strong> en la habitación: <strong>${pos.room}</strong>.`,
+                       category: 'direct'
+                   });
+               }
+           });
+
+           gameState.suspects.forEach(s => {
+               gameState.weapons.forEach(w => {
+                   const sIdx = suspectLocations[s.id];
+                   const wIdx = weaponLocations[w.id];
+                   
+                   if (sIdx === crimeIdx && wIdx === crimeIdx) return;
+
+                   const sPos = getPos(sIdx);
+                   const wPos = getPos(wIdx);
+
+                   if (sPos.r === wPos.r && sIdx !== wIdx) {
+                       cluesPool.push({
+                           text: `Un plano estructural revela que la habitación de <strong>${s.name}</strong> comparte la misma <strong>Fila</strong> que la habitación con la <strong>${w.name}</strong>.`,
+                           category: 'alignment'
+                       });
+                   }
+                   if (sPos.c === wPos.c && sIdx !== wIdx) {
+                       cluesPool.push({
+                           text: `Un informe del servicio doméstico alinea la columna de <strong>${s.name}</strong> con la columna donde se encuentra la <strong>${w.name}</strong>.`,
+                           category: 'alignment'
+                       });
+                   }
+               });
+           });
+
+           gameState.suspects.forEach(s => {
+               gameState.weapons.forEach(w => {
+                   const sIdx = suspectLocations[s.id];
+                   const wIdx = weaponLocations[w.id];
+                   if (sIdx === crimeIdx && wIdx === crimeIdx) return;
+
+                   const sPos = getPos(sIdx);
+                   const wPos = getPos(wIdx);
+
+                   if (sPos.r < wPos.r) {
+                       cluesPool.push({
+                           text: `La habitación de <strong>${s.name}</strong> se sitúa en una fila <strong>superior</strong> (norte) respecto a la <strong>${w.name}</strong>.`,
+                           category: 'relative'
+                       });
+                   } else if (sPos.r > wPos.r) {
+                       cluesPool.push({
+                           text: `La habitación de <strong>${s.name}</strong> se sitúa en una fila <strong>inferior</strong> (sur) respecto a la <strong>${w.name}</strong>.`,
+                           category: 'relative'
+                       });
+                   }
+
+                   if (sPos.c < wPos.c) {
+                       cluesPool.push({
+                           text: `La columna de <strong>${s.name}</strong> está a la <strong>izquierda</strong> (oeste) de la columna donde reposa la <strong>${w.name}</strong>.`,
+                           category: 'relative'
+                       });
+                   } else if (sPos.c > wPos.c) {
+                       cluesPool.push({
+                           text: `La columna de <strong>${s.name}</strong> está a la <strong>derecha</strong> (este) de la columna donde reposa la <strong>${w.name}</strong>.`,
+                           category: 'relative'
+                       });
+                   }
+               });
+           });
+
+           let emptyCount = 0;
+           const maxEmptyClues = N === 4 ? 4 : N === 6 ? 6 : 8;
+           for (let i = 0; i < N * N; i++) {
+               if (!sGrid[i] && !wGrid[i]) {
+                   cluesPool.push({
+                       text: `El oficial de guardia examinó la habitación <strong>${gameState.rooms[i]}</strong> y está totalmente desocupada.`,
+                       category: 'negative'
+                   });
+                   emptyCount++;
+                   if (emptyCount >= maxEmptyClues) break;
+               }
+           }
+
+           let finalClues = [];
+           let directClues = cluesPool.filter(c => c.category === 'direct');
+           let relationalClues = cluesPool.filter(c => c.category !== 'direct');
+
+           shuffle(directClues);
+           shuffle(relationalClues);
+
+           let limitDirect = 2;
+           let limitRelational = 6;
+
+           if (N === 4) {
+               limitDirect = 2;
+               limitRelational = 5;
+           } else if (N === 6) {
+               limitDirect = 3;
+               limitRelational = 8;
+           } else {
+               limitDirect = 4;
+               limitRelational = 12;
+           }
+
+           finalClues.push(...directClues.slice(0, limitDirect));
+           finalClues.push(...relationalClues.slice(0, limitRelational));
+
+           gameState.clues = shuffle(finalClues);
+       }
+
+       // --- RENDERING ---
+
+       function renderBoard() {
+           const gridContainer = document.getElementById('board-grid');
+           const N = gameState.size;
+
+           gridContainer.className = `grid gap-2 p-1 min-w-[320px] max-w-full w-full aspect-square`;
+           gridContainer.style.gridTemplateColumns = `repeat(${N}, minmax(0, 1fr))`;
+           
+           gridContainer.innerHTML = '';
+
+           for (let i = 0; i < N * N; i++) {
+               const cell = document.createElement('button');
+               
+               let textClass = 'text-[9px]';
+               let paddingClass = 'p-2';
+               let indicatorClass = 'text-[8px]';
+               
+               if (N === 9) {
+                   textClass = 'text-[7px]';
+                   paddingClass = 'p-1';
+                   indicatorClass = 'text-[6px]';
+               }
+
+               cell.className = `relative flex flex-col justify-between ${paddingClass} rounded-lg border text-left transition duration-150 group h-full overflow-hidden bg-noir-900 border-noir-800 hover:border-noir-gold hover:bg-noir-800/60`;
+               
+               if (gameState.gameOver) {
+                   cell.disabled = true;
+                   cell.className = `relative flex flex-col justify-between ${paddingClass} rounded-lg border text-left cursor-not-allowed h-full overflow-hidden bg-noir-950 border-noir-900 opacity-40`;
+               }
+
+               const roomName = document.createElement('span');
+               roomName.className = `${textClass} font-bold text-slate-400 group-hover:text-noir-gold uppercase tracking-wider block truncate w-full`;
+               roomName.textContent = gameState.rooms[i];
+               cell.appendChild(roomName);
+
+               const contentDiv = document.createElement('div');
+               contentDiv.className = 'flex-1 flex flex-col justify-center items-center gap-0.5 my-1 w-full';
+
+               const playerSuspect = gameState.suspects.find(s => s.id === gameState.player.suspects[i]);
+               const playerWeapon = gameState.weapons.find(w => w.id === gameState.player.weapons[i]);
+
+               if (playerSuspect || playerWeapon) {
+                   if (playerSuspect) {
+                       const sBadge = document.createElement('div');
+                       sBadge.className = `text-[8px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 w-full max-w-full justify-center truncate ${playerSuspect.bg} ${playerSuspect.color}`;
+                       sBadge.innerHTML = `<span>${playerSuspect.icon}</span> <span class="truncate">${playerSuspect.name.split(' ')[1]}</span>`;
+                       contentDiv.appendChild(sBadge);
+                   }
+                   if (playerWeapon) {
+                       const wBadge = document.createElement('div');
+                       wBadge.className = `text-[8px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 w-full max-w-full justify-center truncate ${playerWeapon.bg} ${playerWeapon.color}`;
+                       wBadge.innerHTML = `<span>${playerWeapon.icon}</span> <span class="truncate">${playerWeapon.name}</span>`;
+                       contentDiv.appendChild(wBadge);
+                   }
+               } else {
+                   const notes = gameState.player.notes[i];
+                   const hasNotes = Object.values(notes.suspects).some(Boolean) || Object.values(notes.weapons).some(Boolean);
+
+                   if (hasNotes) {
+                       const notesGrid = document.createElement('div');
+                       notesGrid.className = 'grid grid-cols-3 gap-0.5 w-full h-full p-0.5 text-[6px] sm:text-[8px] text-slate-500 font-mono leading-none';
+                       
+                       gameState.suspects.forEach(s => {
+                           if (notes.suspects[s.id]) {
+                               const noteSpan = document.createElement('span');
+                               noteSpan.className = `${s.color} font-bold`;
+                               noteSpan.textContent = s.sym;
+                               notesGrid.appendChild(noteSpan);
+                           }
+                       });
+                       
+                       gameState.weapons.forEach(w => {
+                           if (notes.weapons[w.id]) {
+                               const noteSpan = document.createElement('span');
+                               noteSpan.className = `${w.color} font-bold`;
+                               noteSpan.textContent = w.sym;
+                               notesGrid.appendChild(noteSpan);
+                           }
+                       });
+
+                       contentDiv.appendChild(notesGrid);
+                   } else {
+                       const emptyIcon = document.createElement('span');
+                       emptyIcon.className = 'text-slate-700 text-xs font-light tracking-widest opacity-25 select-none';
+                       emptyIcon.textContent = '?';
+                       contentDiv.appendChild(emptyIcon);
+                   }
+               }
+
+               cell.appendChild(contentDiv);
+
+               const indicators = document.createElement('div');
+               indicators.className = `flex justify-between w-full ${indicatorClass} text-slate-600 font-mono mt-auto pt-1 border-t border-noir-800/20`;
+               const row = Math.floor(i / N) + 1;
+               const col = (i % N) + 1;
+               indicators.innerHTML = `<span>F${row}</span><span>C${col}</span>`;
+               cell.appendChild(indicators);
+
+               if (!gameState.gameOver) {
+                   cell.addEventListener('click', () => {
+                       playSound('click');
+                       openEditorModal(i);
+                   });
+               }
+
+               gridContainer.appendChild(cell);
+           }
+       }
+
+       function renderCluesList() {
+           const container = document.getElementById('clues-container');
+           container.innerHTML = '';
+
+           gameState.clues.forEach((clue, idx) => {
+               const item = document.createElement('div');
+               item.className = 'flex gap-2.5 p-2.5 rounded-lg border bg-noir-950 border-noir-800/80 hover:border-slate-700 transition duration-150 cursor-pointer';
+               
+               const indicator = document.createElement('div');
+               indicator.className = 'flex-shrink-0 mt-0.5';
+               indicator.innerHTML = `
+                   <div class="w-5 h-5 rounded border border-noir-700 flex items-center justify-center text-[10px] text-slate-500 font-mono">
+                       ${idx + 1}
+                   </div>
+               `;
+               item.appendChild(indicator);
+
+               const textSpan = document.createElement('p');
+               textSpan.className = 'text-xs text-slate-300 leading-relaxed flex-1 select-none';
+               textSpan.innerHTML = clue.text;
+               item.appendChild(textSpan);
+
+               item.addEventListener('click', () => {
+                   playSound('click');
+                   textSpan.classList.toggle('clue-struck');
+                   item.classList.toggle('opacity-50');
+               });
+
+               container.appendChild(item);
+           });
+       }
+
+       function renderAttempts() {
+           const container = document.getElementById('attempts-badges-container');
+           container.innerHTML = '';
+           
+           for (let i = 0; i < gameState.maxAttempts; i++) {
+               const badge = document.createElement('span');
+               if (i < gameState.attemptsRemaining) {
+                   // Safe / Unalerted Attempt
+                   badge.className = 'text-xs filter drop-shadow-[0_0_2px_rgba(239,68,68,0.5)]';
+                   badge.textContent = '🚨';
+               } else {
+                   // Burned / Alerted Attempt
+                   badge.className = 'text-xs opacity-20 grayscale';
+                   badge.textContent = '🚨';
+               }
+               container.appendChild(badge);
+           }
+       }
+
+       // --- SELECTION DROPDOWNS ---
+
+       function populateAccusationDropdowns() {
+           const sSelect = document.getElementById('accuse-suspect');
+           const wSelect = document.getElementById('accuse-weapon');
+           const rSelect = document.getElementById('accuse-room');
+
+           sSelect.innerHTML = '<option value="">-- Seleccionar --</option>';
+           wSelect.innerHTML = '<option value="">-- Seleccionar --</option>';
+           rSelect.innerHTML = '<option value="">-- Seleccionar --</option>';
+
+           gameState.suspects.forEach(s => {
+               sSelect.innerHTML += `<option value="${s.id}">${s.icon} ${s.name}</option>`;
+           });
+
+           gameState.weapons.forEach(w => {
+               wSelect.innerHTML += `<option value="${w.id}">${w.icon} ${w.name}</option>`;
+           });
+
+           gameState.rooms.forEach((r, idx) => {
+               rSelect.innerHTML += `<option value="${idx}">${r}</option>`;
+           });
+       }
+
+       // --- ASSIGNMENT MODAL ---
+
+       function openEditorModal(index) {
+           if (gameState.gameOver) return;
+           gameState.activeCellIndex = index;
+           document.getElementById('modal-room-title').textContent = gameState.rooms[index];
+           setupModalAssignmentGrids(index);
+           setupModalNotesGrids(index);
+           document.getElementById('editor-modal').classList.remove('hidden');
+           switchTab('assign');
+       }
+
+       function closeEditorModal() {
+           document.getElementById('editor-modal').classList.add('hidden');
+       }
+
+       function switchTab(tab) {
+           gameState.activeModalTab = tab;
+           const tabAssignBtn = document.getElementById('tab-assign');
+           const tabNotesBtn = document.getElementById('tab-notes');
+           const sectionAssign = document.getElementById('section-assign');
+           const sectionNotes = document.getElementById('section-notes');
+
+           if (tab === 'assign') {
+               tabAssignBtn.className = 'py-1.5 text-xs font-bold rounded-md transition bg-noir-gold text-noir-950 shadow';
+               tabNotesBtn.className = 'py-1.5 text-xs font-bold rounded-md transition text-slate-400 hover:text-slate-200';
+               sectionAssign.classList.remove('hidden');
+               sectionNotes.classList.add('hidden');
+           } else {
+               tabNotesBtn.className = 'py-1.5 text-xs font-bold rounded-md transition bg-noir-gold text-noir-950 shadow';
+               tabAssignBtn.className = 'py-1.5 text-xs font-bold rounded-md transition text-slate-400 hover:text-slate-200';
+               sectionNotes.classList.remove('hidden');
+               sectionAssign.classList.add('hidden');
+           }
+       }
+
+       function setupModalAssignmentGrids(index) {
+           const currentSuspect = gameState.player.suspects[index];
+           const currentWeapon = gameState.player.weapons[index];
+
+           const sGrid = document.getElementById('assign-suspects-grid');
+           sGrid.innerHTML = '';
+
+           const noneSBtn = document.createElement('button');
+           noneSBtn.className = `py-2 text-[10px] font-bold rounded-lg border transition ${!currentSuspect ? 'bg-slate-100 text-noir-950 border-slate-100' : 'bg-noir-950 border-noir-800 text-slate-400 hover:border-slate-700'}`;
+           noneSBtn.textContent = 'Vacío';
+           noneSBtn.onclick = () => {
+               playSound('click');
+               gameState.player.suspects[index] = null;
+               setupModalAssignmentGrids(index);
+           };
+           sGrid.appendChild(noneSBtn);
+
+           gameState.suspects.forEach(s => {
+               const btn = document.createElement('button');
+               const isSelected = currentSuspect === s.id;
+               btn.className = `p-1.5 text-[10px] font-semibold rounded-lg border flex flex-col items-center justify-center gap-0.5 transition ${isSelected ? s.activeBg + ' border-transparent' : 'bg-noir-950 border-noir-800 hover:border-slate-700 ' + s.color}`;
+               btn.innerHTML = `<span class="text-sm">${s.icon}</span><span class="truncate max-w-full">${s.name.split(' ')[1]}</span>`;
+               btn.onclick = () => {
+                   playSound('click');
+                   gameState.player.suspects[index] = s.id;
+                   setupModalAssignmentGrids(index);
+               };
+               sGrid.appendChild(btn);
+           });
+
+           const wGrid = document.getElementById('assign-weapons-grid');
+           wGrid.innerHTML = '';
+
+           const noneWBtn = document.createElement('button');
+           noneWBtn.className = `py-2 text-[10px] font-bold rounded-lg border transition ${!currentWeapon ? 'bg-slate-100 text-noir-950 border-slate-100' : 'bg-noir-950 border-noir-800 text-slate-400 hover:border-slate-700'}`;
+           noneWBtn.textContent = 'Vacío';
+           noneWBtn.onclick = () => {
+               playSound('click');
+               gameState.player.weapons[index] = null;
+               setupModalAssignmentGrids(index);
+           };
+           wGrid.appendChild(noneWBtn);
+
+           gameState.weapons.forEach(w => {
+               const btn = document.createElement('button');
+               const isSelected = currentWeapon === w.id;
+               btn.className = `p-1.5 text-[10px] font-semibold rounded-lg border flex flex-col items-center justify-center gap-0.5 transition ${isSelected ? w.activeBg + ' border-transparent' : 'bg-noir-950 border-noir-800 hover:border-slate-700 ' + w.color}`;
+               btn.innerHTML = `<span class="text-sm">${w.icon}</span><span class="truncate max-w-full">${w.name}</span>`;
+               btn.onclick = () => {
+                   playSound('click');
+                   gameState.player.weapons[index] = w.id;
+                   setupModalAssignmentGrids(index);
+               };
+               wGrid.appendChild(btn);
+           });
+       }
+
+       function setupModalNotesGrids(index) {
+           const notes = gameState.player.notes[index];
+
+           const sGrid = document.getElementById('note-suspects-grid');
+           sGrid.innerHTML = '';
+
+           gameState.suspects.forEach(s => {
+               const btn = document.createElement('button');
+               const isMarked = !!notes.suspects[s.id];
+               btn.className = `py-1.5 px-2 text-xs font-semibold rounded-lg border flex items-center justify-center gap-2 transition ${isMarked ? s.activeBg + ' border-transparent' : 'bg-noir-950 border-noir-800 text-slate-400 hover:border-slate-700'}`;
+               btn.innerHTML = `<span>${s.icon}</span><span>${s.sym}</span>`;
+               btn.onclick = () => {
+                   playSound('click');
+                   notes.suspects[s.id] = !isMarked;
+                   setupModalNotesGrids(index);
+               };
+               sGrid.appendChild(btn);
+           });
+
+           const wGrid = document.getElementById('note-weapons-grid');
+           wGrid.innerHTML = '';
+
+           gameState.weapons.forEach(w => {
+               const btn = document.createElement('button');
+               const isMarked = !!notes.weapons[w.id];
+               btn.className = `py-1.5 px-2 text-xs font-semibold rounded-lg border flex items-center justify-center gap-2 transition ${isMarked ? w.activeBg + ' border-transparent' : 'bg-noir-950 border-noir-800 text-slate-400 hover:border-slate-700'}`;
+               btn.innerHTML = `<span>${w.icon}</span><span>${w.sym}</span>`;
+               btn.onclick = () => {
+                   playSound('click');
+                   notes.weapons[w.id] = !isMarked;
+                   setupModalNotesGrids(index);
+               };
+               wGrid.appendChild(btn);
+           });
+       }
+
+       function clearCell(index) {
+           gameState.player.suspects[index] = null;
+           gameState.player.weapons[index] = null;
+           gameState.player.notes[index] = { suspects: {}, weapons: {} };
+       }
+
+       // --- VERIFY ACCUSATION ---
+
+       function verifyAccusation() {
+           if (gameState.gameOver) return;
+
+           const accusedSuspect = document.getElementById('accuse-suspect').value;
+           const accusedWeapon = document.getElementById('accuse-weapon').value;
+           const accusedRoomIndex = document.getElementById('accuse-room').value;
+
+           if (!accusedSuspect || !accusedWeapon || accusedRoomIndex === "") {
+               playSound('fail');
+               showVerdictModal(
+                   'fail',
+                   'Expediente Incompleto',
+                   'Debes señalar un sospechoso, un arma homicida y la habitación del crimen antes de presentar los cargos ante el Juez.',
+                   false
+               );
+               return;
+           }
+
+           const isCorrect = (accusedSuspect === gameState.murdererId) && 
+                             (accusedWeapon === gameState.murderWeaponId) && 
+                             (parseInt(accusedRoomIndex) === gameState.crimeSceneIndex);
+
+           if (isCorrect) {
+               gameState.gameOver = true;
+               const murderer = gameState.suspects.find(s => s.id === gameState.murdererId);
+               const weapon = gameState.weapons.find(w => w.id === gameState.murderWeaponId);
+               const roomName = gameState.rooms[gameState.crimeSceneIndex];
+
+               playSound('success');
+               showVerdictModal(
+                   'success',
+                   '¡Caso Resuelto con Éxito!',
+                   `Has deducido con precisión quirúrgica el sumario judicial.`,
+                   true,
+                   `Tras recabar pruebas lógicas incontestables, se condena formalmente a <strong>${murderer.name} (${murderer.icon})</strong> por el cargo de homicidio premeditado en la habitación <strong>${roomName}</strong> empleando como arma mortífera la <strong>${weapon.name} (${weapon.icon})</strong>.`
+               );
+               renderBoard();
+           } else {
+               gameState.attemptsRemaining--;
+               renderAttempts();
+
+               if (gameState.attemptsRemaining <= 0) {
+                   gameState.gameOver = true;
+                   playSound('fail');
+                   
+                   const actualMurderer = gameState.suspects.find(s => s.id === gameState.murdererId);
+                   const actualWeapon = gameState.weapons.find(w => w.id === gameState.murderWeaponId);
+                   const actualRoom = gameState.rooms[gameState.crimeSceneIndex];
+
+                   showVerdictModal(
+                       'escape',
+                       '¡El Asesino ha Escapado!',
+                       `Demasiados errores de investigación. El asesino se sintió acorralado por tus acusaciones fallidas y huyó de la mansión.`,
+                       true,
+                       `El expediente queda archivado sin resolver. Las pruebas forenses posteriores confirman que el autor real era <strong>${actualMurderer.name} (${actualMurderer.icon})</strong> en la habitación <strong>${actualRoom}</strong> con la <strong>${actualWeapon.name} (${actualWeapon.icon})</strong>.`
+                   );
+                   renderBoard();
+               } else {
+                   playSound('fail');
+                   showVerdictModal(
+                       'fail',
+                       'Acusación Errónea',
+                       `El sospechoso tiene coartada o el arma no coincide con la autopsia. Tus movimientos erráticos alertan al asesino. ¡Te quedan ${gameState.attemptsRemaining} intentos!`,
+                       false
+                   );
+               }
+           }
+       }
+
+       function showVerdictModal(status, title, desc, showSolution, solutionText = '') {
+           const modal = document.getElementById('verdict-modal');
+           const titleEl = document.getElementById('verdict-title');
+           const descEl = document.getElementById('verdict-desc');
+           const bar = document.getElementById('verdict-bar');
+           const iconContainer = document.getElementById('verdict-icon-container');
+           const solutionDetail = document.getElementById('solution-detail');
+           const solutionTextEl = document.getElementById('solution-text');
+
+           titleEl.textContent = title;
+           descEl.textContent = desc;
+
+           if (status === 'success') {
+               bar.className = 'absolute top-0 inset-x-0 h-1 bg-noir-gold';
+               iconContainer.className = 'w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 bg-amber-500/10 text-noir-gold border border-noir-gold/30';
+               iconContainer.innerHTML = `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+           } else if (status === 'escape') {
+               bar.className = 'absolute top-0 inset-x-0 h-1 bg-noir-crimson';
+               iconContainer.className = 'w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 bg-red-500/10 text-noir-crimson border border-noir-crimson/30 animate-pulse';
+               iconContainer.innerHTML = `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>`;
+           } else {
+               bar.className = 'absolute top-0 inset-x-0 h-1 bg-red-500';
+               iconContainer.className = 'w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 bg-red-500/10 text-red-500 border border-red-500/30';
+               iconContainer.innerHTML = `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+           }
+
+           if (showSolution && solutionText) {
+               solutionDetail.classList.remove('hidden');
+               solutionTextEl.innerHTML = solutionText;
+           } else {
+               solutionDetail.classList.add('hidden');
+           }
+
+           modal.classList.remove('hidden');
+       }
+
+       function closeVerdictModal() {
+           document.getElementById('verdict-modal').classList.add('hidden');
+       }
+
+       // --- GAME CONTROLLER ---
+
+       function initNewGame() {
+           const size = parseInt(document.getElementById('grid-size').value);
+           gameState.size = size;
+           gameState.gameOver = false;
+
+           // Scaled attempts based on board size
+           if (size === 4) {
+               gameState.maxAttempts = 2;
+           } else if (size === 6) {
+               gameState.maxAttempts = 3;
+           } else {
+               gameState.maxAttempts = 4;
+           }
+           gameState.attemptsRemaining = gameState.maxAttempts;
+
+           document.getElementById('mansion-size-text').textContent = size * size;
+           document.getElementById('elements-count-text').textContent = size;
+           document.getElementById('weapons-count-text').textContent = size;
+
+           gameState.player.suspects = Array(size * size).fill(null);
+           gameState.player.weapons = Array(size * size).fill(null);
+           gameState.player.notes = Array(size * size).fill(null).map(() => ({
+               suspects: {},
+               weapons: {}
+           }));
+
+           generateSolution();
+           generateClues();
+
+           renderBoard();
+           renderCluesList();
+           renderAttempts();
+           populateAccusationDropdowns();
+       }
+
+       // --- LISTENERS ---
+
+       document.addEventListener('DOMContentLoaded', () => {
+           document.getElementById('btn-new-game').addEventListener('click', () => {
+               playSound('click');
+               initNewGame();
+           });
+
+           document.getElementById('btn-clear-board').addEventListener('click', () => {
+               if (gameState.gameOver) return;
+               playSound('click');
+               for(let i = 0; i < gameState.size * gameState.size; i++) clearCell(i);
+               renderBoard();
+           });
+
+           document.getElementById('btn-submit-accusation').addEventListener('click', () => {
+               playSound('click');
+               verifyAccusation();
+           });
+
+           document.getElementById('grid-size').addEventListener('change', () => {
+               playSound('click');
+               initNewGame();
+           });
+
+           document.getElementById('tab-assign').addEventListener('click', () => {
+               playSound('click');
+               switchTab('assign');
+           });
+           document.getElementById('tab-notes').addEventListener('click', () => {
+               playSound('click');
+               switchTab('notes');
+           });
+
+           document.getElementById('modal-close').addEventListener('click', () => {
+               playSound('click');
+               closeEditorModal();
+               renderBoard();
+           });
+           document.getElementById('modal-save').addEventListener('click', () => {
+               playSound('click');
+               closeEditorModal();
+               renderBoard();
+           });
+           document.getElementById('modal-clear-cell').addEventListener('click', () => {
+               playSound('click');
+               clearCell(gameState.activeCellIndex);
+               closeEditorModal();
+               renderBoard();
+           });
+
+           document.getElementById('verdict-close').addEventListener('click', () => {
+               playSound('click');
+               closeVerdictModal();
+           });
+           document.getElementById('verdict-restart').addEventListener('click', () => {
+               playSound('click');
+               closeVerdictModal();
+               initNewGame();
+           });
+
+           initNewGame();
+       });
+   </script>
+</body>
+</html>
