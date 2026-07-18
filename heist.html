@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carmen Sandiego: Cyber Chase - Evolution</title>
+    <title>Carmen Sandiego: Cyber Chase - Fixed</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -50,7 +50,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // --- AUDIO ENGINE (Web Audio API) ---
+        // --- ENGINE DE AUDIO (Web Audio API) ---
         class SoundFX {
             constructor() { this.ctx = null; }
             init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -86,7 +86,7 @@
         }
         const sfx = new SoundFX();
 
-        // --- DATABASE DEL JUEGO ---
+        // --- BASE DE DATOS GEOGRÁFICA ---
         const LOCATIONS = [
             {
                 id: 'rome', city: 'Roma', country: 'Italia', currency: 'Euro (€)', language: 'Italiano', food: 'Pasta Carbonara',
@@ -144,7 +144,7 @@
             }
         ];
 
-        // Suspect traits options for warrant check
+        // Opciones de rasgos de sospechosos para la orden
         const SUSPECT_TRAITS_METADATA = {
             sex: ["Masculino", "Femenino", "No binario"],
             hair: ["Negro", "Rubio", "Pelirrojo", "Castaño"],
@@ -161,7 +161,6 @@
             vehicle: "Vehículo de huida"
         };
 
-        // Complete list of potential suspects to match against
         const ALL_SUSPECT_TEMPLATES = [
             { name: "Slick Sam", sex: "Masculino", hair: "Negro", eyes: "Marrones", accessory: "Sombrero fedora", vehicle: "Coche deportivo" },
             { name: "Cyber Carmen", sex: "Femenino", hair: "Pelirrojo", eyes: "Grises", accessory: "Lentes oscuros", vehicle: "Jet privado" },
@@ -170,62 +169,55 @@
             { name: "Viper Val", sex: "No binario", hair: "Negro", eyes: "Verdes", accessory: "Tatuaje de dragón", vehicle: "Coche deportivo" }
         ];
 
-        // Main App Component
+        // Componente Principal
         function App() {
             const [screen, setScreen] = useState('welcome');
-            const [acmeScore, setAcmeScore] = useState(150); // Start with some XP to make loss meaningful
+            const [acmeScore, setAcmeScore] = useState(150); 
             const [acmeLevel, setAcmeLevel] = useState(1);
             const [vileScore, setVileScore] = useState(150);
             const [vileLevel, setVileLevel] = useState(1);
 
-            // Active Case State
+            // Estado del caso activo
             const [caseData, setCaseData] = useState(null);
             const [currentLeg, setCurrentLeg] = useState(0);
             const [currentLocation, setCurrentLocation] = useState(null);
-            const [timeLimit, setTimeLimit] = useState(72);  // ACME hours
-            const [suspicion, setSuspicion] = useState(0);   // VILE Heat %
+            const [timeLimit, setTimeLimit] = useState(72);  
+            const [suspicion, setSuspicion] = useState(0);   
             const [gameLog, setGameLog] = useState([]);
             
-            // Notification / Alert Overlay State (Custom Alert Replacement)
-            const [customAlert, setCustomAlert] = useState(null); // { title: string, text: string, type: 'success' | 'error' | 'warning', onConfirm: fn }
+            // Reemplazo nativo de Alerts
+            const [customAlert, setCustomAlert] = useState(null); 
 
-            // ACME specific play state
+            // Estado campaña ACME
             const [cluesUnlocked, setCluesUnlocked] = useState({ informant: false, ledger: false, photo: false });
-            const [discoveredTraits, setDiscoveredTraits] = useState([]); // List of traits found by reading
             const [warrantForm, setWarrantForm] = useState({ sex: "", hair: "", eyes: "", accessory: "", vehicle: "" });
             const [activePhotoCase, setActivePhotoCase] = useState(null);
             const [scannedPhotoResult, setScannedPhotoResult] = useState(null);
 
-            // VILE specific play state
-            const [vileHeistStatus, setVileHeistStatus] = useState("planning"); // planning, identifying_target, escaping
+            // Estado campaña VILE
+            const [vileHeistStatus, setVileHeistStatus] = useState("planning"); 
             const [selectedTargetItem, setSelectedTargetItem] = useState({ format: "", material: "", creator: "", type: "" });
-            const [craftedFake, setCraftedFake] = useState({ landmark: "", flag: "", food: "" });
             const [quizQuestion, setQuizQuestion] = useState(null);
             const [quizSuccess, setQuizSuccess] = useState(null);
 
-            // Procedural Case Generator
+            // Generador procedural de misiones
             const startNewCase = (mode) => {
                 sfx.click();
                 const level = mode === 'acme' ? acmeLevel : vileLevel;
                 const pathLength = Math.min(5, 3 + Math.floor(level / 2));
                 
-                // Sort destinations
                 const shuffled = [...LOCATIONS].sort(() => 0.5 - Math.random());
                 const path = shuffled.slice(0, pathLength);
                 
-                // Pick culprit
                 const suspect = ALL_SUSPECT_TEMPLATES[Math.floor(Math.random() * ALL_SUSPECT_TEMPLATES.length)];
                 const hours = Math.max(30, 72 - (level * 5));
                 const startingCity = path[0];
 
                 if (mode === 'acme') {
-                    // Populate clues in the path legs
-                    // Some legs contain physical suspect descriptions
                     const cluesWithTraits = path.map((loc, idx) => {
                         if (idx === path.length - 1) return null;
                         const nextLoc = path[idx + 1];
                         
-                        // We embed a trait of the suspect in the text clues
                         let traitClue = "";
                         if (idx === 0) {
                             traitClue = `Un testigo menciona: "El sospechoso tenía el cabello de color ${suspect.hair}."`;
@@ -237,7 +229,6 @@
                             traitClue = `El análisis biométrico parcial arrojó ojos de tono ${suspect.eyes}.`;
                         }
 
-                        // Also handle fake photo logic
                         const isFake = Math.random() > 0.4;
                         let photoSetup;
                         if (isFake) {
@@ -275,7 +266,6 @@
                     setCurrentLocation(startingCity);
                     setCluesUnlocked({ informant: false, ledger: false, photo: false });
                     setWarrantForm({ sex: "", hair: "", eyes: "", accessory: "", vehicle: "" });
-                    setDiscoveredTraits([]);
                     setActivePhotoCase(null);
                     setScannedPhotoResult(null);
                     setGameLog([
@@ -285,8 +275,7 @@
                     ]);
                     setScreen('acme_game');
                 } else {
-                    // VILE MODE
-                    const targetLocation = path[path.length - 1]; // The final target heist
+                    const targetLocation = path[path.length - 1]; 
                     setCaseData({
                         mode: 'vile',
                         path,
@@ -317,7 +306,7 @@
 
                 setCustomAlert({
                     title: "Misión Abortada",
-                    text: `Has abandonado el caso operativo. Como consecuencia de la inactividad, has perdido ${penalty} XP de reputación.`,
+                    text: `Has abandonado el caso operativo. Como consecuencia de tu inactividad profesional, perdiste ${penalty} XP.`,
                     type: "warning",
                     onConfirm: () => {
                         setCustomAlert(null);
@@ -326,7 +315,7 @@
                 });
             };
 
-            // ACME Investigation Actions
+            // Acciones de ACME
             const revealAcmeClue = (type) => {
                 if (cluesUnlocked[type]) return;
                 sfx.click();
@@ -425,7 +414,6 @@
             const executeArrestWarrant = () => {
                 sfx.click();
                 
-                // Count how many traits are manually selected by user
                 const selectedTraits = Object.entries(warrantForm).filter(([k, v]) => v !== "");
                 if (selectedTraits.length < 3) {
                     setCustomAlert({
@@ -437,15 +425,11 @@
                     return;
                 }
 
-                // Check matches with actual suspect
                 const trueSuspect = caseData.suspect;
                 let mistakes = 0;
-                let matches = 0;
 
                 selectedTraits.forEach(([category, val]) => {
-                    if (trueSuspect[category] === val) {
-                        matches++;
-                    } else {
+                    if (trueSuspect[category] !== val) {
                         mistakes++;
                     }
                 });
@@ -454,7 +438,7 @@
                     sfx.fail();
                     setCustomAlert({
                         title: "Arresto Fallido",
-                        text: `¡Catástrofe de procedimiento! Has arrestado a la persona equivocada debido a rasgos mal identificados en la orden. El verdadero agente de VILE (${trueSuspect.name}) escapó.`,
+                        text: `¡Catástrofe de procedimiento! Has arrestado a la persona equivocada debido a rasgos mal identificados en la orden. El verdadero agente de VILE (${trueSuspect.name}) escapó en el caos.`,
                         type: "error",
                         onConfirm: () => {
                             setCustomAlert(null);
@@ -462,7 +446,6 @@
                         }
                     });
                 } else {
-                    // Correct!
                     sfx.success();
                     const gainedXp = 100 * acmeLevel;
                     setAcmeScore(prev => prev + gainedXp);
@@ -481,7 +464,7 @@
                 }
             };
 
-            // --- VILE CRITICAL SYSTEM (Item Authentication Heist) ---
+            // --- SISTEMA CRÍTICO DE VILE ---
             const startHeistExecution = () => {
                 sfx.click();
                 setVileHeistStatus("identifying_target");
@@ -502,10 +485,10 @@
                     setupVileCheckpointQuiz();
                 } else {
                     sfx.fail();
-                    setSuspicion(100); // Instantly trigger fail
+                    setSuspicion(100); 
                     setCustomAlert({
                         title: "Alarma Activada",
-                        text: `¡ERROR DE INFILTRACIÓN! Intentaste sustraer un objeto falso o incorrecto del museo. Los sensores láser y la inteligencia perimetral de ACME se activaron. Heist fallido.`,
+                        text: `¡ERROR DE INFILTRACIÓN! Intentaste sustraer un objeto falso o incorrecto del museo. Los sensores láser y la inteligencia perimetral de ACME se activaron. Robo fallido.`,
                         type: "error",
                         onConfirm: () => {
                             setCustomAlert(null);
@@ -545,7 +528,6 @@
                         setVileHeistStatus("planning");
 
                         if (nextIndex === caseData.path.length - 1) {
-                            // Perfect Heist Escape
                             sfx.success();
                             const gainedXp = 150 * vileLevel;
                             setVileScore(prev => prev + gainedXp);
@@ -589,7 +571,7 @@
             return (
                 <div class="flex-grow flex flex-col justify-between">
                     
-                    {/* CUSTOM ALERT DIALOG OVERLAY */}
+                    {/* OVERLAY DIALOG DE ALERTAS PERSONALIZADO */}
                     {customAlert && (
                         <div class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div class={`max-w-md w-full border rounded-2xl p-6 shadow-2xl ${
@@ -623,7 +605,7 @@
                         </div>
                     )}
 
-                    {/* Header */}
+                    {/* Encabezado */}
                     <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div class="flex items-center gap-3">
                             <div class="bg-red-600 text-white font-bold px-3 py-1 rounded text-[10px] tracking-wider uppercase">Ciber-Rastreador</div>
@@ -637,13 +619,13 @@
                         </div>
                     </header>
 
-                    {/* Dynamic Viewport */}
+                    {/* Área de Visualización */}
                     <main class="flex-grow p-4 md:p-6 flex flex-col justify-center items-center max-w-7xl w-full mx-auto">
                         
-                        {/* 1. WELCOME SCREEN */}
+                        {/* 1. BIENVENIDA */}
                         {screen === 'welcome' && (
                             <div class="w-full max-w-4xl grid md:grid-cols-2 gap-8 py-8">
-                                {/* ACME Side */}
+                                {/* Lado ACME */}
                                 <div class="border border-cyan-500/20 bg-slate-950/60 p-6 rounded-2xl flex flex-col justify-between hover:border-cyan-400 transition duration-300 glow-acme">
                                     <div>
                                         <div class="flex items-center justify-between mb-4">
@@ -662,7 +644,7 @@
                                     </button>
                                 </div>
 
-                                {/* VILE Side */}
+                                {/* Lado VILE */}
                                 <div class="border border-pink-500/20 bg-slate-950/60 p-6 rounded-2xl flex flex-col justify-between hover:border-pink-400 transition duration-300 glow-vile">
                                     <div>
                                         <div class="flex items-center justify-between mb-4">
@@ -683,10 +665,10 @@
                             </div>
                         )}
 
-                        {/* 2. ACME GAME VIEW */}
+                        {/* 2. JUEGO ACME */}
                         {screen === 'acme_game' && caseData && (
                             <div class="w-full grid lg:grid-cols-12 gap-6 items-start">
-                                {/* Left: Operational stats & logs */}
+                                {/* Panel de control lateral izquierdo */}
                                 <div class="lg:col-span-4 flex flex-col gap-4">
                                     <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg">
                                         <div class="flex items-center justify-between mb-2">
@@ -700,25 +682,25 @@
                                         </div>
                                     </div>
 
-                                    {/* Console output */}
+                                    {/* Logs de Terminal */}
                                     <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-4 h-64 flex flex-col">
                                         <h3 class="text-xs text-cyan-400 font-bold tracking-widest uppercase mb-2">Terminal Operativa</h3>
                                         <div class="flex-grow overflow-y-auto space-y-2 text-xs text-slate-300 pr-2">
                                             {gameLog.map((log, i) => (
-                                                <div key={i} class="border-l-2 border-cyan-500/40 pl-2 py-1 bg-slate-900/30">
+                                                <div key={i} class="border-l-2 border-cyan-500/40 pl-2 py-1 bg-slate-900/30 font-mono">
                                                     {log}
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
 
-                                    {/* Interactive warrant configuration panel */}
+                                    {/* Panel de Orden de Arresto Interactivo */}
                                     <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
                                         <h3 class="text-xs font-bold text-cyan-300 uppercase tracking-wider border-b border-slate-800 pb-2">
                                             Orden Judicial: Perfil Criminal
                                         </h3>
                                         <p class="text-[10px] text-slate-400 leading-relaxed">
-                                            Lee atentamente los testimonios e informes en la Terminal Operativa. Selecciona los rasgos físicos exactos que correspondan para validar el arresto. (Requisito mínimo: 3 correctos).
+                                            Lee atentamente los testimonios de los informantes. Selecciona los rasgos físicos exactos del sospechoso (Mínimo: 3 correctos seleccionados).
                                         </p>
 
                                         {Object.entries(SUSPECT_TRAITS_METADATA).map(([category, options]) => (
@@ -744,7 +726,7 @@
                                     </div>
                                 </div>
 
-                                {/* Center Panel: Clue Interception */}
+                                {/* Centro: Intercepción de pistas */}
                                 <div class="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col gap-6">
                                     <div class="border-b border-slate-800 pb-3 flex justify-between items-center">
                                         <div>
@@ -774,7 +756,7 @@
                                                     disabled={cluesUnlocked.ledger}
                                                     class={`p-3 rounded-lg flex flex-col items-center gap-1 border text-center transition ${cluesUnlocked.ledger ? 'bg-cyan-950/30 border-cyan-500/20 text-cyan-400' : 'bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-cyan-500/40'}`}
                                                 >
-                                                    <span class="text-[10px] font-bold">Ledger Bancario</span>
+                                                    <span class="text-[10px] font-bold">Ledger</span>
                                                     <span class="text-[8px] text-slate-500">-3 horas</span>
                                                 </button>
 
@@ -783,7 +765,7 @@
                                                     disabled={cluesUnlocked.photo}
                                                     class={`p-3 rounded-lg flex flex-col items-center gap-1 border text-center transition ${cluesUnlocked.photo ? 'bg-cyan-950/30 border-cyan-500/20 text-cyan-400' : 'bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-cyan-500/40'}`}
                                                 >
-                                                    <span class="text-[10px] font-bold">Foto Redes</span>
+                                                    <span class="text-[10px] font-bold">Foto</span>
                                                     <span class="text-[8px] text-slate-500">-6 horas</span>
                                                 </button>
                                             </div>
@@ -791,13 +773,13 @@
                                             {cluesUnlocked.photo && activePhotoCase && (
                                                 <div class="bg-slate-900/90 border border-cyan-500/20 p-4 rounded-xl mt-2">
                                                     <div class="flex items-center justify-between mb-2 border-b border-slate-800 pb-2">
-                                                        <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">Análisis de Deepfakes</span>
-                                                        <span class="text-[8px] text-slate-500">Compara los datos para ver si coinciden</span>
+                                                        <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">Filtro de Desinformación</span>
+                                                        <span class="text-[8px] text-slate-500">¿Hito, comida y bandera pertenecen al mismo destino?</span>
                                                     </div>
 
                                                     <div class="aspect-video bg-slate-950 border border-slate-800 rounded-lg flex flex-col justify-between p-3">
                                                         <div class="bg-slate-900/90 border border-slate-800/80 px-2 py-1 rounded text-[10px]">
-                                                            <span class="text-slate-400">Estructura / Hito:</span> <strong class="text-white">{activePhotoCase.landmark}</strong>
+                                                            <span class="text-slate-400">Estructura:</span> <strong class="text-white">{activePhotoCase.landmark}</strong>
                                                         </div>
                                                         <div class="flex justify-between items-end">
                                                             <div class="bg-slate-900/90 border border-slate-800/80 p-2 rounded text-[10px]">
@@ -809,7 +791,7 @@
                                                                 </div>
                                                             </div>
                                                             <div class="bg-slate-900/90 border border-slate-800/80 p-2 rounded text-[10px]">
-                                                                <span class="text-slate-400">Plato servido:</span>
+                                                                <span class="text-slate-400">Plato:</span>
                                                                 <strong class="text-cyan-200 block text-[9px] mt-0.5">{activePhotoCase.food}</strong>
                                                             </div>
                                                         </div>
@@ -833,9 +815,9 @@
                                                     ) : (
                                                         <div class={`mt-3 p-2.5 rounded-lg text-xs font-semibold ${scannedPhotoResult === 'correct' ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/10' : 'bg-red-950/40 text-red-300 border border-red-500/10'}`}>
                                                             {scannedPhotoResult === 'correct' ? (
-                                                                <span>Filtro aprobado. Próximo paradero confirmado: <strong>{activePhotoCase.correctDestination.city}</strong>.</span>
+                                                                <span>Filtro aprobado. Próximo paradero verificado: <strong>{activePhotoCase.correctDestination.city}</strong>.</span>
                                                             ) : (
-                                                                <span>Análisis fallido. El sistema cayó en la redirección falsa.</span>
+                                                                <span>Análisis fallido. Caímos en una ruta muerta geográficamente incoherente.</span>
                                                             )}
                                                         </div>
                                                     )}
@@ -848,7 +830,7 @@
                                                 Ejecución de Redada: {currentLocation.city}
                                             </h3>
                                             <p class="text-xs text-slate-300 leading-relaxed">
-                                                Has arrinconado al sospechoso en su nodo de comunicaciones central. Los agentes policiales de ACME se encuentran posicionados perimetralmente.
+                                                Has acorralado al sospechoso en su nodo de comunicaciones central. Los agentes policiales de ACME se encuentran posicionados perimetralmente.
                                             </p>
                                             <button 
                                                 onClick={executeArrestWarrant}
@@ -860,7 +842,7 @@
                                     )}
                                 </div>
 
-                                {/* Right Panel: Aviation Flight Desk */}
+                                {/* Derecha: Terminal de Vuelos */}
                                 <div class="lg:col-span-3 bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col gap-4">
                                     <h3 class="text-xs font-bold text-cyan-400 uppercase tracking-widest border-b border-slate-800 pb-2">Destinos de Vuelo</h3>
                                     
@@ -870,7 +852,6 @@
                                                 const nextLegLoc = caseData.path[currentLeg + 1];
                                                 const options = [nextLegLoc];
                                                 
-                                                // If photo is open and is fake, put the bait
                                                 const currentPhoto = caseData.cluesWithTraits[currentLeg]?.photoSetup;
                                                 if (currentPhoto && currentPhoto.isFake) {
                                                     options.push(currentPhoto.baitDestination);
@@ -906,16 +887,16 @@
                                         onClick={() => triggerAbort('acme')}
                                         class="mt-4 w-full bg-slate-900 hover:bg-slate-800 text-slate-500 hover:text-red-400 border border-slate-800 py-2 rounded-lg text-xs font-semibold transition"
                                     >
-                                        Abortar (-50 XP)
+                                        Abortar Misión (-50 XP)
                                     </button>
                                 </div>
                             </div>
                         )}
 
-                        {/* 3. VILE GAME VIEW */}
+                        {/* 3. JUEGO VILE */}
                         {screen === 'vile_game' && caseData && (
                             <div class="w-full grid lg:grid-cols-12 gap-6 items-start">
-                                {/* Left Column: Suspicion Tracker */}
+                                {/* Izquierda: Sospecha y Briefing */}
                                 <div class="lg:col-span-4 flex flex-col gap-4">
                                     <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg space-y-4">
                                         <div class="flex items-center justify-between">
@@ -929,33 +910,33 @@
                                         </div>
                                     </div>
 
-                                    {/* Objectives Briefing */}
+                                    {/* Briefing de Reliquia */}
                                     <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
                                         <h3 class="text-xs font-bold text-pink-400 uppercase tracking-wider border-b border-slate-800 pb-2">
-                                            Briefing de Inteligencia VILE
+                                            Ficha de Infiltración de Reliquia
                                         </h3>
                                         <p class="text-[10px] text-slate-400 leading-relaxed italic">
                                             "El botín objetivo es: **{caseData.targetItem.title}** en {caseData.path[caseData.path.length-1].city}."
                                         </p>
                                         <div class="bg-slate-900 p-3 rounded-lg border border-pink-500/10 text-xs text-slate-300 leading-relaxed">
-                                            <strong>Pistas del Objetivo:</strong> {caseData.targetItem.clue}
+                                            <strong>Características del Objetivo:</strong> {caseData.targetItem.clue}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Center: Heist Execution Area */}
+                                {/* Centro: Panel Operativo de Acción */}
                                 <div class="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-5 shadow-xl">
                                     <div class="border-b border-slate-800 pb-3 mb-4">
-                                        <span class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Línea Operativa</span>
+                                        <span class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Base de Operaciones</span>
                                         <h2 class="text-lg font-bold text-gray-100">{currentLocation.city}</h2>
                                     </div>
 
-                                    {/* Action Route 1: Route Planning */}
+                                    {/* Estado 1: Tránsito standard / Selección de ruta */}
                                     {vileHeistStatus === 'planning' && (
                                         <div class="space-y-4">
                                             <h3 class="text-xs font-bold text-slate-300 tracking-wider uppercase">Fase de Escape de Fronteras</h3>
                                             <p class="text-xs text-slate-400 leading-relaxed">
-                                                Has evadido las defensas en {currentLocation.city}. Para saltar sin levantar sospechas al siguiente nodo logístico de la organización, debes consolidar el escape.
+                                                Has consolidado tu posición en {currentLocation.city}. Para saltar sin levantar sospechas al siguiente nodo logístico, selecciona tu ruta de escape:
                                             </p>
 
                                             <div class="space-y-2">
@@ -974,21 +955,20 @@
                                                             onClick={() => {
                                                                 sfx.click();
                                                                 if (dest.id === nextLegLoc.id) {
-                                                                    // If we are at the last leg, we need to authenticate the item before completing
+                                                                    // Si es el último nodo, autenticamos el objeto primero
                                                                     if (currentLeg + 1 === caseData.path.length - 1) {
                                                                         setVileHeistStatus("identifying_target");
                                                                     } else {
-                                                                        // Proceed to check question
+                                                                        // Avanzamos al cuestionario aduanero habitual
                                                                         setVileHeistStatus("escaping");
                                                                         setupVileCheckpointQuiz();
                                                                     }
                                                                 } else {
-                                                                    // Wrong flight path increases heat heavily
                                                                     sfx.fail();
                                                                     setSuspicion(prev => Math.min(100, prev + 30));
                                                                     setCustomAlert({
-                                                                        title: "Vuelo erróneo interceptado",
-                                                                        text: "Tomaste un vuelo hacia una ruta muerta de VILE. Los radares de ACME detectaron tu desvío operacional.",
+                                                                        title: "Ruta muerta interceptada",
+                                                                        text: "Tomaste un transporte hacia una ruta incorrecta. Los satélites de ACME han triangulado el movimiento inusual.",
                                                                         type: "warning",
                                                                         onConfirm: () => setCustomAlert(null)
                                                                     });
@@ -996,7 +976,7 @@
                                                             }}
                                                             class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-pink-500/30 rounded-xl p-3 text-left transition"
                                                         >
-                                                            <div class="text-xs font-bold text-white">Transbordo: {dest.city}</div>
+                                                            <div class="text-xs font-bold text-white">Transbordo a: {dest.city}</div>
                                                         </button>
                                                     ));
                                                 })()}
@@ -1004,19 +984,19 @@
                                         </div>
                                     )}
 
-                                    {/* Action Route 2: Identifying/Authenticating the item (The heist point) */}
+                                    {/* Estado 2: Autenticación física del objeto (Heist Final) */}
                                     {vileHeistStatus === 'identifying_target' && (
                                         <div class="space-y-4">
                                             <h3 class="text-xs font-bold text-pink-400 tracking-wider uppercase flex items-center gap-2">
-                                                🔑 Consola de Infiltración de Redes
+                                                🔑 Consola de Infiltración del Museo
                                             </h3>
                                             <p class="text-xs text-slate-400 leading-relaxed">
-                                                Estás dentro del centro logístico en {caseData.path[caseData.path.length-1].city}. Para burlar los sistemas de detección óptica de ACME, configura el plano del golpe con las características auténticas del objetivo detalladas en el briefing.
+                                                Estás dentro del centro logístico final en {caseData.path[caseData.path.length-1].city}. Configura el perfil técnico del objeto para reemplazarlo por una réplica sin activar la alarma.
                                             </p>
 
                                             <div class="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
                                                 <div>
-                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Formato de Archivo/Reliquia:</label>
+                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Formato de la Reliquia:</label>
                                                     <div class="flex gap-2">
                                                         {["Físico", "Digital"].map(opt => (
                                                             <button
@@ -1033,7 +1013,7 @@
                                                 </div>
 
                                                 <div>
-                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Material predominante:</label>
+                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Material de Construcción:</label>
                                                     <select
                                                         value={selectedTargetItem.material}
                                                         onChange={(e) => setSelectedTargetItem(p => ({ ...p, material: e.target.value }))}
@@ -1050,7 +1030,7 @@
                                                 </div>
 
                                                 <div>
-                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Autor / Creador:</label>
+                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Autor / Creador Histórico:</label>
                                                     <select
                                                         value={selectedTargetItem.creator}
                                                         onChange={(e) => setSelectedTargetItem(p => ({ ...p, creator: e.target.value }))}
@@ -1067,7 +1047,7 @@
                                                 </div>
 
                                                 <div>
-                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Tipo de Objeto:</label>
+                                                    <label class="text-[10px] text-slate-400 font-bold block uppercase mb-1">Tipo del Objeto:</label>
                                                     <select
                                                         value={selectedTargetItem.type}
                                                         onChange={(e) => setSelectedTargetItem(p => ({ ...p, type: e.target.value }))}
@@ -1089,19 +1069,19 @@
                                                 disabled={!selectedTargetItem.format || !selectedTargetItem.material || !selectedTargetItem.creator || !selectedTargetItem.type}
                                                 class="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-3 rounded-lg text-xs uppercase tracking-wider transition disabled:opacity-50"
                                             >
-                                                Iniciar Secuestro de Reliquia
+                                                Ejecutar Extracción Silenciosa
                                             </button>
                                         </div>
                                     )}
 
-                                    {/* Action Route 3: Customs Verification quiz */}
+                                    {/* Estado 3: Aduana / Pregunta geográfica real (Opción Correcta Garantizada) */}
                                     {vileHeistStatus === 'escaping' && quizQuestion && (
                                         <div class="space-y-4">
                                             <h3 class="text-xs font-bold text-yellow-500 tracking-wider uppercase">
                                                 🚨 Aduana de Control de Pasajeros
                                             </h3>
                                             <p class="text-xs text-slate-400 leading-relaxed">
-                                                Para mimetizarte y no levantar sospechas en los aeropuertos del siguiente paradero, responde correctamente la pregunta del oficial de migración:
+                                                Responde adecuadamente la pregunta de migración del siguiente paradero para pasar desapercibido en el control:
                                             </p>
 
                                             <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
@@ -1111,20 +1091,24 @@
                                             <div class="space-y-2">
                                                 {(() => {
                                                     const nextLegLoc = caseData.path[currentLeg + 1];
+                                                    let correctValue = "";
                                                     let pool = [];
 
                                                     if (quizQuestion.q.includes("platillo")) {
+                                                        correctValue = nextLegLoc.food;
                                                         pool = LOCATIONS.map(l => l.food);
                                                     } else if (quizQuestion.q.includes("idioma")) {
+                                                        correctValue = nextLegLoc.language;
                                                         pool = LOCATIONS.map(l => l.language);
                                                     } else if (quizQuestion.q.includes("monetario")) {
+                                                        correctValue = nextLegLoc.currency;
                                                         pool = LOCATIONS.map(l => l.currency);
                                                     }
 
-                                                    // Deduplicate and pull options
-                                                    const uniquePool = Array.from(new Set(pool)).slice(0, 3).sort(() => 0.5 - Math.random());
+                                                    // Garantizamos que la respuesta correcta encabece la lista de opciones
+                                                    const options = Array.from(new Set([correctValue, ...pool])).slice(0, 3).sort(() => 0.5 - Math.random());
 
-                                                    return uniquePool.map((option, idx) => (
+                                                    return options.map((option, idx) => (
                                                         <button 
                                                             key={idx}
                                                             onClick={() => answerVileQuiz(option)}
@@ -1139,7 +1123,7 @@
                                     )}
                                 </div>
 
-                                {/* Right Column: Flight Path Tracker */}
+                                {/* Derecha: Plan de Ruta de Escape */}
                                 <div class="lg:col-span-3 bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col justify-between h-full min-h-[300px]">
                                     <div>
                                         <h3 class="text-xs font-bold text-pink-500 uppercase tracking-widest border-b border-slate-800 pb-2">Plan Operacional</h3>
@@ -1170,9 +1154,9 @@
                     </main>
 
                     {/* Footer */}
-                    <footer class="border-t border-slate-800/80 bg-slate-950 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500">
+                    <footer class="border-t border-slate-800/80 bg-slate-950 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500 font-mono">
                         <span>© 2026 ACME & VILE Cyber-Intelligence. Evolution Engine Activo.</span>
-                        <span class="text-[10px] bg-slate-900 px-2 py-0.5 border border-slate-800 rounded text-slate-400">Build 3.4.1 (No-Alert Guardrail)</span>
+                        <span class="text-[10px] bg-slate-900 px-2 py-0.5 border border-slate-800 rounded text-slate-400">Build 3.4.2 (Fixed Quiz Arrays)</span>
                     </footer>
                 </div>
             );
