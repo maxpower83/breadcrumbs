@@ -50,7 +50,6 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // --- ENGINE DE AUDIO (Web Audio API) ---
         class SoundFX {
             constructor() { this.ctx = null; }
             init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -86,7 +85,6 @@
         }
         const sfx = new SoundFX();
 
-        // --- BASE DE DATOS GEOGRÁFICA ---
         const LOCATIONS = [
             {
                 id: 'rome', city: 'Roma', country: 'Italia', currency: 'Euro (€)', language: 'Italiano', food: 'Pasta Carbonara',
@@ -144,7 +142,6 @@
             }
         ];
 
-        // Opciones de rasgos de sospechosos para la orden
         const SUSPECT_TRAITS_METADATA = {
             sex: ["Masculino", "Femenino", "No binario"],
             hair: ["Negro", "Rubio", "Pelirrojo", "Castaño"],
@@ -169,13 +166,16 @@
             { name: "Viper Val", sex: "No binario", hair: "Negro", eyes: "Verdes", accessory: "Tatuaje de dragón", vehicle: "Coche deportivo" }
         ];
 
-        // Componente Principal
         function App() {
             const [screen, setScreen] = useState('welcome');
             const [acmeScore, setAcmeScore] = useState(150); 
             const [acmeLevel, setAcmeLevel] = useState(1);
             const [vileScore, setVileScore] = useState(150);
             const [vileLevel, setVileLevel] = useState(1);
+
+            // Menú de selección de misiones
+            const [availableMissions, setAvailableMissions] = useState([]);
+            const [activeCampaignMode, setActiveCampaignMode] = useState(null); // 'acme' o 'vile'
 
             // Estado del caso activo
             const [caseData, setCaseData] = useState(null);
@@ -200,33 +200,66 @@
             const [quizQuestion, setQuizQuestion] = useState(null);
             const [quizSuccess, setQuizSuccess] = useState(null);
 
-            // Generador procedural de misiones
-            const startNewCase = (mode) => {
+            const prepareMissionSelector = (mode) => {
                 sfx.click();
-                const level = mode === 'acme' ? acmeLevel : vileLevel;
-                const pathLength = Math.min(5, 3 + Math.floor(level / 2));
+                setActiveCampaignMode(mode);
                 
-                const shuffled = [...LOCATIONS].sort(() => 0.5 - Math.random());
-                const path = shuffled.slice(0, pathLength);
+                // Generar 3 misiones de distinta dificultad
+                const difficulties = [
+                    { level: 'Fácil', pathLength: 3, hours: 80, xp: 50, desc: "Ruta local reducida. Pistas simplificadas con menos riesgo." },
+                    { level: 'Medio', pathLength: 4, hours: 60, xp: 120, desc: "Operación de dificultad estándar en redes regionales." },
+                    { level: 'Difícil', pathLength: 5, hours: 40, xp: 250, desc: "Conspiración global compleja. Tiempos críticos y máxima precisión requerida." }
+                ];
+
+                const generated = difficulties.map((diff, idx) => {
+                    // Mezclar locaciones de forma única para este prospecto
+                    const shuffledLocs = [...LOCATIONS].sort(() => 0.5 - Math.random());
+                    const targetLocation = shuffledLocs[shuffledLocs.length - 1];
+                    const startingLocation = shuffledLocs[0];
+                    const suspect = ALL_SUSPECT_TEMPLATES[Math.floor(Math.random() * ALL_SUSPECT_TEMPLATES.length)];
+
+                    return {
+                        id: idx,
+                        difficulty: diff.level,
+                        pathLength: diff.pathLength,
+                        hours: diff.hours,
+                        xpReward: diff.xp,
+                        description: diff.desc,
+                        targetLocation,
+                        startingLocation,
+                        suspect,
+                        itemTitle: targetLocation.targetItem.title
+                    };
+                });
+
+                setAvailableMissions(generated);
+                setScreen('select_mission');
+            };
+
+            const startSelectedMission = (mission) => {
+                sfx.success();
                 
-                const suspect = ALL_SUSPECT_TEMPLATES[Math.floor(Math.random() * ALL_SUSPECT_TEMPLATES.length)];
-                const hours = Math.max(30, 72 - (level * 5));
+                // Construir la ruta final garantizando que termine en la locación del objetivo
+                const filteredLocs = LOCATIONS.filter(l => l.id !== mission.targetLocation.id);
+                const pathMiddle = filteredLocs.sort(() => 0.5 - Math.random()).slice(0, mission.pathLength - 1);
+                const path = [...pathMiddle, mission.targetLocation];
                 const startingCity = path[0];
 
-                if (mode === 'acme') {
+                if (activeCampaignMode === 'acme') {
+                    // Generación procedural de las pistas de ACME basándose en el suspect asignado
                     const cluesWithTraits = path.map((loc, idx) => {
                         if (idx === path.length - 1) return null;
                         const nextLoc = path[idx + 1];
                         
                         let traitClue = "";
                         if (idx === 0) {
-                            traitClue = `Un testigo menciona: "El sospechoso tenía el cabello de color ${suspect.hair}."`;
+                            traitClue = `Un testigo menciona: "El sospechoso tenía el cabello de color ${mission.suspect.hair}."`;
                         } else if (idx === 1) {
-                            traitClue = `Las grabaciones de seguridad muestran que el sospechoso usaba un/a: ${suspect.accessory}.`;
+                            traitClue = `Las grabaciones de seguridad muestran que el sospechoso usaba un/a: ${mission.suspect.accessory}.`;
                         } else if (idx === 2) {
-                            traitClue = `En la aduana registraron el paso de un sospechoso de género ${suspect.sex} en un/a ${suspect.vehicle}.`;
+                            traitClue = `En la aduana registraron el paso de un sospechoso de género ${mission.suspect.sex} en un/a ${mission.suspect.vehicle}.`;
                         } else {
-                            traitClue = `El análisis biométrico parcial arrojó ojos de tono ${suspect.eyes}.`;
+                            traitClue = `El análisis biométrico parcial arrojó ojos de tono ${mission.suspect.eyes}.`;
                         }
 
                         const isFake = Math.random() > 0.4;
@@ -258,30 +291,32 @@
                         mode: 'acme',
                         path,
                         cluesWithTraits,
-                        suspect,
-                        item: path[path.length - 1].targetItem.title
+                        suspect: mission.suspect,
+                        item: mission.itemTitle,
+                        xpReward: mission.xpReward
                     });
                     setCurrentLeg(0);
-                    setTimeLimit(hours);
+                    setTimeLimit(mission.hours);
                     setCurrentLocation(startingCity);
                     setCluesUnlocked({ informant: false, ledger: false, photo: false });
                     setWarrantForm({ sex: "", hair: "", eyes: "", accessory: "", vehicle: "" });
                     setActivePhotoCase(null);
                     setScannedPhotoResult(null);
                     setGameLog([
-                        `[ALERTA DETECTIVE] Robo reportado: "${path[path.length - 1].targetItem.title}".`,
+                        `[ALERTA DETECTIVE] Robo reportado: "${mission.itemTitle}".`,
                         `El principal sospechoso fue rastreado inicialmente en la ciudad de ${startingCity.city}.`,
                         `¡Lee los informes con atención! Debes identificar y registrar al menos 3 rasgos reales del criminal para ordenar el arresto final.`
                     ]);
                     setScreen('acme_game');
                 } else {
-                    const targetLocation = path[path.length - 1]; 
+                    // VILE Mode
                     setCaseData({
                         mode: 'vile',
                         path,
-                        suspect,
-                        targetItem: targetLocation.targetItem,
-                        stolenObject: targetLocation.targetItem.title
+                        suspect: mission.suspect,
+                        targetItem: mission.targetLocation.targetItem,
+                        stolenObject: mission.itemTitle,
+                        xpReward: mission.xpReward
                     });
                     setCurrentLeg(0);
                     setSuspicion(0);
@@ -315,7 +350,6 @@
                 });
             };
 
-            // Acciones de ACME
             const revealAcmeClue = (type) => {
                 if (cluesUnlocked[type]) return;
                 sfx.click();
@@ -447,14 +481,14 @@
                     });
                 } else {
                     sfx.success();
-                    const gainedXp = 100 * acmeLevel;
+                    const gainedXp = caseData.xpReward;
                     setAcmeScore(prev => prev + gainedXp);
                     if ((acmeScore + gainedXp) % 300 === 0) {
                         setAcmeLevel(prev => prev + 1);
                     }
                     setCustomAlert({
                         title: "¡Sospechoso Capturado!",
-                        text: `Excelente investigación. Detuviste formalmente a ${trueSuspect.name} mediante una orden judicial precisa y recuperaste "${caseData.item}". Has obtenido ${gainedXp} XP.`,
+                        text: `Excelente investigación. Detuviste formalmente a ${trueSuspect.name} mediante una orden judicial precisa y recuperaste "${caseData.item}". Has obtenido ${gainedXp} XP de rango.`,
                         type: "success",
                         onConfirm: () => {
                             setCustomAlert(null);
@@ -464,7 +498,6 @@
                 }
             };
 
-            // --- SISTEMA CRÍTICO DE VILE ---
             const startHeistExecution = () => {
                 sfx.click();
                 setVileHeistStatus("identifying_target");
@@ -526,7 +559,7 @@
 
                         if (nextIndex === caseData.path.length - 1) {
                             sfx.success();
-                            const gainedXp = 150 * vileLevel;
+                            const gainedXp = caseData.xpReward;
                             setVileScore(prev => prev + gainedXp);
                             if ((vileScore + gainedXp) % 300 === 0) {
                                 setVileLevel(prev => prev + 1);
@@ -639,7 +672,7 @@
                                         </p>
                                     </div>
                                     <button 
-                                        onClick={() => startNewCase('acme')}
+                                        onClick={() => prepareMissionSelector('acme')}
                                         className="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-3 rounded-xl transition text-xs tracking-wider uppercase font-mono"
                                     >
                                         Iniciar Rastreo ACME
@@ -658,10 +691,93 @@
                                         </p>
                                     </div>
                                     <button 
-                                        onClick={() => startNewCase('vile')}
+                                        onClick={() => prepareMissionSelector('vile')}
                                         className="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-3 rounded-xl transition text-xs tracking-wider uppercase font-mono"
                                     >
                                         Planificar Heist VILE
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 1.1 SELECTOR DE MISIONES (Nuevo paso solicitado) */}
+                        {screen === 'select_mission' && (
+                            <div className="w-full max-w-4xl space-y-6 py-6">
+                                <div className="text-center">
+                                    <span className={`text-xs uppercase tracking-wider font-bold ${activeCampaignMode === 'acme' ? 'text-cyan-400' : 'text-pink-400'}`}>
+                                        Panel de Operaciones: {activeCampaignMode === 'acme' ? 'ACME Federal' : 'VILE Network'}
+                                    </span>
+                                    <h2 className="text-2xl font-bold text-gray-100 mt-2">Selecciona un Contrato Activo</h2>
+                                    <p className="text-xs text-gray-400 mt-1">Elige tu objetivo operacional según el nivel de riesgo y recompensa en XP deseado.</p>
+                                </div>
+
+                                <div className="grid md:grid-cols-3 gap-6">
+                                    {availableMissions.map((mission) => (
+                                        <div 
+                                            key={mission.id} 
+                                            className={`border rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 bg-slate-950/80 ${
+                                                activeCampaignMode === 'acme' 
+                                                    ? 'border-cyan-500/20 hover:border-cyan-400/60 hover:shadow-cyan-500/10 hover:shadow-lg' 
+                                                    : 'border-pink-500/20 hover:border-pink-400/60 hover:shadow-pink-500/10 hover:shadow-lg'
+                                            }`}
+                                        >
+                                            <div>
+                                                <div className="flex justify-between items-center mb-4">
+                                                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${
+                                                        mission.difficulty === 'Fácil' ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/20' :
+                                                        mission.difficulty === 'Medio' ? 'bg-yellow-950 text-yellow-400 border border-yellow-500/20' :
+                                                        'bg-red-950 text-red-400 border border-red-500/20'
+                                                    }`}>
+                                                        {mission.difficulty}
+                                                    </span>
+                                                    <span className="text-xs text-slate-500 font-bold">{mission.pathLength} Escalas</span>
+                                                </div>
+
+                                                <h3 className="text-base font-bold text-slate-100 mb-2 truncate">
+                                                    {mission.itemTitle}
+                                                </h3>
+                                                <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                                                    {mission.description}
+                                                </p>
+
+                                                <div className="space-y-1.5 border-t border-slate-900 pt-3 mb-4 text-[11px] text-slate-400 font-mono">
+                                                    <div>Ruta Inicial: <span className="text-white font-semibold">{mission.startingLocation.city}</span></div>
+                                                    {activeCampaignMode === 'acme' ? (
+                                                        <div>Soporte Temporal: <span className="text-cyan-400 font-semibold">{mission.hours} Horas</span></div>
+                                                    ) : (
+                                                        <div>Objetivo: <span className="text-pink-400 font-semibold">Robo de Museo</span></div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center text-xs border-t border-slate-900 pt-3">
+                                                    <span className="text-slate-500">Recompensa:</span>
+                                                    <span className={`font-bold ${activeCampaignMode === 'acme' ? 'text-cyan-400' : 'text-pink-400'}`}>
+                                                        +{mission.xpReward} XP
+                                                    </span>
+                                                </div>
+                                                <button 
+                                                    onClick={() => startSelectedMission(mission)}
+                                                    className={`w-full py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition ${
+                                                        activeCampaignMode === 'acme' 
+                                                            ? 'bg-cyan-600 hover:bg-cyan-500 text-slate-950' 
+                                                            : 'bg-pink-600 hover:bg-pink-500 text-white'
+                                                    }`}
+                                                >
+                                                    Iniciar Caso
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="text-center pt-2">
+                                    <button 
+                                        onClick={() => setScreen('welcome')}
+                                        className="text-xs text-slate-500 hover:text-slate-300 font-bold tracking-wider uppercase font-mono"
+                                    >
+                                        Regresar al Menú Principal
                                     </button>
                                 </div>
                             </div>
@@ -680,7 +796,7 @@
                                             </span>
                                         </div>
                                         <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
-                                            <div className="bg-cyan-500 h-full transition-all" style={{ width: `${(timeLimit / 72) * 100}%` }}></div>
+                                            <div className="bg-cyan-500 h-full transition-all" style={{ width: `${(timeLimit / 80) * 100}%` }}></div>
                                         </div>
                                     </div>
 
@@ -880,7 +996,7 @@
                                             })()}
                                         </div>
                                     ) : (
-                                        <div className="p-4 bg-slate-900 rounded-lg text-center text-xs text-slate-500 italic">
+                                        <div class="p-4 bg-slate-900 rounded-lg text-center text-xs text-slate-500 italic">
                                             Estás en la última parada de la huella digital. No hay vuelos adicionales de escape disponibles.
                                         </div>
                                     )}
@@ -1158,7 +1274,7 @@
                     {/* Footer */}
                     <footer className="border-t border-slate-800/80 bg-slate-950 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500 font-mono">
                         <span>© 2026 ACME & VILE Cyber-Intelligence. Evolution Engine Activo.</span>
-                        <span className="text-[10px] bg-slate-900 px-2 py-0.5 border border-slate-800 rounded text-slate-400">Build 3.4.2 (Fixed ClassName React Warning)</span>
+                        <span className="text-[10px] bg-slate-900 px-2 py-0.5 border border-slate-800 rounded text-slate-400 font-bold">Build 3.5.0 (Mission Board Integration)</span>
                     </footer>
                 </div>
             );
