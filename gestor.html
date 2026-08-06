@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Finanzas Personales</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen pb-12 font-sans antialiased">
+
+    <!-- Header / Navbar -->
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-10 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-md">
+                    <i class="fa-solid me-0 fa-wallet text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white">Registro de Ingresos y Gastos</h1>
+                    <p class="text-xs text-slate-400">Control Financiero Mensual ($ ARS)</p>
+                </div>
+            </div>
+            <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-2.5 rounded-xl shadow-lg hover:shadow-blue-500/20 transition duration-200 flex items-center space-x-2 text-sm">
+                <i class="fa-solid fa-plus"></i>
+                <span>Nuevo Registro</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8">
+
+        <!-- Panel de Notificación Automática de Fin de Mes/Nuevo Mes -->
+        <div id="monthResetAlert" class="hidden bg-amber-500/10 border border-amber-500/30 text-amber-300 px-4 py-3 rounded-xl flex items-center space-x-3 text-sm">
+            <i class="fa-solid fa-circle-info text-amber-400 text-lg"></i>
+            <div>
+                <strong>Reajuste Automático Detectado:</strong> Se ha detectado el inicio de un nuevo mes. Los estados se han cambiado a <em>PENDIENTE</em> y los vencimientos se han actualizado al mes corriente.
+            </div>
+        </div>
+
+        <!-- Dashboard / Panel Visual de Métricas -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            
+            <!-- Total Ingresos Estimados -->
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Ingresos Estimados</p>
+                        <h3 id="statTotalIngresos" class="text-2xl font-black text-emerald-400 mt-1">$ 0,00</h3>
+                    </div>
+                    <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                        <i class="fa-solid fa-arrow-trend-up"></i>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-2">Suma total de INGRESOS</p>
+            </div>
+
+            <!-- Total Gastos Estimados -->
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Gastos Estimados</p>
+                        <h3 id="statTotalGastos" class="text-2xl font-black text-rose-400 mt-1">$ 0,00</h3>
+                    </div>
+                    <div class="p-2.5 bg-rose-500/10 text-rose-400 rounded-xl">
+                        <i class="fa-solid fa-arrow-trend-down"></i>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-2">Suma total de GASTOS</p>
+            </div>
+
+            <!-- Remanente Teórico -->
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Remanente Teórico</p>
+                        <h3 id="statRemanenteTeorico" class="text-2xl font-black text-sky-400 mt-1">$ 0,00</h3>
+                    </div>
+                    <div class="p-2.5 bg-sky-500/10 text-sky-400 rounded-xl">
+                        <i class="fa-solid fa-calculator"></i>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-2">Ingresos - Gastos Estimados</p>
+            </div>
+
+            <!-- Gastos Pagados -->
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Gastos Pagados</p>
+                        <h3 id="statGastosPagados" class="text-2xl font-black text-orange-400 mt-1">$ 0,00</h3>
+                    </div>
+                    <div class="p-2.5 bg-orange-500/10 text-orange-400 rounded-xl">
+                        <i class="fa-solid fa-check-double"></i>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-2">Gastos con ESTADO = Pagado</p>
+            </div>
+
+            <!-- Remanente Real Actual -->
+            <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm relative overflow-hidden col-span-1 sm:col-span-2 lg:col-span-1">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Remanente Real</p>
+                        <h3 id="statRemanenteReal" class="text-2xl font-black text-indigo-400 mt-1">$ 0,00</h3>
+                    </div>
+                    <div class="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl">
+                        <i class="fa-solid fa-vault"></i>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-2">Ingresos - Gastos Pagados</p>
+            </div>
+
+        </section>
+
+        <!-- Filtros y Búsqueda -->
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex flex-wrap gap-4 justify-between items-center">
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <!-- Filtro Categoría -->
+                <select id="filterCategory" onchange="renderTable()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-200">
+                    <option value="TODOS">Todas las Categorías</option>
+                    <option value="INGRESOS">INGRESOS</option>
+                    <option value="GASTOS">GASTOS</option>
+                </select>
+
+                <!-- Filtro Banco -->
+                <select id="filterBank" onchange="renderTable()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-200">
+                    <option value="TODOS">Todos los Bancos/Cuentas</option>
+                    <option value="NBSF">NBSF</option>
+                    <option value="MACRO">MACRO</option>
+                    <option value="LEMON">LEMON</option>
+                    <option value="MERCADOPAGO">MERCADOPAGO</option>
+                    <option value="PERSONAL PAY">PERSONAL PAY</option>
+                </select>
+
+                <!-- Filtro Estado -->
+                <select id="filterStatus" onchange="renderTable()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-200">
+                    <option value="TODOS">Todos los Estados</option>
+                    <option value="PENDIENTE">PENDIENTE</option>
+                    <option value="ACREDITADO">ACREDITADO</option>
+                    <option value="RESERVADO">RESERVADO</option>
+                    <option value="PAGADO">PAGADO</option>
+                </select>
+            </div>
+
+            <!-- Búsqueda textual -->
+            <div class="relative w-full md:w-64">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Buscar concepto o nota..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-200 placeholder-slate-500">
+            </div>
+        </div>
+
+        <!-- Tabla Principales de Registros -->
+        <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[900px]">
+                    <thead>
+                        <tr class="bg-slate-900/60 border-b border-slate-700/80 text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                            <th class="py-4 px-4">Categoría</th>
+                            <th class="py-4 px-4">Tipo</th>
+                            <th class="py-4 px-4">Concepto</th>
+                            <th class="py-4 px-4 text-right">Monto ($ ARS)</th>
+                            <th class="py-4 px-4">Medio de Pago</th>
+                            <th class="py-4 px-4">Cuenta / Banco</th>
+                            <th class="py-4 px-4">Vencimiento</th>
+                            <th class="py-4 px-4 text-center">Estado</th>
+                            <th class="py-4 px-4">Nota</th>
+                            <th class="py-4 px-4 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-700/40 text-sm">
+                        <!-- Se puebla mediante Javascript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Mensaje de Tabla Vacía -->
+            <div id="emptyState" class="hidden py-12 text-center text-slate-500">
+                <i class="fa-solid fa-folder-open text-4xl mb-3 block"></i>
+                <p>No se encontraron registros registrados o coincidentes con los filtros.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Formulario (Crear y Editar) -->
+    <div id="modalOverlay" class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl my-8 overflow-hidden transform transition-all">
+            
+            <!-- Header Modal -->
+            <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+                <h3 id="modalTitle" class="text-lg font-bold text-white">Nuevo Registro</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Formulario -->
+            <form id="recordForm" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
+                <!-- Campo ID Oculto -->
+                <input type="hidden" id="recordId">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    <!-- Categoría -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Categoría *</label>
+                        <select id="fieldCategory" onchange="updateTypeAndStatusOptions()" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="GASTOS">GASTOS</option>
+                            <option value="INGRESOS">INGRESOS</option>
+                        </select>
+                    </div>
+
+                    <!-- Tipo -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Tipo *</label>
+                        <select id="fieldType" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <!-- Opciones actualizadas dinámicamente -->
+                        </select>
+                    </div>
+
+                    <!-- Concepto -->
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Concepto *</label>
+                        <input type="text" id="fieldConcept" required placeholder="Ej: Sueldo, Alquiler, Luz, Supermercado..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
+                    </div>
+
+                    <!-- Monto -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Monto ($ ARS) *</label>
+                        <input type="number" id="fieldAmount" step="0.01" min="0" required placeholder="0.00" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500">
+                    </div>
+
+                    <!-- Medio de Pago -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Medio de Pago *</label>
+                        <select id="fieldPaymentMethod" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="DEPOSITO">DEPOSITO</option>
+                            <option value="HOMEBANKING">HOMEBANKING</option>
+                            <option value="DEBITO AUTOMÁTICO">DEBITO AUTOMÁTICO</option>
+                            <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                            <option value="EFECTIVO">EFECTIVO</option>
+                            <option value="PAGO DIGITAL">PAGO DIGITAL</option>
+                        </select>
+                    </div>
+
+                    <!-- Cuenta/Banco -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Cuenta / Banco *</label>
+                        <select id="fieldBank" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="NBSF">NBSF</option>
+                            <option value="MACRO">MACRO</option>
+                            <option value="LEMON">LEMON</option>
+                            <option value="MERCADOPAGO">MERCADOPAGO</option>
+                            <option value="PERSONAL PAY">PERSONAL PAY</option>
+                        </select>
+                    </div>
+
+                    <!-- Estado -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Estado *</label>
+                        <select id="fieldStatus" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <!-- Opciones dinámicas segun Categoría -->
+                        </select>
+                    </div>
+
+                    <!-- Vencimiento -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Vencimiento *</label>
+                        <input type="date" id="fieldDueDate" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+
+                    <!-- Nota -->
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Nota (Opcional)</label>
+                        <textarea id="fieldNote" rows="2" placeholder="Observaciones o aclaraciones adicionales..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500 resize-none"></textarea>
+                    </div>
+
+                </div>
+
+                <!-- Footer Modal / Botones -->
+                <div class="pt-4 border-t border-slate-700/80 flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-700 text-sm font-medium transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium shadow-lg hover:shadow-blue-500/20 transition">
+                        Guardar Registro
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- Script de Lógica Principal -->
+    <script>
+        // Claves para Almacenamiento Local
+        const STORAGE_KEY = 'finance_records_app_v1';
+        const LAST_RESET_KEY = 'finance_records_last_reset_month';
+
+        // Estado Global de Registros
+        let records = [];
+
+        // Inicialización al cargar el DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRecords();
+            checkAndApplyMonthlyReset();
+            renderTable();
+            updateMetrics();
+        });
+
+        // Generador de UUID unico e irrepetible para columna oculta ID
+        function generateUniqueId() {
+            return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 9);
+        }
+
+        // Carga datos desde localStorage o genera un set inicial de demostración
+        function loadRecords() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                try {
+                    records = JSON.parse(data);
+                } catch (e) {
+                    records = [];
+                }
+            } else {
+                // Registros de demostración iniciales
+                const today = new Date();
+                const currentMonthStr = today.toISOString().split('T')[0];
+                records = [
+                    {
+                        id: generateUniqueId(),
+                        category: 'INGRESOS',
+                        type: 'INGRESOS',
+                        concept: 'Sueldo Habitual',
+                        amount: 850000,
+                        paymentMethod: 'TRANSFERENCIA',
+                        bank: 'NBSF',
+                        status: 'ACREDITADO',
+                        dueDate: currentMonthStr,
+                        note: 'Cobro mensual'
+                    },
+                    {
+                        id: generateUniqueId(),
+                        category: 'GASTOS',
+                        type: 'SERVICIOS',
+                        concept: 'Factura de Luz (EPE)',
+                        amount: 32000,
+                        paymentMethod: 'DEBITO AUTOMÁTICO',
+                        bank: 'MACRO',
+                        status: 'PENDIENTE',
+                        dueDate: currentMonthStr,
+                        note: 'Vence a mediados de mes'
+                    },
+                    {
+                        id: generateUniqueId(),
+                        category: 'GASTOS',
+                        type: 'IMPUESTOS',
+                        concept: 'Impuesto Inmobiliario',
+                        amount: 14500,
+                        paymentMethod: 'HOMEBANKING',
+                        bank: 'MERCADOPAGO',
+                        status: 'PAGADO',
+                        dueDate: currentMonthStr,
+                        note: 'Cuota 1'
+                    }
+                ];
+                saveRecords();
+            }
+        }
+
+        // Guarda estado actual en localStorage
+        function saveRecords() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        }
+
+        /**
+         * REGLA DE NEGOCIO AUTOMÁTICA:
+         * "El 01 de cada mes los gastos e ingresos deben volver a ESTADO = Pendiente"
+         * "Al cambiar mes los vencimientos deben avanzar al mes actual"
+         */
+        function checkAndApplyMonthlyReset() {
+            const now = new Date();
+            const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const lastReset = localStorage.getItem(LAST_RESET_KEY);
+
+            if (lastReset !== currentYearMonth) {
+                let modified = false;
+
+                records = records.map(record => {
+                    modified = true;
+                    
+                    // 1. Resetear todos los estados a PENDIENTE
+                    const newStatus = 'PENDIENTE';
+
+                    // 2. Ajustar la fecha de vencimiento al mes actual manteniendo el día (o último día válido)
+                    let newDueDate = record.dueDate;
+                    if (record.dueDate) {
+                        const parts = record.dueDate.split('-');
+                        if (parts.length === 3) {
+                            let day = parseInt(parts[2], 10);
+                            const targetYear = now.getFullYear();
+                            const targetMonth = now.getMonth(); // 0-indexed
+
+                            // Obtener días máximos en el nuevo mes
+                            const maxDaysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+                            if (day > maxDaysInMonth) {
+                                day = maxDaysInMonth;
+                            }
+
+                            const formattedDay = String(day).padStart(2, '0');
+                            const formattedMonth = String(targetMonth + 1).padStart(2, '0');
+                            newDueDate = `${targetYear}-${formattedMonth}-${formattedDay}`;
+                        }
+                    }
+
+                    return {
+                        ...record,
+                        status: newStatus,
+                        dueDate: newDueDate
+                    };
+                });
+
+                // Guardar la marca del mes procesado
+                localStorage.setItem(LAST_RESET_KEY, currentYearMonth);
+
+                if (modified) {
+                    saveRecords();
+                    document.getElementById('monthResetAlert').classList.remove('hidden');
+                }
+            }
+        }
+
+        // Renderizado de la tabla principal
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            const emptyState = document.getElementById('emptyState');
+            
+            const filterCategory = document.getElementById('filterCategory').value;
+            const filterBank = document.getElementById('filterBank').value;
+            const filterStatus = document.getElementById('filterStatus').value;
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            // Filtrado de la lista
+            const filtered = records.filter(item => {
+                if (filterCategory !== 'TODOS' && item.category !== filterCategory) return false;
+                if (filterBank !== 'TODOS' && item.bank !== filterBank) return false;
+                if (filterStatus !== 'TODOS' && item.status !== filterStatus) return false;
+                
+                if (searchQuery) {
+                    const conceptMatch = item.concept.toLowerCase().includes(searchQuery);
+                    const noteMatch = (item.note || '').toLowerCase().includes(searchQuery);
+                    if (!conceptMatch && !noteMatch) return false;
+                }
+
+                return true;
+            });
+
+            tbody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            filtered.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-700/30 transition border-b border-slate-700/40 text-slate-200';
+
+                // Badges para Categoría
+                const catBadge = item.category === 'INGRESOS' 
+                    ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><i class="fa-solid fa-plus text-[10px] mr-1"></i>INGRESOS</span>`
+                    : `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20"><i class="fa-solid fa-minus text-[10px] mr-1"></i>GASTOS</span>`;
+
+                // Badges para Estado
+                let statusBadge = '';
+                switch (item.status) {
+                    case 'PENDIENTE':
+                        statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">PENDIENTE</span>`;
+                        break;
+                    case 'ACREDITADO':
+                        statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACREDITADO</span>`;
+                        break;
+                    case 'RESERVADO':
+                        statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">RESERVADO</span>`;
+                        break;
+                    case 'PAGADO':
+                        statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">PAGADO</span>`;
+                        break;
+                }
+
+                // Formateo de fecha
+                let formattedDate = '-';
+                if (item.dueDate) {
+                    const [y, m, d] = item.dueDate.split('-');
+                    formattedDate = `${d}/${m}/${y}`;
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4">${catBadge}</td>
+                    <td class="py-3 px-4 font-medium text-xs text-slate-300">${item.type}</td>
+                    <td class="py-3 px-4 font-semibold text-white">${escapeHtml(item.concept)}</td>
+                    <td class="py-3 px-4 text-right font-mono font-bold ${item.category === 'INGRESOS' ? 'text-emerald-400' : 'text-slate-100'}">
+                        $ ${formatCurrency(item.amount)}
+                    </td>
+                    <td class="py-3 px-4 text-xs text-slate-400">${item.paymentMethod}</td>
+                    <td class="py-3 px-4 text-xs font-medium text-slate-300">${item.bank}</td>
+                    <td class="py-3 px-4 text-xs text-slate-400">${formattedDate}</td>
+                    <td class="py-3 px-4 text-center">${statusBadge}</td>
+                    <td class="py-3 px-4 text-xs text-slate-400 max-w-[150px] truncate" title="${escapeHtml(item.note || '')}">${escapeHtml(item.note || '-')}</td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex items-center justify-center space-x-2">
+                            <button onclick="editRecord('${item.id}')" title="Editar fila completa" class="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="deleteRecord('${item.id}')" title="Borrar registro" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Actualiza el Panel Visual de Métricas
+        function updateMetrics() {
+            // Total Ingresos Estimados (suma categoría INGRESOS)
+            const totalIngresos = records
+                .filter(r => r.category === 'INGRESOS')
+                .reduce((acc, r) => acc + Number(r.amount || 0), 0);
+
+            // Total Gastos Estimados (suma todo rubro donde CATEGORIA = GASTOS)
+            const totalGastos = records
+                .filter(r => r.category === 'GASTOS')
+                .reduce((acc, r) => acc + Number(r.amount || 0), 0);
+
+            // Remanente Teórico (INGRESOS - GASTOS)
+            const remanenteTeorico = totalIngresos - totalGastos;
+
+            // Gastos Pagados (suma todo rubro donde CATEGORIA = GASTOS y ESTADO = Pagado)
+            const gastosPagados = records
+                .filter(r => r.category === 'GASTOS' && r.status === 'PAGADO')
+                .reduce((acc, r) => acc + Number(r.amount || 0), 0);
+
+            // Remanente Real Actual (INGRESOS - GASTOS pagados)
+            const remanenteReal = totalIngresos - gastosPagados;
+
+            // Inserción en el DOM
+            document.getElementById('statTotalIngresos').textContent = `$ ${formatCurrency(totalIngresos)}`;
+            document.getElementById('statTotalGastos').textContent = `$ ${formatCurrency(totalGastos)}`;
+            
+            const elRemTeorico = document.getElementById('statRemanenteTeorico');
+            elRemTeorico.textContent = `$ ${formatCurrency(remanenteTeorico)}`;
+            elRemTeorico.className = `text-2xl font-black mt-1 ${remanenteTeorico >= 0 ? 'text-sky-400' : 'text-rose-500'}`;
+
+            document.getElementById('statGastosPagados').textContent = `$ ${formatCurrency(gastosPagados)}`;
+
+            const elRemReal = document.getElementById('statRemanenteReal');
+            elRemReal.textContent = `$ ${formatCurrency(remanenteReal)}`;
+            elRemReal.className = `text-2xl font-black mt-1 ${remanenteReal >= 0 ? 'text-indigo-400' : 'text-rose-500'}`;
+        }
+
+        // Gestión Modal: Actualiza opciones de Tipo y Estado segun la Categoría
+        function updateTypeAndStatusOptions() {
+            const category = document.getElementById('fieldCategory').value;
+            const typeSelect = document.getElementById('fieldType');
+            const statusSelect = document.getElementById('fieldStatus');
+
+            const currentTypeVal = typeSelect.value;
+            const currentStatusVal = statusSelect.value;
+
+            typeSelect.innerHTML = '';
+            statusSelect.innerHTML = '';
+
+            if (category === 'INGRESOS') {
+                // Para ingresos solo tipo INGRESOS
+                const optType = document.createElement('option');
+                optType.value = 'INGRESOS';
+                optType.textContent = 'INGRESOS';
+                typeSelect.appendChild(optType);
+
+                // Para ingresos estado varia entre PENDIENTE y ACREDITADO
+                ['PENDIENTE', 'ACREDITADO'].forEach(st => {
+                    const opt = document.createElement('option');
+                    opt.value = st;
+                    opt.textContent = st;
+                    statusSelect.appendChild(opt);
+                });
+            } else {
+                // Gastos: Tipos válidos (IMPUESTOS, SERVICIOS, COMPRAS, CREDITOS)
+                ['IMPUESTOS', 'SERVICIOS', 'COMPRAS', 'CREDITOS'].forEach(tp => {
+                    const opt = document.createElement('option');
+                    opt.value = tp;
+                    opt.textContent = tp;
+                    typeSelect.appendChild(opt);
+                });
+
+                // Para gastos entre PENDIENTE, RESERVADO, PAGADO
+                ['PENDIENTE', 'RESERVADO', 'PAGADO'].forEach(st => {
+                    const opt = document.createElement('option');
+                    opt.value = st;
+                    opt.textContent = st;
+                    statusSelect.appendChild(opt);
+                });
+            }
+
+            if ([...typeSelect.options].some(o => o.value === currentTypeVal)) {
+                typeSelect.value = currentTypeVal;
+            }
+            if ([...statusSelect.options].some(o => o.value === currentStatusVal)) {
+                statusSelect.value = currentStatusVal;
+            }
+        }
+
+        // Abrir Modal Formulario (Alta)
+        function openModal() {
+            document.getElementById('modalTitle').textContent = 'Nuevo Registro';
+            document.getElementById('recordForm').reset();
+            document.getElementById('recordId').value = '';
+            
+            // Establecer fecha por defecto a hoy
+            document.getElementById('fieldDueDate').value = new Date().toISOString().split('T')[0];
+            
+            updateTypeAndStatusOptions();
+            document.getElementById('modalOverlay').classList.remove('hidden');
+        }
+
+        // Abrir Modal con precarga (Edición completa)
+        function editRecord(id) {
+            const record = records.find(r => r.id === id);
+            if (!record) return;
+
+            document.getElementById('modalTitle').textContent = 'Editar Registro';
+            document.getElementById('recordId').value = record.id;
+            document.getElementById('fieldCategory').value = record.category;
+            
+            updateTypeAndStatusOptions();
+
+            document.getElementById('fieldType').value = record.type;
+            document.getElementById('fieldConcept').value = record.concept;
+            document.getElementById('fieldAmount').value = record.amount;
+            document.getElementById('fieldPaymentMethod').value = record.paymentMethod;
+            document.getElementById('fieldBank').value = record.bank;
+            document.getElementById('fieldStatus').value = record.status;
+            document.getElementById('fieldDueDate').value = record.dueDate;
+            document.getElementById('fieldNote').value = record.note || '';
+
+            document.getElementById('modalOverlay').classList.remove('hidden');
+        }
+
+        // Cerrar Modal
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.add('hidden');
+        }
+
+        // Guardar Submit (Crear / Modificar)
+        function handleFormSubmit(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('recordId').value;
+            const category = document.getElementById('fieldCategory').value;
+            const type = document.getElementById('fieldType').value;
+            const concept = document.getElementById('fieldConcept').value.trim();
+            const amount = parseFloat(document.getElementById('fieldAmount').value);
+            const paymentMethod = document.getElementById('fieldPaymentMethod').value;
+            const bank = document.getElementById('fieldBank').value;
+            const status = document.getElementById('fieldStatus').value;
+            const dueDate = document.getElementById('fieldDueDate').value;
+            const note = document.getElementById('fieldNote').value.trim();
+
+            if (id) {
+                // Edición de fila existente
+                records = records.map(r => {
+                    if (r.id === id) {
+                        return { id, category, type, concept, amount, paymentMethod, bank, status, dueDate, note };
+                    }
+                    return r;
+                });
+            } else {
+                // Registro nuevo -> ID único generado automáticamente
+                const newRecord = {
+                    id: generateUniqueId(),
+                    category,
+                    type,
+                    concept,
+                    amount,
+                    paymentMethod,
+                    bank,
+                    status,
+                    dueDate,
+                    note
+                };
+                records.push(newRecord);
+            }
+
+            saveRecords();
+            renderTable();
+            updateMetrics();
+            closeModal();
+        }
+
+        // Borrar registro por ID
+        function deleteRecord(id) {
+            records = records.filter(r => r.id !== id);
+            saveRecords();
+            renderTable();
+            updateMetrics();
+        }
+
+        // Auxiliar: Formatear moneda en ARS
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('es-AR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value || 0);
+        }
+
+        // Auxiliar: Escapar HTML contra Inyecciones
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
