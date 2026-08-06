@@ -6,7 +6,7 @@
     <title>Repository HTML Hub</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for Icons -->
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
         tailwind.config = {
@@ -15,10 +15,8 @@
                 extend: {
                     colors: {
                         brand: {
-                            50: '#f0f9ff',
                             500: '#0ea5e9',
                             600: '#0284c7',
-                            900: '#0c4a6e',
                         }
                     }
                 }
@@ -26,7 +24,7 @@
         }
     </script>
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200">
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col">
 
     <!-- Header -->
     <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 shadow-sm">
@@ -36,90 +34,82 @@
                     <i class="fa-brands fa-github text-2xl"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white" id="repo-title">HTML Repository Hub</h1>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 font-mono" id="repo-subtext">Cargando repositorio...</p>
+                    <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white" id="repo-title">HTML Hub</h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-mono" id="repo-subtext">Detectando repositorio...</p>
                 </div>
             </div>
 
             <div class="flex items-center gap-3">
-                <button id="config-btn" onclick="toggleConfigModal()" class="text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 flex items-center gap-1 transition">
-                    <i class="fa-solid fa-gear"></i> Configurar Repo
+                <button onclick="toggleConfigModal()" class="text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 flex items-center gap-1">
+                    <i class="fa-solid fa-gear"></i> Ajustes
                 </button>
-                <a id="github-link" href="#" target="_blank" rel="noopener noreferrer" class="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white text-xl p-1" title="Ver en GitHub">
+                <a id="github-link" href="#" target="_blank" rel="noopener" class="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white text-xl p-1">
                     <i class="fa-brands fa-github"></i>
                 </a>
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
+    <!-- Main -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
         
-        <!-- Controls: Search & Category Filter -->
+        <!-- Controls -->
         <div class="mb-8 flex flex-col sm:flex-row gap-4 justify-between items-center">
             <div class="relative w-full sm:w-96">
-                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                <input type="text" id="search-input" placeholder="Buscar por título o nombre de archivo..." class="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-slate-100">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="search-input" placeholder="Buscar archivo..." class="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
             </div>
             
             <div class="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0" id="folder-filters">
-                <button onclick="filterByFolder('all')" class="filter-btn active text-xs font-medium px-3 py-1.5 rounded-full bg-brand-500 text-white transition">Todos</button>
+                <button onclick="filterByFolder('all')" class="filter-btn text-xs font-medium px-3 py-1.5 rounded-full bg-brand-500 text-white">Todos</button>
             </div>
         </div>
 
-        <!-- Status & Error Messages -->
+        <!-- Status / Errors -->
         <div id="status-container" class="my-12 text-center">
             <div id="loading-spinner" class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-brand-500 border-t-transparent"></div>
-            <p id="status-text" class="mt-4 text-slate-600 dark:text-slate-400 font-medium">Escaneando repositorio y leyendo metadatos...</p>
+            <p id="status-text" class="mt-4 text-slate-600 dark:text-slate-400 font-medium">Cargando lista de archivos...</p>
         </div>
 
         <!-- Grid Container -->
-        <div id="html-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
-            <!-- Cards generated dynamically -->
-        </div>
+        <div id="html-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden"></div>
 
         <!-- Empty State -->
         <div id="empty-state" class="hidden text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-8">
             <i class="fa-solid fa-folder-open text-5xl text-slate-300 dark:text-slate-600 mb-4"></i>
-            <h3 class="text-lg font-medium text-slate-800 dark:text-slate-200">No se encontraron archivos HTML</h3>
-            <p class="text-slate-500 dark:text-slate-400 text-sm mt-1" id="empty-state-msg">No hay páginas HTML disponibles que coincidan con los criterios de búsqueda.</p>
+            <h3 class="text-lg font-medium text-slate-800 dark:text-slate-200">Sin archivos HTML</h3>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mt-1" id="empty-state-msg">No se encontraron páginas coincidentes.</p>
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
-        <p>Indexado automático vía GitHub REST API | Extracción dinámica de etiquetas &lt;title&gt;</p>
-    </footer>
-
-    <!-- Configuration Modal -->
+    <!-- Modal Config -->
     <div id="config-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white dark:bg-slate-800 rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
-            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Configurar Repositorio</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Ingresa el usuario y nombre del repositorio si la autodetección falla.</p>
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Configuración de Repositorio</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Asegúrate de ingresar el nombre de usuario y el repositorio correctos.</p>
 
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Usuario / Organización GitHub</label>
-                    <input type="text" id="input-owner" placeholder="ej. tu-usuario" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Usuario GitHub</label>
+                    <input type="text" id="input-owner" placeholder="ej. usuario" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nombre del Repositorio</label>
-                    <input type="text" id="input-repo" placeholder="ej. mi-repositorio" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Repositorio</label>
+                    <input type="text" id="input-repo" placeholder="ej. mi-repo" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md text-sm">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Rama (Branch)</label>
-                    <input type="text" id="input-branch" placeholder="main" value="main" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <input type="text" id="input-branch" value="main" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md text-sm">
                 </div>
             </div>
 
             <div class="mt-6 flex justify-end gap-3">
-                <button onclick="toggleConfigModal()" class="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md">Cancelar</button>
-                <button onclick="saveManualConfig()" class="px-4 py-2 text-xs font-medium bg-brand-500 hover:bg-brand-600 text-white rounded-md">Guardar y Reorganizar</button>
+                <button onclick="toggleConfigModal()" class="px-4 py-2 text-xs text-slate-600 dark:text-slate-400">Cancelar</button>
+                <button onclick="saveManualConfig()" class="px-4 py-2 text-xs bg-brand-500 text-white rounded-md">Guardar</button>
             </div>
         </div>
     </div>
 
-    <!-- Script de Integración con GitHub API y Extracción de Titulos -->
     <script>
         let allHtmlFiles = [];
         let activeFolder = 'all';
@@ -128,55 +118,22 @@
         let currentBranch = 'main';
 
         function detectRepoInfo() {
-            const hostname = window.location.hostname;
-            const pathname = window.location.pathname;
+            const host = window.location.hostname;
+            const path = window.location.pathname.split('/').filter(p => p.length > 0);
 
-            if (hostname.endsWith('.github.io')) {
-                currentOwner = hostname.split('.')[0];
-                const pathParts = pathname.split('/').filter(p => p.length > 0);
-                currentRepo = pathParts.length > 0 ? pathParts[0] : `${currentOwner}.github.io`;
+            if (host.endsWith('.github.io')) {
+                currentOwner = host.split('.')[0];
+                currentRepo = path.length > 0 ? path[0] : `${currentOwner}.github.io`;
                 return true;
             }
             return false;
         }
 
-        // Parsea el tag <title> o un <h1> del contenido raw del archivo
-        function extractTitleFromHTML(htmlContent, fallbackPath) {
-            // Buscar tag <title>
-            const titleMatch = htmlContent.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-            if (titleMatch && titleMatch[1].trim().length > 0) {
-                return titleMatch[1].trim();
-            }
-
-            // Si no hay <title>, buscar el primer tag <h1>
-            const h1Match = htmlContent.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-            if (h1Match && h1Match[1].replace(/<[^>]+>/g, '').trim().length > 0) {
-                return h1Match[1].replace(/<[^>]+>/g, '').trim();
-            }
-
-            // Fallback: nombre del archivo formateado
-            const fileName = fallbackPath.split('/').pop().replace('.html', '');
-            return fileName.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        }
-
-        // Carga en paralelo los contenidos para obtener los títulos de forma rápida
-        async function fetchTitlesForFiles(files) {
-            const fetchPromises = files.map(async (file) => {
-                try {
-                    const rawUrl = `https://raw.githubusercontent.com/${currentOwner}/${currentRepo}/${currentBranch}/${file.path}`;
-                    const res = await fetch(rawUrl);
-                    if (res.ok) {
-                        const text = await res.text();
-                        file.extractedTitle = extractTitleFromHTML(text, file.path);
-                    } else {
-                        file.extractedTitle = extractTitleFromHTML('', file.path);
-                    }
-                } catch (e) {
-                    file.extractedTitle = extractTitleFromHTML('', file.path);
-                }
-            });
-
-            await Promise.all(fetchPromises);
+        function cleanTitleFromPath(path) {
+            const fileName = path.split('/').pop().replace(/\.html$/i, '');
+            return fileName
+                .replace(/[-_]/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
         }
 
         async function fetchRepoFiles() {
@@ -188,57 +145,51 @@
             statusContainer.classList.remove('hidden');
             grid.classList.add('hidden');
             emptyState.classList.add('hidden');
-            statusText.innerText = `Consultando estructura del repositorio...`;
+            statusText.innerText = "Consultando API de GitHub...";
 
             try {
                 document.getElementById('repo-title').innerText = currentRepo;
                 document.getElementById('repo-subtext').innerText = `${currentOwner}/${currentRepo} (${currentBranch})`;
                 document.getElementById('github-link').href = `https://github.com/${currentOwner}/${currentRepo}`;
 
+                // 1 sola petición ultra ligera a la API de GitHub (sin llamadas secundarias)
                 const url = `https://api.github.com/repos/${currentOwner}/${currentRepo}/git/trees/${currentBranch}?recursive=1`;
                 const response = await fetch(url);
 
                 if (!response.ok) {
-                    if (response.status === 404) {
-                        throw new Error('Repositorio o rama no encontrada.');
-                    } else if (response.status === 403) {
-                        throw new Error('Límite de peticiones alcanzado en GitHub API.');
-                    } else {
-                        throw new Error(`Error: ${response.statusText}`);
+                    if (response.status === 403) {
+                        throw new Error("Se superó el límite de la API pública de GitHub. Espera unos minutos.");
                     }
+                    if (response.status === 404) {
+                        throw new Error(`Repositorio o rama no encontrada (${currentOwner}/${currentRepo}).`);
+                    }
+                    throw new Error(`Error HTTP: ${response.status}`);
                 }
 
                 const data = await response.json();
 
-                // Filtrar archivos .html excluyendo el index.html raíz
-                const rawFiles = data.tree.filter(item => {
-                    const isHtml = item.path.toLowerCase().endsWith('.html');
-                    const isIndexRoot = item.path.toLowerCase() === 'index.html';
-                    return item.type === 'blob' && isHtml && !isIndexRoot;
-                });
+                // Filtrar archivos .html ignorando index.html
+                allHtmlFiles = (data.tree || [])
+                    .filter(item => item.type === 'blob' && item.path.toLowerCase().endsWith('.html') && item.path.toLowerCase() !== 'index.html')
+                    .map(item => ({
+                        path: item.path,
+                        title: cleanTitleFromPath(item.path)
+                    }));
 
-                if (rawFiles.length === 0) {
-                    statusContainer.classList.add('hidden');
-                    document.getElementById('empty-state-msg').innerText = "No se detectaron archivos .html adicionales.";
+                statusContainer.classList.add('hidden');
+
+                if (allHtmlFiles.length === 0) {
                     emptyState.classList.remove('hidden');
                     return;
                 }
 
-                statusText.innerText = `Extrayendo títulos de ${rawFiles.length} documento(s)...`;
-                
-                // Obtener títulos reales
-                allHtmlFiles = rawFiles;
-                await fetchTitlesForFiles(allHtmlFiles);
-
-                statusContainer.classList.add('hidden');
                 renderFolderFilters();
                 renderCards();
 
-            } catch (error) {
-                console.error(error);
-                statusContainer.classList.remove('hidden');
+            } catch (err) {
+                console.error(err);
                 document.getElementById('loading-spinner').classList.add('hidden');
-                statusText.innerHTML = `<span class="text-red-500 font-semibold"><i class="fa-solid fa-triangle-exclamation"></i> ${error.message}</span><br><button onclick="toggleConfigModal()" class="mt-3 text-xs bg-brand-500 text-white px-3 py-1.5 rounded">Configurar manualmente</button>`;
+                statusText.innerHTML = `<span class="text-red-500 font-semibold">${err.message}</span><br><button onclick="toggleConfigModal()" class="mt-3 text-xs bg-brand-500 text-white px-3 py-1.5 rounded">Configurar Usuario/Repo</button>`;
             }
         }
 
@@ -248,38 +199,28 @@
 
             allHtmlFiles.forEach(file => {
                 const parts = file.path.split('/');
-                if (parts.length > 1) {
-                    folders.add(parts[0]);
-                } else {
-                    folders.add('Raíz');
-                }
+                folders.add(parts.length > 1 ? parts[0] : 'Raíz');
             });
 
             container.innerHTML = `
-                <button onclick="filterByFolder('all')" class="filter-btn ${activeFolder === 'all' ? 'bg-brand-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'} text-xs font-medium px-3 py-1.5 rounded-full transition hover:opacity-80">
+                <button onclick="filterByFolder('all')" class="filter-btn text-xs font-medium px-3 py-1.5 rounded-full ${activeFolder === 'all' ? 'bg-brand-500 text-white' : 'bg-slate-200 dark:bg-slate-700'}">
                     Todos (${allHtmlFiles.length})
                 </button>
             `;
 
             folders.forEach(folder => {
-                const count = allHtmlFiles.filter(f => {
-                    if (folder === 'Raíz') return !f.path.includes('/');
-                    return f.path.startsWith(folder + '/');
-                }).length;
-
-                const isSelected = activeFolder === folder;
-                const btnClass = isSelected ? 'bg-brand-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300';
-
+                const count = allHtmlFiles.filter(f => folder === 'Raíz' ? !f.path.includes('/') : f.path.startsWith(folder + '/')).length;
+                const active = activeFolder === folder;
                 container.innerHTML += `
-                    <button onclick="filterByFolder('${folder}')" class="filter-btn ${btnClass} text-xs font-medium px-3 py-1.5 rounded-full transition hover:opacity-80 whitespace-nowrap">
-                        <i class="fa-regular fa-folder text-[10px] mr-1"></i>${folder} (${count})
+                    <button onclick="filterByFolder('${folder}')" class="filter-btn text-xs font-medium px-3 py-1.5 rounded-full ${active ? 'bg-brand-500 text-white' : 'bg-slate-200 dark:bg-slate-700'}">
+                        ${folder} (${count})
                     </button>
                 `;
             });
         }
 
-        function filterByFolder(folderName) {
-            activeFolder = folderName;
+        function filterByFolder(folder) {
+            activeFolder = folder;
             renderFolderFilters();
             renderCards();
         }
@@ -287,79 +228,58 @@
         function renderCards() {
             const grid = document.getElementById('html-grid');
             const emptyState = document.getElementById('empty-state');
-            const searchVal = document.getElementById('search-input').value.toLowerCase();
+            const query = document.getElementById('search-input').value.toLowerCase();
 
             grid.innerHTML = '';
 
-            const filteredFiles = allHtmlFiles.filter(file => {
-                const matchesSearch = file.path.toLowerCase().includes(searchVal) || 
-                                      (file.extractedTitle && file.extractedTitle.toLowerCase().includes(searchVal));
-                
+            const filtered = allHtmlFiles.filter(file => {
+                const matchesQuery = file.path.toLowerCase().includes(query) || file.title.toLowerCase().includes(query);
                 let matchesFolder = true;
+
                 if (activeFolder !== 'all') {
-                    if (activeFolder === 'Raíz') {
-                        matchesFolder = !file.path.includes('/');
-                    } else {
-                        matchesFolder = file.path.startsWith(activeFolder + '/');
-                    }
+                    matchesFolder = activeFolder === 'Raíz' ? !file.path.includes('/') : file.path.startsWith(activeFolder + '/');
                 }
 
-                return matchesSearch && matchesFolder;
+                return matchesQuery && matchesFolder;
             });
 
-            if (filteredFiles.length === 0) {
+            if (filtered.length === 0) {
                 grid.classList.add('hidden');
                 emptyState.classList.remove('hidden');
-                document.getElementById('empty-state-msg').innerText = "No hay resultados para la búsqueda o filtro seleccionado.";
                 return;
             }
 
             emptyState.classList.add('hidden');
             grid.classList.remove('hidden');
 
-            filteredFiles.forEach(file => {
-                const title = file.extractedTitle;
-                const pathParts = file.path.split('/');
-                const folder = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : null;
-                const fileUrl = `./${file.path}`;
-
+            filtered.forEach(file => {
+                const folder = file.path.includes('/') ? file.path.split('/')[0] : null;
                 const card = document.createElement('div');
-                card.className = "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between group";
+                card.className = "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm hover:shadow-md flex flex-col justify-between";
 
                 card.innerHTML = `
                     <div>
                         <div class="flex items-center justify-between mb-3">
-                            <span class="p-2 bg-brand-50 dark:bg-slate-700 text-brand-500 rounded-lg group-hover:scale-110 transition-transform">
+                            <span class="p-2 bg-slate-100 dark:bg-slate-700 text-brand-500 rounded-lg">
                                 <i class="fa-regular fa-file-code text-lg"></i>
                             </span>
-                            ${folder ? `
-                                <span class="text-[10px] font-semibold tracking-wide bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600">
-                                    <i class="fa-regular fa-folder mr-1"></i>${folder}
-                                </span>
-                            ` : `
-                                <span class="text-[10px] font-semibold tracking-wide bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded">
-                                    Raíz
-                                </span>
-                            `}
+                            <span class="text-[10px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-500 px-2 py-0.5 rounded">
+                                ${folder || 'Raíz'}
+                            </span>
                         </div>
-                        <h2 class="font-semibold text-slate-900 dark:text-white text-base mb-1 line-clamp-2 group-hover:text-brand-500 transition-colors" title="${title}">
-                            ${title}
-                        </h2>
-                        <p class="text-xs text-slate-400 font-mono mb-4 truncate" title="${file.path}">
-                            <i class="fa-regular fa-file text-[10px] mr-1"></i>${file.path}
-                        </p>
+                        <h2 class="font-semibold text-slate-900 dark:text-white text-base mb-1 truncate">${file.title}</h2>
+                        <p class="text-xs text-slate-400 font-mono mb-4 truncate">${file.path}</p>
                     </div>
 
-                    <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-2">
-                        <a href="${fileUrl}" class="flex-grow text-center text-xs font-semibold bg-slate-900 hover:bg-slate-800 dark:bg-brand-500 dark:hover:bg-brand-600 text-white py-2 px-3 rounded-lg transition">
-                            Abrir Documento <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[10px]"></i>
+                    <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                        <a href="./${file.path}" class="flex-grow text-center text-xs font-semibold bg-slate-900 hover:bg-slate-800 dark:bg-brand-500 dark:hover:bg-brand-600 text-white py-2 px-3 rounded-lg">
+                            Abrir <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[10px]"></i>
                         </a>
-                        <a href="https://github.com/${currentOwner}/${currentRepo}/blob/${currentBranch}/${file.path}" target="_blank" rel="noopener" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 text-xs" title="Ver código en GitHub">
+                        <a href="https://github.com/${currentOwner}/${currentRepo}/blob/${currentBranch}/${file.path}" target="_blank" rel="noopener" class="text-slate-400 hover:text-slate-600 p-2 text-xs">
                             <i class="fa-solid fa-code"></i>
                         </a>
                     </div>
                 `;
-
                 grid.appendChild(card);
             });
         }
@@ -367,36 +287,25 @@
         document.getElementById('search-input').addEventListener('input', renderCards);
 
         function toggleConfigModal() {
-            const modal = document.getElementById('config-modal');
-            modal.classList.toggle('hidden');
-            if (!modal.classList.contains('hidden')) {
-                document.getElementById('input-owner').value = currentOwner;
-                document.getElementById('input-repo').value = currentRepo;
-                document.getElementById('input-branch').value = currentBranch;
-            }
+            document.getElementById('config-modal').classList.toggle('hidden');
+            document.getElementById('input-owner').value = currentOwner;
+            document.getElementById('input-repo').value = currentRepo;
+            document.getElementById('input-branch').value = currentBranch;
         }
 
         function saveManualConfig() {
-            const owner = document.getElementById('input-owner').value.trim();
-            const repo = document.getElementById('input-repo').value.trim();
-            const branch = document.getElementById('input-branch').value.trim() || 'main';
-            if (owner && repo) {
-                currentOwner = owner;
-                currentRepo = repo;
-                currentBranch = branch;
-                toggleConfigModal();
-                fetchRepoFiles();
-            }
+            currentOwner = document.getElementById('input-owner').value.trim();
+            currentRepo = document.getElementById('input-repo').value.trim();
+            currentBranch = document.getElementById('input-branch').value.trim() || 'main';
+            toggleConfigModal();
+            fetchRepoFiles();
         }
 
         window.onload = () => {
-            const detected = detectRepoInfo();
-            if (detected) {
-                fetchRepoFiles();
-            } else {
-                currentOwner = 'github';
-                currentRepo = 'docs';
+            if (!detectRepoInfo()) {
                 toggleConfigModal();
+            } else {
+                fetchRepoFiles();
             }
         };
     </script>
