@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Susurros del Vacío — Idle Eldritch</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&display=swap');
+
+:root{
+  --void:#07060b;
+  --void2:#0e0c15;
+  --panel:#13111c;
+  --panel2:#191623;
+  --ink:#2a2436;
+  --ink2:#3a3350;
+  --parchment:#d8c9a3;
+  --parchment-dim:#8f8570;
+  --gold:#c9a24a;
+  --gold-bright:#e8c76a;
+  --arcane:#7c4fc9;
+  --arcane-glow:#a684ea;
+  --blood:#8a2332;
+  --blood-bright:#c73a4f;
+  --sickly:#6b7d3f;
+  --sickly-bright:#93ab5a;
+  --star:#5fa8c9;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--void);color:var(--parchment);font-family:'EB Garamond',serif;overflow-x:hidden;}
+body{
+  min-height:100vh;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(124,79,201,0.08), transparent 55%),
+    radial-gradient(ellipse at 85% 20%, rgba(138,35,50,0.07), transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(95,168,201,0.05), transparent 60%),
+    var(--void);
+}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:var(--void2);}
+::-webkit-scrollbar-thumb{background:var(--ink2);border-radius:4px;}
+h1,h2,h3,h4{font-family:'Cinzel',serif;font-weight:700;letter-spacing:.03em;margin:0;color:var(--parchment);}
+.display{font-family:'Cinzel Decorative',serif;}
+.mono{font-family:'Space Mono',monospace;}
+button{font-family:'EB Garamond',serif;cursor:pointer;}
+a{color:inherit;}
+
+/* ---------- layout skeleton ---------- */
+#app{max-width:880px;margin:0 auto;padding:0 0 90px 0;position:relative;min-height:100vh;}
+
+/* ---------- header ---------- */
+header{
+  position:sticky;top:0;z-index:50;
+  background:linear-gradient(180deg, var(--void2) 0%, rgba(14,12,21,0.97) 85%, transparent);
+  border-bottom:1px solid var(--ink);
+  padding:10px 14px 8px;
+}
+.title-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+.title-row h1{font-size:1.15rem;color:var(--gold-bright);text-shadow:0 0 12px rgba(201,162,74,0.35);}
+.title-row .subtitle{font-size:.68rem;color:var(--parchment-dim);font-style:italic;}
+.currency-strip{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:.82rem;}
+.currency{display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--ink);border-radius:6px;padding:4px 9px;}
+.currency .icon{font-size:1rem;}
+.currency .val{font-family:'Space Mono',monospace;color:var(--parchment);}
+.currency.susurros{border-color:rgba(201,162,74,0.35);}
+.currency.susurros .val{color:var(--gold-bright);}
+.currency.cordura{border-color:rgba(107,125,63,0.4);}
+.currency.shards{border-color:rgba(124,79,201,0.4);}
+.currency.shards .val{color:var(--arcane-glow);}
+.currency.stardust{border-color:rgba(95,168,201,0.4);}
+.currency.stardust .val{color:var(--star);}
+.rate{font-size:.72rem;color:var(--parchment-dim);margin-left:2px;}
+
+.cordura-bar-wrap{margin-top:7px;height:7px;background:var(--panel);border:1px solid var(--ink);border-radius:5px;overflow:hidden;position:relative;}
+.cordura-bar-fill{height:100%;background:linear-gradient(90deg,var(--sickly),var(--sickly-bright));transition:width .3s ease;}
+.cordura-label{font-size:.62rem;color:var(--parchment-dim);display:flex;justify-content:space-between;margin-top:2px;}
+
+/* ---------- nav tabs ---------- */
+nav{display:flex;overflow-x:auto;gap:2px;background:var(--void2);border-bottom:1px solid var(--ink);padding:0 6px;scrollbar-width:none;}
+nav::-webkit-scrollbar{display:none;}
+nav button{
+  flex:0 0 auto;background:none;border:none;color:var(--parchment-dim);
+  padding:10px 12px 8px;font-size:.78rem;font-family:'Cinzel',serif;letter-spacing:.04em;
+  border-bottom:2px solid transparent;white-space:nowrap;transition:.15s;
+}
+nav button.active{color:var(--gold-bright);border-bottom-color:var(--gold);}
+nav button .badge{display:inline-block;background:var(--blood);color:#fff;border-radius:8px;font-size:.6rem;padding:0 5px;margin-left:4px;vertical-align:2px;}
+nav button:disabled{opacity:.25;pointer-events:none;}
+
+main{padding:14px 12px 30px;}
+.tab-panel{display:none;animation:fadein .25s ease;}
+.tab-panel.active{display:block;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+/* ---------- eye / clicker ---------- */
+.eye-zone{display:flex;flex-direction:column;align-items:center;padding:18px 0 8px;position:relative;}
+.eye-outer{
+  width:150px;height:150px;border-radius:50%;position:relative;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 40%, #241a33, #0a0810 70%);
+  box-shadow:0 0 40px rgba(124,79,201,0.35), inset 0 0 25px rgba(0,0,0,0.8);
+  border:2px solid var(--ink2);
+  transition:transform .08s ease;
+}
+.eye-outer:active{transform:scale(.94);}
+.eye-outer::before{
+  content:'';position:absolute;inset:-14px;border-radius:50%;
+  background:radial-gradient(circle, rgba(124,79,201,0.25), transparent 70%);
+  animation:pulseglow 3.2s ease-in-out infinite;
+}
+@keyframes pulseglow{0%,100%{opacity:.5;transform:scale(1);}50%{opacity:1;transform:scale(1.08);}}
+.eye-iris{width:78px;height:44px;border-radius:50%;background:radial-gradient(circle, #c73a4f 0%, #8a2332 55%, #3a0f16 100%);position:relative;box-shadow:0 0 18px rgba(199,58,79,0.6);animation:blink 6s ease-in-out infinite;}
+.eye-iris::after{content:'';position:absolute;top:50%;left:50%;width:10px;height:34px;background:#07060b;border-radius:50%;transform:translate(-50%,-50%);}
+@keyframes blink{0%,92%,100%{transform:scaleY(1);}95%{transform:scaleY(.08);}}
+.tentacle{position:absolute;bottom:-6px;width:6px;border-radius:6px;background:linear-gradient(180deg,var(--arcane),transparent);opacity:.55;transform-origin:top center;animation:sway 4s ease-in-out infinite;}
+.t1{left:14%;height:34px;animation-delay:0s;}
+.t2{right:12%;height:28px;animation-delay:1.1s;}
+.t3{left:50%;height:22px;animation-delay:2.1s;}
+@keyframes sway{0%,100%{transform:rotate(-9deg);}50%{transform:rotate(9deg);}}
+.eye-caption{margin-top:10px;font-size:.78rem;color:var(--parchment-dim);text-align:center;font-style:italic;max-width:280px;}
+.click-power-label{font-size:.72rem;color:var(--gold);margin-top:4px;}
+
+.float-text{position:fixed;pointer-events:none;font-family:'Space Mono',monospace;color:var(--gold-bright);font-size:.95rem;font-weight:700;text-shadow:0 0 6px rgba(0,0,0,.8);animation:floatup 1.1s ease-out forwards;z-index:200;}
+@keyframes floatup{0%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-55px);}}
+
+/* ---------- buff omen ---------- */
+#omen{
+  position:fixed;z-index:150;width:46px;height:46px;border-radius:50%;
+  background:radial-gradient(circle, var(--arcane-glow), var(--arcane) 60%, transparent 100%);
+  box-shadow:0 0 22px rgba(166,132,234,0.85);
+  display:flex;align-items:center;justify-content:center;font-size:1.4rem;
+  cursor:pointer;animation:omenpulse 1.4s ease-in-out infinite, omenspin 5s linear infinite;
+  display:none;
+}
+@keyframes omenpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+@keyframes omenspin{from{filter:hue-rotate(0deg);}to{filter:hue-rotate(40deg);}}
+
+/* ---------- section / card generic ---------- */
+.section-title{display:flex;align-items:center;gap:8px;margin:18px 0 8px;color:var(--parchment-dim);font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;}
+.section-title::after{content:'';flex:1;height:1px;background:var(--ink);}
+.card{background:var(--panel);border:1px solid var(--ink);border-radius:8px;padding:10px 12px;margin-bottom:8px;position:relative;}
+.card.locked{opacity:.45;filter:grayscale(.6);}
+.card.affordable{border-color:rgba(201,162,74,0.55);box-shadow:0 0 0 1px rgba(201,162,74,0.12) inset;}
+.card.owned-active{border-color:rgba(124,79,201,0.6);}
+
+/* buildings */
+.building-row{display:flex;align-items:center;gap:10px;}
+.building-icon{font-size:1.6rem;width:38px;text-align:center;flex:0 0 auto;}
+.building-info{flex:1;min-width:0;}
+.building-info .name{font-family:'Cinzel',serif;font-size:.92rem;color:var(--parchment);}
+.building-info .meta{font-size:.7rem;color:var(--parchment-dim);}
+.building-buy{flex:0 0 auto;text-align:right;}
+.buy-btn{
+  background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--gold);color:var(--gold-bright);
+  padding:7px 11px;border-radius:6px;font-size:.78rem;font-family:'Space Mono',monospace;min-width:78px;
+  transition:.15s;
+}
+.buy-btn:disabled{border-color:var(--ink2);color:var(--parchment-dim);opacity:.5;cursor:default;}
+.buy-btn:not(:disabled):hover{background:var(--gold);color:var(--void);}
+.owned-count{font-size:.68rem;color:var(--parchment-dim);margin-top:2px;}
+.upgrade-chip{display:inline-block;margin-top:6px;font-size:.68rem;background:var(--panel2);border:1px solid var(--arcane);color:var(--arcane-glow);padding:3px 7px;border-radius:5px;margin-right:5px;cursor:pointer;}
+.upgrade-chip:hover{background:var(--arcane);color:#fff;}
+.upgrade-chip.done{border-color:var(--sickly);color:var(--sickly-bright);cursor:default;}
+
+/* generic action button */
+.action-btn{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--arcane);color:var(--arcane-glow);padding:8px 14px;border-radius:6px;font-size:.82rem;font-family:'Cinzel',serif;}
+.action-btn:hover{background:var(--arcane);color:#fff;}
+.action-btn:disabled{border-color:var(--ink2);color:var(--parchment-dim);opacity:.5;}
+.action-btn.danger{border-color:var(--blood);color:var(--blood-bright);}
+.action-btn.danger:hover{background:var(--blood);color:#fff;}
+.action-btn.gold{border-color:var(--gold);color:var(--gold-bright);}
+.action-btn.gold:hover{background:var(--gold);color:var(--void);}
+.action-btn.star{border-color:var(--star);color:var(--star);}
+.action-btn.star:hover{background:var(--star);color:var(--void);}
+
+/* pets / assistants grid */
+.entity-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+@media(max-width:480px){.entity-grid{grid-template-columns:1fr;}}
+.entity-card{background:var(--panel);border:1px solid var(--ink);border-radius:8px;padding:10px;}
+.entity-head{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.entity-head .ic{font-size:1.5rem;}
+.entity-head .nm{font-family:'Cinzel',serif;font-size:.86rem;}
+.entity-desc{font-size:.7rem;color:var(--parchment-dim);margin-bottom:6px;line-height:1.35;}
+.entity-stat{font-size:.72rem;color:var(--sickly-bright);margin-bottom:6px;}
+.entity-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.slot-toggle{padding:5px 10px;font-size:.72rem;border-radius:5px;border:1px solid var(--ink2);background:var(--panel2);color:var(--parchment-dim);}
+.slot-toggle.on{border-color:var(--sickly-bright);color:var(--sickly-bright);background:rgba(107,125,63,0.15);}
+.slot-toggle:disabled{opacity:.4;}
+.small-btn{padding:5px 10px;font-size:.72rem;border-radius:5px;border:1px solid var(--gold);color:var(--gold-bright);background:var(--panel2);}
+.small-btn:disabled{opacity:.4;border-color:var(--ink2);color:var(--parchment-dim);}
+
+.slots-summary{font-size:.75rem;color:var(--parchment-dim);margin-bottom:8px;}
+
+.synergy-box{margin-top:10px;padding:8px 10px;background:rgba(124,79,201,0.08);border:1px dashed var(--arcane);border-radius:7px;font-size:.72rem;color:var(--arcane-glow);}
+.synergy-box .syn-title{font-family:'Cinzel',serif;font-size:.76rem;color:var(--parchment);margin-bottom:3px;}
+
+/* skill tree */
+.skill-branch{margin-bottom:16px;}
+.skill-branch h3{font-size:.85rem;color:var(--gold);margin-bottom:6px;}
+.skill-node{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--ink);border-radius:7px;padding:8px 10px;margin-bottom:6px;}
+.skill-node .ic{font-size:1.3rem;width:28px;text-align:center;}
+.skill-node .body{flex:1;}
+.skill-node .nm{font-size:.82rem;font-family:'Cinzel',serif;}
+.skill-node .ds{font-size:.68rem;color:var(--parchment-dim);}
+.skill-node.owned{border-color:var(--sickly-bright);}
+.skill-node.locked{opacity:.4;}
+.skill-btn{font-size:.68rem;padding:5px 9px;border-radius:5px;border:1px solid var(--arcane);color:var(--arcane-glow);background:var(--panel2);white-space:nowrap;}
+.skill-btn:disabled{opacity:.35;border-color:var(--ink2);color:var(--parchment-dim);}
+
+/* achievements */
+.ach-grid{display:grid;grid-template-columns:1fr;gap:6px;}
+.ach-row{display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--ink);border-radius:7px;padding:8px 10px;}
+.ach-row.done{border-color:var(--gold);}
+.ach-row .ic{font-size:1.3rem;width:26px;text-align:center;opacity:.5;}
+.ach-row.done .ic{opacity:1;}
+.ach-row .nm{font-size:.8rem;font-family:'Cinzel',serif;}
+.ach-row .ds{font-size:.66rem;color:var(--parchment-dim);}
+
+/* prestige panels */
+.prestige-panel{background:var(--panel);border:1px solid var(--arcane);border-radius:10px;padding:16px;text-align:center;margin-bottom:14px;}
+.prestige-panel h2{color:var(--arcane-glow);font-size:1rem;margin-bottom:6px;}
+.prestige-panel .big-num{font-family:'Space Mono',monospace;font-size:1.6rem;color:var(--gold-bright);margin:8px 0;}
+.prestige-panel p{font-size:.78rem;color:var(--parchment-dim);line-height:1.5;margin:6px 0 12px;}
+.prestige-panel.star{border-color:var(--star);}
+.prestige-panel.star h2{color:var(--star);}
+
+/* footer bar */
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--void2);border-top:1px solid var(--ink);display:flex;justify-content:center;gap:8px;padding:7px 10px;z-index:60;}
+.bottom-bar button{background:none;border:1px solid var(--ink2);color:var(--parchment-dim);font-size:.7rem;padding:6px 10px;border-radius:6px;}
+.bottom-bar button:hover{color:var(--parchment);border-color:var(--ink2);}
+
+/* toasts */
+#toast-wrap{position:fixed;left:10px;bottom:54px;z-index:300;display:flex;flex-direction:column-reverse;gap:6px;max-width:280px;}
+.toast{background:var(--panel);border:1px solid var(--arcane);border-radius:7px;padding:7px 10px;font-size:.72rem;color:var(--parchment);animation:toastin .25s ease, toastout .4s ease 3.6s forwards;box-shadow:0 4px 14px rgba(0,0,0,.5);}
+@keyframes toastin{from{opacity:0;transform:translateX(-14px);}to{opacity:1;transform:translateX(0);}}
+@keyframes toastout{to{opacity:0;transform:translateX(-14px);}}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(4,3,7,0.82);z-index:400;display:none;align-items:center;justify-content:center;padding:16px;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--panel);border:1px solid var(--arcane);border-radius:10px;padding:20px;max-width:420px;width:100%;max-height:85vh;overflow:auto;}
+.modal h2{color:var(--gold-bright);margin-bottom:10px;font-size:1.05rem;}
+.modal p{font-size:.82rem;color:var(--parchment-dim);line-height:1.5;}
+.modal textarea{width:100%;height:80px;background:var(--void2);color:var(--parchment);border:1px solid var(--ink2);border-radius:6px;font-family:'Space Mono',monospace;font-size:.68rem;padding:6px;margin:8px 0;}
+.modal .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+
+.empty-state{text-align:center;padding:26px 10px;color:var(--parchment-dim);font-style:italic;font-size:.82rem;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="title-row">
+      <h1 class="display">Susurros del Vacío</h1>
+      <span class="subtitle">Rango: <span id="rank-label">Iniciado</span></span>
+    </div>
+    <div class="currency-strip">
+      <div class="currency susurros"><span class="icon">🕯️</span><span class="val" id="cur-susurros">0</span><span class="rate" id="cur-rate"></span></div>
+      <div class="currency shards" id="cur-shards-wrap"><span class="icon">🔮</span><span class="val" id="cur-shards">0</span></div>
+      <div class="currency stardust" id="cur-stardust-wrap" style="display:none"><span class="icon">✨</span><span class="val" id="cur-stardust">0</span></div>
+    </div>
+    <div class="cordura-bar-wrap"><div class="cordura-bar-fill" id="cordura-fill" style="width:0%"></div></div>
+    <div class="cordura-label"><span>Cordura</span><span id="cordura-text">0 / 100</span></div>
+  </header>
+
+  <nav id="tabs">
+    <button data-tab="templo" class="active">⛩ Templo</button>
+    <button data-tab="culto">🕸 Culto</button>
+    <button data-tab="bestiario">🐾 Bestiario</button>
+    <button data-tab="ritos">🌀 Ritos</button>
+    <button data-tab="logros">📜 Logros</button>
+    <button data-tab="ascension">🌌 Más Allá</button>
+  </nav>
+
+  <main>
+    <!-- TEMPLO -->
+    <section class="tab-panel active" id="tab-templo">
+      <div class="eye-zone">
+        <div class="eye-outer" id="eye-btn">
+          <div class="tentacle t1"></div><div class="tentacle t2"></div><div class="tentacle t3"></div>
+          <div class="eye-iris"></div>
+        </div>
+        <div class="eye-caption">Contempla el Ojo que Todo lo Ve. Cada mirada arranca susurros de la nada.</div>
+        <div class="click-power-label">+<span id="click-power">1</span> susurros por toque</div>
+      </div>
+      <div class="section-title">Construcciones del culto</div>
+      <div id="buildings-list"></div>
+    </section>
+
+    <!-- CULTO / ASSISTANTS -->
+    <section class="tab-panel" id="tab-culto">
+      <div class="section-title">Asistentes del Culto</div>
+      <div class="slots-summary">Ranuras activas: <span id="assist-slots-used">0</span> / <span id="assist-slots-max">1</span> — elige sabiamente a quienes susurran a tu lado.</div>
+      <div class="entity-grid" id="assistants-list"></div>
+      <div class="synergy-box" id="synergy-box"></div>
+    </section>
+
+    <!-- BESTIARIO / PETS -->
+    <section class="tab-panel" id="tab-bestiario">
+      <div class="section-title">Bestiario</div>
+      <div class="slots-summary">Compañeros activos: <span id="pet-slots-used">0</span> / <span id="pet-slots-max">1</span> — aliméntalos con Cordura para fortalecerlos.</div>
+      <div class="entity-grid" id="pets-list"></div>
+    </section>
+
+    <!-- RITOS / SKILL TREE -->
+    <section class="tab-panel" id="tab-ritos">
+      <div class="section-title">Árbol de Ritos Prohibidos</div>
+      <p style="font-size:.76rem;color:var(--parchment-dim);margin-bottom:10px;">Puntos de Ritual disponibles: <strong class="mono" id="skill-points" style="color:var(--gold-bright)">0</strong> — se obtienen al Despertar y con ciertos logros.</p>
+      <div id="skill-tree"></div>
+    </section>
+
+    <!-- LOGROS -->
+    <section class="tab-panel" id="tab-logros">
+      <div class="section-title">Logros del Cultista</div>
+      <p style="font-size:.74rem;color:var(--parchment-dim);margin-bottom:10px;">Bono permanente por logros: <strong class="mono" id="ach-bonus" style="color:var(--sickly-bright)">+0%</strong> a la producción.</p>
+      <div class="ach-grid" id="ach-list"></div>
+    </section>
+
+    <!-- ASCENSION / PRESTIGE -->
+    <section class="tab-panel" id="tab-ascension">
+      <div class="prestige-panel">
+        <h2 class="display">🔮 El Despertar</h2>
+        <p>Abandona este ciclo de vigilia. Tus construcciones y susurros se disolverán en el Vacío, pero conservarás <strong>Fragmentos de Locura</strong> — un poder que impregna cada Despertar futuro para siempre.</p>
+        <div class="big-num" id="prestige-preview">+0 🔮</div>
+        <button class="action-btn gold" id="btn-prestige">Despertar</button>
+        <p style="margin-top:8px;font-size:.68rem;" id="prestige-req"></p>
+      </div>
+
+      <div class="prestige-panel star" id="ascension-panel" style="display:none">
+        <h2 class="display">✨ Ascensión Cósmica</h2>
+        <p>Trasciende el Despertar mismo. Todo se reinicia — incluso tus Ritos, tu Culto y tu Bestiario — a cambio de <strong>Polvo Estelar</strong>, que dobla tu poder para toda la eternidad que te queda por vivir.</p>
+        <div class="big-num" id="ascension-preview">+0 ✨</div>
+        <button class="action-btn star" id="btn-ascension">Ascender</button>
+        <p style="margin-top:8px;font-size:.68rem;" id="ascension-req"></p>
+      </div>
+
+      <div class="section-title">Estadísticas eternas</div>
+      <div class="card" id="eternal-stats" style="font-size:.78rem;line-height:1.9;"></div>
+    </section>
+  </main>
+
+  <div class="bottom-bar">
+    <button id="btn-save">Guardar</button>
+    <button id="btn-export">Exportar</button>
+    <button id="btn-import">Importar</button>
+    <button id="btn-reset">Reiniciar todo</button>
+  </div>
+</div>
+
+<div id="omen">👁</div>
+<div id="toast-wrap"></div>
+
+<div class="modal-bg" id="modal-bg">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* =========================================================
+   DATA
+   ========================================================= */
+
+const BUILDINGS = [
+  {id:'altar',   name:'Altar de Huesos',              icon:'💀', baseCost:15,      baseProd:0.15,  desc:'Un montículo de huesos que gotea susurros.'},
+  {id:'circulo', name:'Círculo de Sangre',            icon:'🩸', baseCost:120,     baseProd:1.2,   desc:'Sangre vieja que aún recuerda el ritual.'},
+  {id:'biblio',  name:'Biblioteca Prohibida',         icon:'📖', baseCost:1300,    baseProd:9,     desc:'Tomos que se leen solos en la oscuridad.'},
+  {id:'cripta',  name:'Cripta Sumergida',             icon:'⚰️', baseCost:14000,   baseProd:52,    desc:'El agua salada conserva secretos antiguos.'},
+  {id:'torre',   name:'Torre del Vigía Ciego',        icon:'🗼', baseCost:150000,  baseProd:290,   desc:'Vigila sin ojos lo que no debería verse.'},
+  {id:'observ',  name:'Observatorio de Estrellas Erróneas', icon:'🔭', baseCost:1.6e6, baseProd:1600, desc:'Mapea constelaciones que no deberían existir.'},
+  {id:'puerta',  name:'Puerta a Yuggoth',             icon:'🚪', baseCost:2.2e7,   baseProd:8600,  desc:'Un umbral frío hacia un mundo helado y oscuro.'},
+  {id:'rlyeh',   name:"Ciudad de R'lyeh Emergente",   icon:'🏛️', baseCost:3.6e8,   baseProd:48000, desc:'Geometría no euclidiana que susurra su propio nombre.'},
+  {id:'portal',  name:'Portal al Vacío Exterior',     icon:'🌀', baseCost:5.5e9,   baseProd:280000,desc:'Un agujero en la realidad que respira.'},
+  {id:'santuario', name:'Santuario del Durmiente',    icon:'🐙', baseCost:8e10,    baseProd:1.7e6, desc:'Donde Él sueña, y soñando, produce.'},
+];
+const COST_MULT = 1.15;
+const UPGRADE_MILESTONES = [25,50,100,200,400];
+
+const PETS = [
+  {id:'gato',    name:'Gato Negro de Ulthar',   icon:'🐈‍⬛', stat:'click',   perLevel:0.06, desc:'Ve lo que acecha en las sombras. Aumenta el poder de cada toque.', baseCost:500, feedBase:8},
+  {id:'byakhee', name:'Cría de Byakhee',        icon:'🦇', stat:'prod',    perLevel:0.04, desc:'Aletea entre las estrellas, acelerando toda producción.', baseCost:5000, feedBase:14},
+  {id:'shoggoth',name:'Shoggoth Enano',         icon:'🟣', stat:'cost',    perLevel:0.02, desc:'"¡Tekeli-li!" — reduce el coste de nuevas construcciones.', baseCost:40000, feedBase:22},
+  {id:'cuervo',  name:'Cuervo del Vacío',       icon:'🐦‍⬛', stat:'cordura', perLevel:0.08, desc:'Trae fragmentos de calma desde lugares imposibles. Acelera la regeneración de Cordura.', baseCost:20000, feedBase:10},
+  {id:'rata',    name:'Rata de Innsmouth',      icon:'🐀', stat:'offline', perLevel:0.05, desc:'Sigue royendo el mundo aunque tú duermas. Mejora el progreso fuera de línea.', baseCost:90000, feedBase:16},
+  {id:'larva',   name:'Larva de las Profundidades', icon:'🪱', stat:'shard', perLevel:0.02, desc:'Se alimenta del tiempo mismo. Aumenta los Fragmentos de Locura obtenidos.', baseCost:250000, feedBase:26},
+];
+
+const ASSISTANTS = [
+  {id:'bibliotecario', name:'El Bibliotecario Ciego',   icon:'👤', stat:'prod',    amount:0.20, hireCost:1,  desc:'Lee lo ilegible. Mientras esté activo, aumenta toda la producción un 20%.'},
+  {id:'sacerdotisa',   name:'La Sacerdotisa Roja',      icon:'🧕', stat:'cordura', amount:0.50, hireCost:2,  extra:{stat:'shard',amount:0.05}, desc:'Guía la vigilia con calma. +50% regeneración de Cordura y +5% Fragmentos de Locura.'},
+  {id:'nigromante',    name:'El Nigromante Silencioso', icon:'🧙', stat:'autoclick', amount:1, hireCost:3, desc:'Toca el Ojo por ti, una vez cada segundo, sin descanso ni piedad.'},
+  {id:'cartografo',    name:'El Cartógrafo del Vacío',  icon:'🗺️', stat:'cost',    amount:0.12, hireCost:5,  desc:'Traza atajos imposibles. Reduce el coste de todas las construcciones un 12%.'},
+  {id:'ermitano',      name:'La Ermitaña de la Montaña Negra', icon:'🧓', stat:'offline', amount:0.60, hireCost:8, desc:'Vigila cuando tú no puedes. +60% al progreso fuera de línea.'},
+  {id:'bruja',         name:'La Bruja de los Susurros', icon:'🧝', stat:'omen',    amount:0.5, hireCost:13, desc:'Llama a los presagios con más frecuencia y los hace durar más.'},
+];
+
+const SYNERGIES = [
+  {ids:['bibliotecario','nigromante'], name:'Ritual Silencioso', desc:'La lectura y el gesto se funden.', bonus:{prod:0.10}},
+  {ids:['sacerdotisa','ermitano'],     name:'Vigilia Eterna',     desc:'La calma vela incluso en tu ausencia.', bonus:{cordura:0.15,offline:0.15}},
+  {ids:['bibliotecario','sacerdotisa','cartografo'], name:'Trinidad del Culto', desc:'Tres voces, un solo susurro perfecto.', bonus:{prod:0.30}},
+  {ids:['nigromante','bruja'],         name:'Presagio Inquieto',  desc:'Cada toque automático atrae a los espíritus.', bonus:{omen:0.25}},
+];
+
+// Skill tree: id, name, desc, branch, cost (skill points), requires[], icon
+const SKILLS = [
+  // Producción
+  {id:'prod1', branch:'prod', name:'Susurros Amplificados', icon:'📢', cost:1, requires:[], desc:'+10% a toda la producción de susurros.'},
+  {id:'prod2', branch:'prod', name:'Coro del Abismo',        icon:'🎼', cost:2, requires:['prod1'], desc:'+15% adicional a la producción.'},
+  {id:'prod3', branch:'prod', name:'Mirada que Rasga',       icon:'👁️', cost:2, requires:['prod1'], desc:'Duplica el poder de cada toque del Ojo.'},
+  {id:'prod4', branch:'prod', name:'Eco Infinito',           icon:'♾️', cost:4, requires:['prod2','prod3'], desc:'+25% a la producción y extiende el progreso fuera de línea a 4 horas.'},
+  // Ritual (cordura / prestigio)
+  {id:'rit1', branch:'rit', name:'Respiración Profunda',   icon:'🌬️', cost:1, requires:[], desc:'+100% a la regeneración de Cordura.'},
+  {id:'rit2', branch:'rit', name:'Memoria del Vacío',      icon:'🧠', cost:2, requires:['rit1'], desc:'+10% Fragmentos de Locura al Despertar.'},
+  {id:'rit3', branch:'rit', name:'Umbral Descendido',      icon:'⬇️', cost:2, requires:['rit1'], desc:'-15% al requisito de susurros para Despertar.'},
+  {id:'rit4', branch:'rit', name:'Portal Entreabierto',    icon:'🌌', cost:4, requires:['rit2','rit3'], desc:'+25% Fragmentos de Locura y desbloquea la Ascensión Cósmica.'},
+  // Bestias
+  {id:'bes1', branch:'bes', name:'Vínculo Animal',   icon:'🐾', cost:1, requires:[], desc:'+1 ranura de compañero activo.'},
+  {id:'bes2', branch:'bes', name:'Instinto Salvaje', icon:'🌙', cost:2, requires:['bes1'], desc:'+50% al efecto de todos los compañeros activos.'},
+  {id:'bes3', branch:'bes', name:'Sangre Compartida',icon:'🩹', cost:2, requires:['bes2'], desc:'-30% al coste de alimentar compañeros.'},
+  {id:'bes4', branch:'bes', name:'Jauría del Abismo', icon:'🐺', cost:4, requires:['bes2','bes3'], desc:'+1 ranura de compañero activo (máx. 3).'},
+  // Culto
+  {id:'cul1', branch:'cul', name:'Primer Discípulo',  icon:'🕯️', cost:1, requires:[], desc:'+1 ranura de asistente activo.'},
+  {id:'cul2', branch:'cul', name:'Voto de Sangre',     icon:'🗡️', cost:2, requires:['cul1'], desc:'+50% al efecto de todos los asistentes activos.'},
+  {id:'cul3', branch:'cul', name:'Círculo Completo',   icon:'⭕', cost:2, requires:['cul2'], desc:'+1 ranura de asistente activo (máx. 3).'},
+  {id:'cul4', branch:'cul', name:'Pacto Sellado',      icon:'📜', cost:4, requires:['cul2','cul3'], desc:'-25% al coste de reclutar nuevos asistentes.'},
+  // Ascensión (endgame, requiere rit4)
+  {id:'asc1', branch:'asc', name:'Grieta en la Bóveda', icon:'🕳️', cost:3, requires:['rit4'], desc:'Habilita formalmente la Ascensión Cósmica.'},
+  {id:'asc2', branch:'asc', name:'Polvo Bendito',        icon:'✨', cost:3, requires:['asc1'], desc:'Cada punto de Polvo Estelar vale un 25% más.'},
+  {id:'asc3', branch:'asc', name:'Bitácora Eterna',      icon:'📚', cost:3, requires:['asc1'], desc:'Los logros otorgan un 50% más de bonificación permanente.'},
+  {id:'asc4', branch:'asc', name:'El Sueño que No Termina', icon:'🌠', cost:6, requires:['asc2','asc3'], desc:'Multiplica toda tu producción por (1 + Polvo Estelar × 0.05) — el don final.'},
+];
+const BRANCH_NAMES = {prod:'Producción', rit:'Ritual', bes:'Bestias', cul:'Culto', asc:'Ascensión (post-Despertar)'};
+
+const ACHIEVEMENTS = [
+  {id:'a1', name:'Primer Susurro', desc:'Genera tus primeros susurros.', icon:'🕯️', check:s=>s.totalEarned>=1, bonus:0.01},
+  {id:'a2', name:'Fundador', desc:'Compra tu primera construcción.', icon:'🏗️', check:s=>totalBuildingsOwned()>=1, bonus:0.01},
+  {id:'a3', name:'Pequeño Culto', desc:'Posee 50 construcciones en total.', icon:'⛪', check:s=>totalBuildingsOwned()>=50, bonus:0.02},
+  {id:'a4', name:'Gran Congregación', desc:'Posee 250 construcciones en total.', icon:'🏰', check:s=>totalBuildingsOwned()>=250, bonus:0.03},
+  {id:'a5', name:'Dedo Inquieto', desc:'Toca el Ojo 100 veces.', icon:'👆', check:s=>s.totalClicks>=100, bonus:0.01},
+  {id:'a6', name:'Poseído', desc:'Toca el Ojo 1000 veces.', icon:'✋', check:s=>s.totalClicks>=1000, bonus:0.02},
+  {id:'a7', name:'Mil Susurros', desc:'Acumula 1.000 susurros en total.', icon:'💰', check:s=>s.totalEarned>=1e3, bonus:0.01},
+  {id:'a8', name:'Un Millón de Voces', desc:'Acumula 1.000.000 de susurros en total.', icon:'💎', check:s=>s.totalEarned>=1e6, bonus:0.02},
+  {id:'a9', name:'Billones en la Oscuridad', desc:'Acumula 1.000.000.000 de susurros en total.', icon:'🌑', check:s=>s.totalEarned>=1e9, bonus:0.03},
+  {id:'a10', name:'Cordura Plena', desc:'Alcanza 100 de Cordura.', icon:'🧘', check:s=>s.cordura>=100, bonus:0.01},
+  {id:'a11', name:'Coleccionista de Bestias', desc:'Posee los 6 compañeros del Bestiario.', icon:'🐾', check:s=>PETS.every(p=>petLevel(p.id)>0), bonus:0.03},
+  {id:'a12', name:'Círculo Completo', desc:'Recluta a los 6 asistentes del Culto.', icon:'🕸️', check:s=>ASSISTANTS.every(a=>hasAssistant(a.id)), bonus:0.03},
+  {id:'a13', name:'El Primer Despertar', desc:'Realiza tu primer Despertar.', icon:'🔮', check:s=>s.prestigeCount>=1, bonus:0.02},
+  {id:'a14', name:'Ciclo Eterno', desc:'Despierta 10 veces.', icon:'🌀', check:s=>s.prestigeCount>=10, bonus:0.04},
+  {id:'a15', name:'Panteón Completo', desc:'Posee al menos una de cada construcción.', icon:'🏛️', check:s=>BUILDINGS.every(b=>s.buildings[b.id].owned>=1), bonus:0.03},
+  {id:'a16', name:'Arquitecto del Abismo', desc:'Posee 100 de la construcción más avanzada disponible.', icon:'🐙', check:s=>s.buildings.santuario.owned>=100, bonus:0.05},
+  {id:'a17', name:'Sinergia Encontrada', desc:'Activa alguna sinergia entre asistentes.', icon:'🔗', check:s=>activeSynergies().length>=1, bonus:0.02},
+  {id:'a18', name:'Más Allá del Velo', desc:'Realiza tu primera Ascensión Cósmica.', icon:'✨', check:s=>s.ascensionCount>=1, bonus:0.05},
+];
+
+const RANKS = [
+  {min:0,   name:'Iniciado'},
+  {min:1e3, name:'Susurrante'},
+  {min:1e6, name:'Cultista'},
+  {min:1e9, name:'Sumo Sacerdote'},
+  {min:1e12,name:'Portador del Signo'},
+  {min:1e15,name:'Heraldo del Vacío'},
+  {min:1e18,name:'Voz de los Antiguos'},
+];
+
+/* =========================================================
+   STATE
+   ========================================================= */
+function freshState(){
+  const buildings={}; BUILDINGS.forEach(b=>buildings[b.id]={owned:0, upgrades:{}});
+  const pets={}; PETS.forEach(p=>pets[p.id]={level:0, active:false});
+  const assistants={}; ASSISTANTS.forEach(a=>assistants[a.id]={hired:false, active:false});
+  return {
+    susurros:0, totalEarned:0, cordura:0,
+    shards:0, stardust:0,
+    buildings, pets, assistants,
+    skills:{}, skillPoints:0,
+    achievements:{},
+    prestigeCount:0, ascensionCount:0,
+    totalClicks:0, totalLifetimeEarned:0,
+    petSlotBase:1, assistSlotBase:1,
+    buffUntil:0, buffMult:1,
+    nextOmenAt:0,
+    lastSave:Date.now(), lastTick:Date.now(),
+    createdAt:Date.now(),
+  };
+}
+let state = freshState();
+
+/* =========================================================
+   UTIL
+   ========================================================= */
+function fmt(n){
+  if(n===undefined||n===null||isNaN(n)) return '0';
+  const neg = n<0; n=Math.abs(n);
+  if(n<1000) return (neg?'-':'')+(Number.isInteger(n)?n:n.toFixed(1));
+  const units=['K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc','UDc','DDc','TDc','QaDc','QiDc'];
+  let u=-1;
+  while(n>=1000 && u<units.length-1){n/=1000;u++;}
+  return (neg?'-':'')+n.toFixed(2)+units[u];
+}
+function fmtRate(n){ return fmt(n)+'/s'; }
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function toast(msg){
+  const wrap=document.getElementById('toast-wrap');
+  const el=document.createElement('div'); el.className='toast'; el.textContent=msg;
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(),4000);
+}
+function petLevel(id){ return state.pets[id]?state.pets[id].level:0; }
+function hasAssistant(id){ return state.assistants[id]?state.assistants[id].hired:false; }
+function totalBuildingsOwned(){ let t=0; BUILDINGS.forEach(b=>t+=state.buildings[b.id].owned); return t; }
+
+/* =========================================================
+   CALC — costs, production, bonuses
+   ========================================================= */
+function buildingCost(b){
+  const owned = state.buildings[b.id].owned;
+  let cost = b.baseCost * Math.pow(COST_MULT, owned);
+  cost *= (1 - costReductionTotal());
+  return Math.max(1, Math.ceil(cost));
+}
+function costReductionTotal(){
+  let r=0;
+  r += petBonusSum('cost');
+  if(hasAssistant('cartografo') && state.assistants.cartografo.active) r += assistantEffectAmount('cartografo');
+  if(state.skills.cul4) r += 0; // cul4 affects hire cost, not building cost
+  return clamp(r,0,0.85);
+}
+function upgradeCost(b,milestone){
+  return Math.ceil(b.baseCost * Math.pow(COST_MULT, milestone) * 12);
+}
+function buildingUpgradeMult(b){
+  const st = state.buildings[b.id];
+  let mult=1;
+  UPGRADE_MILESTONES.forEach(m=>{ if(st.upgrades[m]) mult*=2; });
+  return mult;
+}
+function buildingProduction(b){
+  const st = state.buildings[b.id];
+  if(st.owned<=0) return 0;
+  return b.baseProd * st.owned * buildingUpgradeMult(b);
+}
+function petBonusSum(stat){
+  let sum=0;
+  PETS.forEach(p=>{
+    const st = state.pets[p.id];
+    if(st.active && p.stat===stat){ sum += p.perLevel*st.level; }
+  });
+  let mult = state.skills.bes2 ? 1.5 : 1;
+  return sum*mult;
+}
+function assistantEffectAmount(id){
+  const a = ASSISTANTS.find(x=>x.id===id);
+  let mult = state.skills.cul2 ? 1.5 : 1;
+  return a.amount*mult;
+}
+function assistantBonusSum(stat){
+  let sum=0;
+  ASSISTANTS.forEach(a=>{
+    const st = state.assistants[a.id];
+    if(st.active && st.hired){
+      if(a.stat===stat) sum += assistantEffectAmount(a.id);
+      if(a.extra && a.extra.stat===stat) sum += a.extra.amount*(state.skills.cul2?1.5:1);
+    }
+  });
+  return sum;
+}
+function activeSynergies(){
+  const activeIds = ASSISTANTS.filter(a=>{
+    const st=state.assistants[a.id]; return st.hired && st.active;
+  }).map(a=>a.id);
+  return SYNERGIES.filter(s=> s.ids.every(id=>activeIds.includes(id)));
+}
+function synergyBonusSum(stat){
+  let sum=0;
+  activeSynergies().forEach(s=>{ if(s.bonus[stat]) sum+=s.bonus[stat]; });
+  return sum;
+}
+function achievementBonusTotal(){
+  let sum=0;
+  ACHIEVEMENTS.forEach(a=>{ if(state.achievements[a.id]) sum+=a.bonus; });
+  if(state.skills.asc3) sum*=1.5;
+  return sum;
+}
+function skillProdBonus(){
+  let m=1;
+  if(state.skills.prod1) m*=1.10;
+  if(state.skills.prod2) m*=1.15;
+  if(state.skills.prod4) m*=1.25;
+  return m;
+}
+function globalMultiplier(){
+  let mult=1;
+  mult *= 1 + state.shards*0.02;                        // prestige
+  mult *= skillProdBonus();                              // skills
+  mult *= 1 + petBonusSum('prod');                        // pets
+  mult *= 1 + assistantBonusSum('prod');                  // assistants
+  mult *= 1 + synergyBonusSum('prod');                     // synergies
+  mult *= 1 + achievementBonusTotal();                     // achievements
+  mult *= 1 + state.stardust*0.05;                         // ascension stardust
+  if(state.skills.asc4) mult *= 1 + state.stardust*0.05;   // final gift stacks again
+  if(Date.now() < state.buffUntil) mult *= state.buffMult; // temp omen buff
+  return mult;
+}
+function totalProduction(){
+  let base=0;
+  BUILDINGS.forEach(b=> base += buildingProduction(b));
+  return base * globalMultiplier();
+}
+function getClickPower(){
+  let base = 1;
+  if(state.skills.prod3) base*=2;
+  base *= (1+petBonusSum('click'));
+  base *= globalMultiplier();
+  return base;
+}
+function corduraRegenPerSec(){
+  let base = 0.12;
+  if(state.skills.rit1) base*=2;
+  base *= (1+petBonusSum('cordura'));
+  base *= (1+assistantBonusSum('cordura'));
+  base *= (1+synergyBonusSum('cordura'));
+  return base;
+}
+function petSlotMax(){
+  let m = state.petSlotBase;
+  if(state.skills.bes1) m++;
+  if(state.skills.bes4) m++;
+  return Math.min(3,m);
+}
+function assistSlotMax(){
+  let m = state.assistSlotBase;
+  if(state.skills.cul1) m++;
+  if(state.skills.cul3) m++;
+  return Math.min(3,m);
+}
+function offlineMultBonus(){
+  let m=1;
+  m += petBonusSum('offline');
+  m += assistantBonusSum('offline');
+  m += synergyBonusSum('offline');
+  return m;
+}
+function offlineCapSeconds(){
+  return state.skills.prod4 ? 4*3600 : 3600;
+}
+function omenIntervalMult(){
+  let m=1;
+  if(assistantBonusSum('omen')) m -= Math.min(0.4, assistantBonusSum('omen'));
+  return m;
+}
+function omenDurationMult(){
+  let m=1;
+  if(hasAssistant('bruja') && state.assistants.bruja.active) m += assistantEffectAmount('bruja');
+  return m;
+}
+
+function currentRank(){
+  let r = RANKS[0];
+  RANKS.forEach(rk=>{ if(state.totalEarned>=rk.min) r=rk; });
+  return r.name;
+}
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+function addSusurros(amt){
+  state.susurros += amt; state.totalEarned += amt; state.totalLifetimeEarned += amt;
+}
+function doClick(ev){
+  const amt = getClickPower();
+  addSusurros(amt);
+  state.totalClicks++;
+  spawnFloat(ev, '+'+fmt(amt));
+}
+function spawnFloat(ev, text){
+  const el=document.createElement('div'); el.className='float-text'; el.textContent=text;
+  let x=window.innerWidth/2, y=200;
+  if(ev && ev.touches && ev.touches[0]){ x=ev.touches[0].clientX; y=ev.touches[0].clientY; }
+  else if(ev && ev.clientX){ x=ev.clientX; y=ev.clientY; }
+  el.style.left=(x-10)+'px'; el.style.top=(y-10)+'px';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1150);
+}
+function buyBuilding(id, qty){
+  const b = BUILDINGS.find(x=>x.id===id);
+  qty = qty||1;
+  for(let i=0;i<qty;i++){
+    const cost = buildingCost(b);
+    if(state.susurros < cost) break;
+    state.susurros -= cost;
+    state.buildings[id].owned++;
+  }
+  renderTemplo();
+}
+function buyUpgrade(id, milestone){
+  const b = BUILDINGS.find(x=>x.id===id);
+  const cost = upgradeCost(b, milestone);
+  if(state.susurros<cost) return;
+  if(state.buildings[id].owned < milestone) return;
+  state.susurros -= cost;
+  state.buildings[id].upgrades[milestone]=true;
+  toast('Mejora adquirida: '+b.name);
+  renderTemplo();
+}
+function hirePet(id){
+  const p = PETS.find(x=>x.id===id);
+  const st = state.pets[id];
+  if(st.level>0) return;
+  if(state.susurros < p.baseCost) return;
+  state.susurros -= p.baseCost;
+  st.level=1;
+  toast('Nuevo compañero: '+p.name);
+  renderBestiario(); renderAll();
+}
+function feedPet(id){
+  const p = PETS.find(x=>x.id===id);
+  const st = state.pets[id];
+  if(st.level<=0) return;
+  let cost = Math.ceil(p.feedBase * Math.pow(1.35, st.level));
+  if(state.skills.bes3) cost = Math.ceil(cost*0.7);
+  if(state.cordura < cost) return;
+  state.cordura -= cost;
+  st.level++;
+  renderBestiario(); renderAll();
+}
+function togglePetActive(id){
+  const st = state.pets[id];
+  if(st.level<=0) return;
+  if(!st.active){
+    const activeCount = PETS.filter(p=>state.pets[p.id].active).length;
+    if(activeCount>=petSlotMax()){ toast('No hay ranuras libres de compañero.'); return; }
+  }
+  st.active=!st.active;
+  renderBestiario(); renderAll();
+}
+function hireAssistant(id){
+  const a = ASSISTANTS.find(x=>x.id===id);
+  const st = state.assistants[id];
+  if(st.hired) return;
+  let cost = a.hireCost * (state.skills.cul4?0.75:1);
+  cost = Math.ceil(cost*100)/100;
+  if(state.shards < cost) return;
+  state.shards -= cost;
+  st.hired=true;
+  toast('Has reclutado a '+a.name);
+  renderCulto(); renderAll();
+}
+function toggleAssistantActive(id){
+  const st = state.assistants[id];
+  if(!st.hired) return;
+  if(!st.active){
+    const activeCount = ASSISTANTS.filter(a=>state.assistants[a.id].active).length;
+    if(activeCount>=assistSlotMax()){ toast('No hay ranuras libres de asistente.'); return; }
+  }
+  st.active=!st.active;
+  renderCulto(); renderAll();
+}
+function skillMeetsReq(sk){
+  return sk.requires.every(r=>state.skills[r]);
+}
+function buySkill(id){
+  const sk = SKILLS.find(x=>x.id===id);
+  if(state.skills[id]) return;
+  if(!skillMeetsReq(sk)) return;
+  if(state.skillPoints < sk.cost) return;
+  state.skillPoints -= sk.cost;
+  state.skills[id]=true;
+  toast('Rito aprendido: '+sk.name);
+  renderRitos(); renderAll();
+}
+
+/* prestige thresholds & gains */
+function prestigeThreshold(){
+  let base = 1e4 * Math.pow(3.2, state.prestigeCount);
+  if(state.skills.rit3) base*=0.85;
+  return base;
+}
+function prestigeShardGain(){
+  const t = state.totalEarned;
+  const req = prestigeThreshold();
+  if(t < req) return 0;
+  let gain = Math.floor(Math.pow(t/req, 0.5) * (2+state.prestigeCount*0.15));
+  let mult=1;
+  if(state.skills.rit2) mult*=1.10;
+  if(state.skills.rit4) mult*=1.25;
+  mult *= (1+petBonusSum('shard'));
+  mult *= (1+assistantBonusSum('shard'));
+  return Math.max(state.totalEarned>=req?1:0, Math.floor(gain*mult));
+}
+function doPrestige(){
+  const gain = prestigeShardGain();
+  if(gain<=0) return;
+  state.shards += gain;
+  state.prestigeCount++;
+  state.skillPoints += 1;
+  // reset run-local stuff
+  state.susurros=0; state.totalEarned=0; state.cordura=0;
+  BUILDINGS.forEach(b=>{ state.buildings[b.id].owned=0; state.buildings[b.id].upgrades={}; });
+  toast('Has Despertado. +'+gain+' Fragmentos de Locura.');
+  renderAll();
+}
+function ascensionThreshold(){ return 400; }
+function ascensionStardustGain(){
+  if(state.shards < ascensionThreshold()) return 0;
+  let gain = Math.floor(Math.sqrt(state.shards/50));
+  if(state.skills.asc2) gain = Math.floor(gain*1.25);
+  return gain;
+}
+function doAscension(){
+  if(!state.skills.asc1) return;
+  const gain = ascensionStardustGain();
+  if(gain<=0) return;
+  state.stardust += gain;
+  state.ascensionCount++;
+  // full reset except eternal stats, achievements, stardust
+  const preserved = {
+    achievements: state.achievements,
+    stardust: state.stardust,
+    ascensionCount: state.ascensionCount,
+    totalClicks: state.totalClicks,
+    totalLifetimeEarned: state.totalLifetimeEarned,
+  };
+  state = Object.assign(freshState(), preserved);
+  toast('Has Ascendido más allá del velo. +'+gain+' Polvo Estelar.');
+  renderAll();
+}
+
+/* omen / buff events */
+function scheduleOmen(){
+  const base = 45+Math.random()*60; // seconds
+  const mult = omenIntervalMult();
+  state.nextOmenAt = Date.now() + base*1000*mult;
+}
+function maybeSpawnOmen(){
+  if(Date.now() < state.nextOmenAt) return;
+  const omen = document.getElementById('omen');
+  omen.style.display='flex';
+  const maxX = window.innerWidth-60, maxY = Math.min(window.innerHeight-120, 560);
+  omen.style.left = (40+Math.random()*(maxX-40))+'px';
+  omen.style.top = (110+Math.random()*(maxY-110))+'px';
+  state._omenLive = true;
+  state.nextOmenAt = Infinity; // won't respawn until collected/expired
+  clearTimeout(state._omenTimeout);
+  state._omenTimeout = setTimeout(()=>{ hideOmen(); scheduleOmen(); }, 9000);
+}
+function hideOmen(){
+  document.getElementById('omen').style.display='none';
+  state._omenLive=false;
+}
+function collectOmen(){
+  if(!state._omenLive) return;
+  clearTimeout(state._omenTimeout);
+  hideOmen();
+  const roll = Math.random();
+  const dur = 25000*omenDurationMult();
+  if(roll<0.5){
+    state.buffUntil = Date.now()+dur;
+    state.buffMult = 3;
+    toast('¡Un presagio! x3 producción durante '+Math.round(dur/1000)+'s.');
+  } else if(roll<0.8){
+    const bonus = totalProduction()*45;
+    addSusurros(bonus);
+    toast('El vacío te regala '+fmt(bonus)+' susurros.');
+  } else {
+    state.cordura = Math.min(100, state.cordura+25);
+    toast('Tu mente se serena. +25 Cordura.');
+  }
+  scheduleOmen();
+  renderAll();
+}
+
+/* achievements check */
+function checkAchievements(){
+  let any=false;
+  ACHIEVEMENTS.forEach(a=>{
+    if(!state.achievements[a.id] && a.check(state)){
+      state.achievements[a.id]=true; any=true;
+      toast('Logro desbloqueado: '+a.name);
+    }
+  });
+  if(any) renderLogros();
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function renderHeader(){
+  document.getElementById('cur-susurros').textContent = fmt(state.susurros);
+  document.getElementById('cur-rate').textContent = '('+fmtRate(totalProduction())+')';
+  document.getElementById('cur-shards').textContent = fmt(state.shards);
+  document.getElementById('rank-label').textContent = currentRank();
+  document.getElementById('click-power').textContent = fmt(getClickPower());
+  const cf = document.getElementById('cordura-fill');
+  cf.style.width = clamp(state.cordura,0,100)+'%';
+  document.getElementById('cordura-text').textContent = Math.floor(state.cordura)+' / 100';
+  const stardustWrap = document.getElementById('cur-stardust-wrap');
+  if(state.stardust>0 || state.ascensionCount>0){
+    stardustWrap.style.display='flex';
+    document.getElementById('cur-stardust').textContent = fmt(state.stardust);
+  }
+}
+function renderTemplo(){
+  const wrap = document.getElementById('buildings-list');
+  wrap.innerHTML='';
+  BUILDINGS.forEach(b=>{
+    const st = state.buildings[b.id];
+    const cost = buildingCost(b);
+    const afford = state.susurros>=cost;
+    const card = document.createElement('div');
+    card.className = 'card'+(afford?' affordable':'');
+    const prod = buildingProduction(b);
+    let upgradesHtml='';
+    UPGRADE_MILESTONES.forEach(m=>{
+      if(st.owned>=Math.floor(m*0.5)){
+        const done = !!st.upgrades[m];
+        const ucost = upgradeCost(b,m);
+        const can = st.owned>=m && !done;
+        upgradesHtml += `<span class="upgrade-chip ${done?'done':''}" data-act="upg" data-id="${b.id}" data-m="${m}" style="${can?'':'opacity:.5;cursor:default;'}">
+          ${done?'✓ x2 @ '+m: (st.owned>=m? 'x2 @ '+m+' ('+fmt(ucost)+')' : 'x2 @ '+m+' (bloqueado)')}
+        </span>`;
+      }
+    });
+    card.innerHTML = `
+      <div class="building-row">
+        <div class="building-icon">${b.icon}</div>
+        <div class="building-info">
+          <div class="name">${b.name}</div>
+          <div class="meta">${b.desc}</div>
+          <div class="owned-count">Posees: ${st.owned} — produce ${fmtRate(prod)}</div>
+          ${upgradesHtml?`<div>${upgradesHtml}</div>`:''}
+        </div>
+        <div class="building-buy">
+          <button class="buy-btn" data-act="buy" data-id="${b.id}" ${afford?'':'disabled'}>${fmt(cost)} 🕯️</button>
+        </div>
+      </div>`;
+    wrap.appendChild(card);
+  });
+}
+function renderCulto(){
+  const wrap = document.getElementById('assistants-list');
+  wrap.innerHTML='';
+  const activeCount = ASSISTANTS.filter(a=>state.assistants[a.id].active).length;
+  document.getElementById('assist-slots-used').textContent = activeCount;
+  document.getElementById('assist-slots-max').textContent = assistSlotMax();
+  ASSISTANTS.forEach(a=>{
+    const st = state.assistants[a.id];
+    const div = document.createElement('div');
+    div.className='entity-card'+(st.active?' owned-active':'');
+    let actionHtml='';
+    if(!st.hired){
+      let cost = a.hireCost*(state.skills.cul4?0.75:1); cost=Math.ceil(cost*100)/100;
+      const can = state.shards>=cost;
+      actionHtml = `<button class="small-btn" data-act="hire-assist" data-id="${a.id}" ${can?'':'disabled'}>Reclutar — ${fmt(cost)} 🔮</button>`;
+    } else {
+      actionHtml = `<button class="slot-toggle ${st.active?'on':''}" data-act="toggle-assist" data-id="${a.id}">${st.active?'Activo ✓':'Activar'}</button>`;
+    }
+    div.innerHTML = `
+      <div class="entity-head"><span class="ic">${a.icon}</span><span class="nm">${a.name}</span></div>
+      <div class="entity-desc">${a.desc}</div>
+      <div class="entity-actions">${actionHtml}</div>`;
+    wrap.appendChild(div);
+  });
+  const syn = activeSynergies();
+  const box = document.getElementById('synergy-box');
+  if(syn.length){
+    box.innerHTML = syn.map(s=>`<div class="syn-title">🔗 ${s.name}</div><div>${s.desc}</div>`).join('<br>');
+  } else {
+    box.innerHTML = 'No hay sinergias activas. Combina asistentes específicos para desbloquear efectos ocultos.';
+  }
+}
+function renderBestiario(){
+  const wrap = document.getElementById('pets-list');
+  wrap.innerHTML='';
+  const activeCount = PETS.filter(p=>state.pets[p.id].active).length;
+  document.getElementById('pet-slots-used').textContent = activeCount;
+  document.getElementById('pet-slots-max').textContent = petSlotMax();
+  PETS.forEach(p=>{
+    const st = state.pets[p.id];
+    const div = document.createElement('div');
+    div.className='entity-card'+(st.active?' owned-active':'');
+    let statLine='';
+    let actionHtml='';
+    if(st.level<=0){
+      const can = state.susurros>=p.baseCost;
+      actionHtml = `<button class="small-btn" data-act="hire-pet" data-id="${p.id}" ${can?'':'disabled'}>Atraer — ${fmt(p.baseCost)} 🕯️</button>`;
+    } else {
+      let cost = Math.ceil(p.feedBase*Math.pow(1.35,st.level)); if(state.skills.bes3) cost=Math.ceil(cost*0.7);
+      const canFeed = state.cordura>=cost;
+      const mult = state.skills.bes2?1.5:1;
+      statLine = `<div class="entity-stat">Nivel ${st.level} — bono actual: +${(p.perLevel*st.level*mult*100).toFixed(1)}%</div>`;
+      actionHtml = `
+        <button class="slot-toggle ${st.active?'on':''}" data-act="toggle-pet" data-id="${p.id}">${st.active?'Activo ✓':'Activar'}</button>
+        <button class="small-btn" data-act="feed-pet" data-id="${p.id}" ${canFeed?'':'disabled'}>Alimentar — ${cost} 🧠</button>`;
+    }
+    div.innerHTML = `
+      <div class="entity-head"><span class="ic">${p.icon}</span><span class="nm">${p.name}</span></div>
+      <div class="entity-desc">${p.desc}</div>
+      ${statLine}
+      <div class="entity-actions">${actionHtml}</div>`;
+    wrap.appendChild(div);
+  });
+}
+function renderRitos(){
+  document.getElementById('skill-points').textContent = state.skillPoints;
+  const wrap = document.getElementById('skill-tree');
+  wrap.innerHTML='';
+  ['prod','rit','bes','cul','asc'].forEach(branch=>{
+    if(branch==='asc' && !state.skills.rit4 && !Object.keys(state.skills).some(k=>k.startsWith('asc'))) return;
+    const nodes = SKILLS.filter(s=>s.branch===branch);
+    const section = document.createElement('div');
+    section.className='skill-branch';
+    let html = `<h3>${BRANCH_NAMES[branch]}</h3>`;
+    nodes.forEach(sk=>{
+      const owned = !!state.skills[sk.id];
+      const meets = skillMeetsReq(sk);
+      const can = !owned && meets && state.skillPoints>=sk.cost;
+      html += `<div class="skill-node ${owned?'owned':(meets?'':'locked')}">
+        <div class="ic">${sk.icon}</div>
+        <div class="body"><div class="nm">${sk.name}</div><div class="ds">${sk.desc}</div></div>
+        <button class="skill-btn" data-act="skill" data-id="${sk.id}" ${(owned||!can)?'disabled':''}>${owned?'Aprendido':'Coste '+sk.cost}</button>
+      </div>`;
+    });
+    section.innerHTML=html;
+    wrap.appendChild(section);
+  });
+}
+function renderLogros(){
+  const wrap = document.getElementById('ach-list');
+  wrap.innerHTML='';
+  ACHIEVEMENTS.forEach(a=>{
+    const done = !!state.achievements[a.id];
+    const row = document.createElement('div');
+    row.className='ach-row'+(done?' done':'');
+    row.innerHTML = `<div class="ic">${a.icon}</div><div><div class="nm">${a.name}</div><div class="ds">${a.desc} (+${(a.bonus*100).toFixed(0)}% producción)</div></div>`;
+    wrap.appendChild(row);
+  });
+  document.getElementById('ach-bonus').textContent = '+'+(achievementBonusTotal()*100).toFixed(1)+'%';
+}
+function renderAscension(){
+  const gain = prestigeShardGain();
+  document.getElementById('prestige-preview').textContent = '+'+fmt(gain)+' 🔮';
+  const req = prestigeThreshold();
+  const btn = document.getElementById('btn-prestige');
+  btn.disabled = gain<=0;
+  document.getElementById('prestige-req').textContent = state.totalEarned<req
+    ? `Necesitas ${fmt(req)} susurros en esta vigilia (llevas ${fmt(state.totalEarned)}).`
+    : `Listo para Despertar.`;
+
+  const ascPanel = document.getElementById('ascension-panel');
+  if(state.skills.asc1 || state.ascensionCount>0){
+    ascPanel.style.display='block';
+    const sgain = ascensionStardustGain();
+    document.getElementById('ascension-preview').textContent = '+'+fmt(sgain)+' ✨';
+    document.getElementById('btn-ascension').disabled = sgain<=0;
+    document.getElementById('ascension-req').textContent = state.shards<ascensionThreshold()
+      ? `Necesitas ${fmt(ascensionThreshold())} Fragmentos de Locura acumulados (llevas ${fmt(state.shards)}).`
+      : `Listo para Ascender. Esto reinicia Ritos, Culto y Bestiario.`;
+  } else {
+    ascPanel.style.display='none';
+  }
+
+  const stats = document.getElementById('eternal-stats');
+  stats.innerHTML = `
+    Susurros generados en total: <strong class="mono">${fmt(state.totalLifetimeEarned)}</strong><br>
+    Toques al Ojo: <strong class="mono">${fmt(state.totalClicks)}</strong><br>
+    Despertares realizados: <strong class="mono">${state.prestigeCount}</strong><br>
+    Ascensiones realizadas: <strong class="mono">${state.ascensionCount}</strong><br>
+    Fragmentos de Locura actuales: <strong class="mono">${fmt(state.shards)}</strong><br>
+    Polvo Estelar actual: <strong class="mono">${fmt(state.stardust)}</strong>
+  `;
+}
+function renderAll(){
+  renderHeader(); renderTemplo(); renderCulto(); renderBestiario(); renderRitos(); renderLogros(); renderAscension();
+}
+
+/* =========================================================
+   TABS
+   ========================================================= */
+document.getElementById('tabs').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-tab]');
+  if(!btn) return;
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+});
+
+/* =========================================================
+   EVENT DELEGATION
+   ========================================================= */
+document.getElementById('eye-btn').addEventListener('click', e=>doClick(e));
+
+document.getElementById('buildings-list').addEventListener('click', e=>{
+  const t = e.target.closest('[data-act]'); if(!t) return;
+  if(t.dataset.act==='buy') buyBuilding(t.dataset.id,1);
+  if(t.dataset.act==='upg') buyUpgrade(t.dataset.id, parseInt(t.dataset.m));
+});
+document.getElementById('assistants-list').addEventListener('click', e=>{
+  const t = e.target.closest('[data-act]'); if(!t) return;
+  if(t.dataset.act==='hire-assist') hireAssistant(t.dataset.id);
+  if(t.dataset.act==='toggle-assist') toggleAssistantActive(t.dataset.id);
+});
+document.getElementById('pets-list').addEventListener('click', e=>{
+  const t = e.target.closest('[data-act]'); if(!t) return;
+  if(t.dataset.act==='hire-pet') hirePet(t.dataset.id);
+  if(t.dataset.act==='toggle-pet') togglePetActive(t.dataset.id);
+  if(t.dataset.act==='feed-pet') feedPet(t.dataset.id);
+});
+document.getElementById('skill-tree').addEventListener('click', e=>{
+  const t = e.target.closest('[data-act="skill"]'); if(!t) return;
+  buySkill(t.dataset.id);
+});
+document.getElementById('btn-prestige').addEventListener('click', doPrestige);
+document.getElementById('btn-ascension').addEventListener('click', ()=>{
+  showModal(`
+    <h2>✨ ¿Ascender?</h2>
+    <p>Esto reiniciará tus Fragmentos de Locura, Ritos, Culto, Bestiario y construcciones — todo, a cambio de Polvo Estelar permanente. Tus logros y estadísticas eternas se conservan.</p>
+    <div class="row">
+      <button class="action-btn star" id="modal-confirm-asc">Ascender de verdad</button>
+      <button class="action-btn" id="modal-cancel">Cancelar</button>
+    </div>
+  `);
+  document.getElementById('modal-confirm-asc').onclick=()=>{ doAscension(); closeModal(); };
+  document.getElementById('modal-cancel').onclick=closeModal;
+});
+document.getElementById('omen').addEventListener('click', collectOmen);
+
+/* =========================================================
+   MODAL
+   ========================================================= */
+function showModal(html){
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-bg').classList.add('show');
+}
+function closeModal(){ document.getElementById('modal-bg').classList.remove('show'); }
+document.getElementById('modal-bg').addEventListener('click', e=>{ if(e.target.id==='modal-bg') closeModal(); });
+
+document.getElementById('btn-reset').addEventListener('click', ()=>{
+  showModal(`
+    <h2>⚠️ Reiniciar todo</h2>
+    <p>Esto borrará permanentemente todo tu progreso, incluidos Fragmentos de Locura y Polvo Estelar. No hay vuelta atrás.</p>
+    <div class="row">
+      <button class="action-btn danger" id="modal-confirm-reset">Sí, borrar todo</button>
+      <button class="action-btn" id="modal-cancel2">Cancelar</button>
+    </div>
+  `);
+  document.getElementById('modal-confirm-reset').onclick=()=>{
+    localStorage.removeItem('eldritchIdleSave');
+    state = freshState();
+    scheduleOmen();
+    renderAll();
+    closeModal();
+    toast('El Vacío ha olvidado todo lo que fuiste.');
+  };
+  document.getElementById('modal-cancel2').onclick=closeModal;
+});
+
+document.getElementById('btn-export').addEventListener('click', ()=>{
+  const data = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+  showModal(`
+    <h2>Exportar partida</h2>
+    <p>Copia este texto y guárdalo en un lugar seguro.</p>
+    <textarea readonly onclick="this.select()">${data}</textarea>
+    <div class="row"><button class="action-btn" id="modal-close-exp">Cerrar</button></div>
+  `);
+  document.getElementById('modal-close-exp').onclick=closeModal;
+});
+document.getElementById('btn-import').addEventListener('click', ()=>{
+  showModal(`
+    <h2>Importar partida</h2>
+    <p>Pega aquí tu código de partida guardada.</p>
+    <textarea id="import-area" placeholder="Pega el código aquí..."></textarea>
+    <div class="row">
+      <button class="action-btn gold" id="modal-do-import">Importar</button>
+      <button class="action-btn" id="modal-cancel3">Cancelar</button>
+    </div>
+  `);
+  document.getElementById('modal-do-import').onclick=()=>{
+    try{
+      const raw = document.getElementById('import-area').value.trim();
+      const parsed = JSON.parse(decodeURIComponent(escape(atob(raw))));
+      state = Object.assign(freshState(), parsed);
+      closeModal(); renderAll();
+      toast('Partida importada con éxito.');
+    }catch(err){ toast('Código inválido.'); }
+  };
+  document.getElementById('modal-cancel3').onclick=closeModal;
+});
+document.getElementById('btn-save').addEventListener('click', ()=>{ saveGame(); toast('Partida guardada.'); });
+
+/* =========================================================
+   SAVE / LOAD
+   ========================================================= */
+function saveGame(){
+  state.lastSave = Date.now();
+  try{ localStorage.setItem('eldritchIdleSave', JSON.stringify(state)); }catch(e){}
+}
+function loadGame(){
+  try{
+    const raw = localStorage.getItem('eldritchIdleSave');
+    if(!raw) return false;
+    const parsed = JSON.parse(raw);
+    state = Object.assign(freshState(), parsed);
+    // patch missing keys for pets/assistants/buildings/skills added after a save
+    BUILDINGS.forEach(b=>{ if(!state.buildings[b.id]) state.buildings[b.id]={owned:0,upgrades:{}}; });
+    PETS.forEach(p=>{ if(!state.pets[p.id]) state.pets[p.id]={level:0,active:false}; });
+    ASSISTANTS.forEach(a=>{ if(!state.assistants[a.id]) state.assistants[a.id]={hired:false,active:false}; });
+    return true;
+  }catch(e){ return false; }
+}
+function applyOfflineProgress(){
+  const now = Date.now();
+  const last = state.lastTick || state.lastSave || now;
+  let deltaSec = (now-last)/1000;
+  if(deltaSec < 5) { state.lastTick=now; return; }
+  const cap = offlineCapSeconds();
+  const applied = Math.min(deltaSec, cap);
+  const rate = totalProduction();
+  const mult = 0.5 * (1+offlineMultBonus()); // offline runs at reduced base rate, boosted by pets/assistants
+  const earned = rate*applied*mult;
+  if(earned>0){
+    addSusurros(earned);
+    const corduraGain = corduraRegenPerSec()*applied;
+    state.cordura = clamp(state.cordura+corduraGain,0,100);
+    showModal(`
+      <h2>🌙 Mientras dormías...</h2>
+      <p>El culto no descansa. Durante tu ausencia (${Math.round(applied/60)} min computados) recolectaste:</p>
+      <div class="big-num" style="color:var(--gold-bright);font-family:'Space Mono',monospace;font-size:1.4rem;">+${fmt(earned)} 🕯️</div>
+      <div class="row"><button class="action-btn gold" id="modal-close-offline">Continuar</button></div>
+    `);
+    document.getElementById('modal-close-offline').onclick=closeModal;
+  }
+  state.lastTick = now;
+}
+
+/* =========================================================
+   GAME LOOP
+   ========================================================= */
+let lastFrame = performance.now();
+function tick(){
+  const now = performance.now();
+  let dt = (now-lastFrame)/1000;
+  lastFrame = now;
+  dt = Math.min(dt, 1); // avoid huge jumps if tab was throttled
+
+  const prod = totalProduction();
+  if(prod>0) addSusurros(prod*dt);
+
+  state.cordura = clamp(state.cordura + corduraRegenPerSec()*dt, 0, 100);
+
+  if(hasAssistant('nigromante') && state.assistants.nigromante.active){
+    state._autoClickAcc = (state._autoClickAcc||0) + dt;
+    if(state._autoClickAcc >= 1){
+      state._autoClickAcc -= 1;
+      addSusurros(getClickPower());
+    }
+  }
+
+  maybeSpawnOmen();
+  checkAchievements();
+  renderHeader();
+
+  state._renderThrottle = (state._renderThrottle||0)+dt;
+  if(state._renderThrottle>0.5){
+    state._renderThrottle=0;
+    renderTemplo(); renderAscension();
+  }
+
+  state._saveThrottle = (state._saveThrottle||0)+dt;
+  if(state._saveThrottle>15){
+    state._saveThrottle=0;
+    state.lastTick = Date.now();
+    saveGame();
+  }
+
+  requestAnimationFrame(tick);
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+function init(){
+  const had = loadGame();
+  if(had) applyOfflineProgress();
+  else { state.lastTick=Date.now(); }
+  scheduleOmen();
+  renderAll();
+  requestAnimationFrame(tick);
+  window.addEventListener('beforeunload', ()=>{ state.lastTick=Date.now(); saveGame(); });
+}
+init();
+
+})();
+</script>
+</body>
+</html>
