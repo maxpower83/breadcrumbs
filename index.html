@@ -1,367 +1,262 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HUB | Terminal de Herramientas</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-        body {
-            font-family: 'JetBrains+Mono', monospace;
-            background-color: #050505;
-            color: #a1a1aa;
-            overflow-x: hidden;
-        }
-        .tool-card {
-            background: linear-gradient(145deg, #0f0f0f, #151515);
-            border: 1px solid #27272a;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .tool-card:hover {
-            border-color: #3b82f6;
-            transform: translateY(-2px);
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
-        }
-        .status-dot {
-            height: 8px;
-            width: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        .status-online { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
-        .status-offline { background-color: #ef4444; }
-        
-        /* Animación para el botón de instalación */
-        @keyframes pulse-border {
-            0% { border-color: #27272a; }
-            50% { border-color: #3b82f6; }
-            100% { border-color: #27272a; }
-        }
-        .install-prompt {
-            animation: pulse-border 2s infinite;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>índice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #10121b;
+    --panel: #171a26;
+    --panel-border: #262a3d;
+    --text: #d9dcec;
+    --text-dim: #6b7086;
+    --accent: #f2b134;
+    --accent-dim: #8a6a24;
+    --ok: #6fd08c;
+    --err: #e0616b;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    min-height:100vh;
+  }
+  body{
+    display:flex;
+    justify-content:center;
+    padding: 8vh 20px 6vh;
+  }
+  .window{
+    width:100%;
+    max-width: 760px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px -30px rgba(0,0,0,0.6);
+  }
+  .titlebar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding: 12px 16px;
+    background: #14172200;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .dot{ width:11px; height:11px; border-radius:50%; }
+  .dot.r{ background:#e0616b55; border:1px solid #e0616b; }
+  .dot.y{ background:#f2b13455; border:1px solid #f2b134; }
+  .dot.g{ background:#6fd08c55; border:1px solid #6fd08c; }
+  .titlebar span{
+    margin-left: 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.03em;
+  }
+  .screen{ padding: 22px 24px 26px; }
+  .prompt{
+    font-size: 14px;
+    color: var(--text-dim);
+    margin: 0 0 4px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .prompt .sym{ color: var(--accent); }
+  .prompt .path{ color: var(--text); }
+  .cursor{
+    display:inline-block;
+    width: 8px; height: 15px;
+    background: var(--accent);
+    vertical-align: -2px;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+  h1{
+    font-size: 15px;
+    font-weight: 600;
+    margin: 18px 0 14px;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+  }
+  h1 .count{ color: var(--accent); }
+  ul{ list-style:none; margin:0; padding:0; }
+  li{
+    border-top: 1px solid var(--panel-border);
+  }
+  li:last-child{ border-bottom: 1px solid var(--panel-border); }
+  a.row{
+    display:flex;
+    align-items:baseline;
+    gap: 10px;
+    padding: 11px 6px;
+    text-decoration:none;
+    color: var(--text);
+    transition: background 0.12s ease, padding-left 0.12s ease;
+  }
+  a.row:hover{
+    background: #1e2233;
+    padding-left: 12px;
+  }
+  a.row:hover .name{ color: var(--accent); }
+  .name{
+    font-weight: 600;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .sep{ color: var(--text-dim); flex-shrink:0; }
+  .doctitle{
+    font-size: 13px;
+    color: var(--text-dim);
+    overflow:hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .status{
+    font-size: 13px;
+    color: var(--text-dim);
+    padding: 10px 6px;
+  }
+  .status.err{ color: var(--err); }
+  .status .sym{ color: var(--accent); }
+  footer{
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--text-dim);
+    opacity: 0.7;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .cursor{ animation: none; opacity: 1; }
+  }
+</style>
 </head>
-<body class="min-h-screen flex flex-col">
-
-    <div class="max-w-6xl mx-auto w-full p-6 md:p-12 flex-grow">
-        <!-- Header Principal -->
-        <header class="mb-12 border-l-4 border-blue-600 pl-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-                <h1 class="text-3xl font-bold text-white tracking-tighter uppercase italic">CORE Toolset</h1>
-                <p class="text-zinc-500 text-sm tracking-widest mt-1">SISTEMA OPERATIVO DE UTILIDAD URBANA | V 1.4</p>
-            </div>
-            
-            <!-- Botón de Instalación PWA -->
-            <button id="installBtn" class="hidden flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-2 px-4 rounded border border-blue-400 transition-all uppercase tracking-widest">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x1="12" y1="15" y2="3"/></svg>
-                Instalar Sistema
-            </button>
-        </header>
-
-        <!-- Grid de Aplicaciones -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            
-            <!-- Ghost QR -->
-            <a href="ghost.html" class="tool-card p-6 rounded-lg group">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-blue-900/20 rounded border border-blue-500/30 text-blue-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-                    </div>
-                    <span class="status-dot status-online"></span>
-                </div>
-                <h2 class="text-white font-bold uppercase mb-2 group-hover:text-blue-400">Ghost QR</h2>
-                <p class="text-xs text-zinc-500 leading-relaxed italic">Indexación de objetos y contenedores físicos para despliegue rápido.</p>
-                <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">LOCAL_STORAGE_ACTIVE</div>
-            </a>
-
-            <!-- Breadcrumbs -->
-            <a href="breadcrumbs.html" class="tool-card p-6 rounded-lg group">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-blue-900/20 rounded border border-blue-500/30 text-blue-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                    </div>
-                    <span class="status-dot status-online"></span>
-                </div>
-                <h2 class="text-white font-bold uppercase mb-2 group-hover:text-blue-400">Breadcrumbs</h2>
-                <p class="text-xs text-zinc-500 leading-relaxed italic">Rastreador de puntos de interés y rutas críticas sin dependencia de mapas.</p>
-                <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">TRACKER_ACTIVE</div>
-            </a>
-
-            <!-- WhatsApp Scheduler -->
-            <a href="wascheduler.html" class="hidden tool-card p-6 rounded-lg group border-blue-500/30 shadow-lg shadow-blue-500/5">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-blue-900/20 rounded border border-blue-500/30 text-blue-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg>
-                    </div>
-                    <span class="status-dot status-online"></span>
-                </div>
-                <h2 class="text-white font-bold uppercase mb-1 group-hover:text-blue-400">WS Scheduler</h2>
-                <p class="text-[10px] text-blue-400 font-bold tracking-tighter uppercase mb-2">The Ghostwriter</p>
-                <p class="text-xs text-zinc-500 leading-relaxed italic">Redacción y programación de comunicaciones asíncronas tácticas.</p>
-                <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">QUEUE_READY</div>
-            </a>
-
-            <!-- Wish Catcher -->
-            <a href="wishcatcher.html" class="tool-card p-6 rounded-lg group">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-blue-900/20 rounded border border-blue-500/30 text-blue-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                    </div>
-                    <span class="status-dot status-online"></span>
-                </div>
-                <h2 class="text-white font-bold uppercase mb-2 group-hover:text-blue-400">Wish Catcher</h2>
-                <p class="text-xs text-zinc-500 leading-relaxed italic">Captura ideas de deseos en el momento exacto en que surgen.</p>
-                <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">CAPTURING_WISHES</div>
-            </a>
-
-            <!-- Shared Tab -->
-            <a href="sharedtab.html" class="tool-card p-6 rounded-lg group">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-blue-900/20 rounded border border-blue-500/30 text-blue-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x1="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    </div>
-                    <span class="status-dot status-online"></span>
-                </div>
-                <h2 class="text-white font-bold uppercase mb-2 group-hover:text-blue-400">Shared Tab</h2>
-                <p class="text-xs text-zinc-500 leading-relaxed italic">Calculadora de división asimétrica de gastos sin registros externos.</p>
-                <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">EXACTING_CALCULATIONS</div>
-            </a>
-
-            <!-- Ghost Link-->
-            <a href="locate.html" class="tool-card p-6 rounded-lg group">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-blue-900/20 rounded border border-blue-500/30 text-blue-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 19.07-1.41-1.41"/><path d="M12 22v-2"/><path d="m6.34 17.66-1.41 1.41"/><path d="M2 12h2"/><path d="m4.93 19.07 1.41-1.41"/><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/></svg>
-                    </div>
-                    <span class="status-dot status-online"></span>
-                </div>
-                <h2 class="text-white font-bold uppercase mb-2 group-hover:text-blue-400">Ghost Link</h2>
-                <p class="text-xs text-zinc-500 leading-relaxed italic">Localización relativa P2P mediante balizas temporales.</p>
-                <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">RECORDING_LOCALIZATION</div>
-            </a>
-
-            <!-- Parking Ghost -->
-            <a href="parking.html" class="tool-card p-6 rounded-lg group">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-blue-900/20 rounded border border-blue-500/30 text-blue-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
-                    </div>
-                    <span class="status-dot status-online"></span>
-                </div>
-                <h2 class="text-white font-bold uppercase mb-2 group-hover:text-blue-400">Parking Ghost</h2>
-                <p class="text-xs text-zinc-500 leading-relaxed italic">Recuperación de posición de transporte en entornos urbanos.</p>
-                <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">LOCATION_RECORDING_ACTIVE</div>
-            </a>
-
-            <!-- Social Battery-->
-            <a href="sbattery.html" class="tool-card p-6 rounded-lg group">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-blue-900/20 rounded border border-blue-500/30 text-blue-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="10" x="2" y="7" rx="2" ry="2"/><line x1="22" x1="22" y1="11" y2="13"/></svg>
-                    </div>
-                    <span class="status-dot status-online"></span>
-                </div>
-                <h2 class="text-white font-bold uppercase mb-2 group-hover:text-blue-400">Social Battery</h2>
-                <p class="text-xs text-zinc-500 leading-relaxed italic">Generador de distracciones tácticas para gestión de energía social.</p>
-                <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">CLASSIC_MISDIRECTION</div>
-            </a>
-
-
-            <!-- Listener (Real-time Extraction) -->
-<a href="listener.html" class="tool-card p-6 rounded-lg group border-blue-500/30 shadow-lg shadow-blue-500/5" data-tool-id="listener">
-    <div class="flex justify-between items-start mb-4">
-        <div class="p-3 bg-blue-900/20 rounded border border-blue-500/30 text-blue-400">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>
-        </div>
-        <span class="status-dot status-online"></span>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <span>directorio</span>
     </div>
-    <h2 class="text-white font-bold uppercase mb-1 group-hover:text-blue-400">Listener</h2>
-    <p class="text-[10px] text-blue-400 font-bold tracking-tighter uppercase mb-2">The Relator</p>
-    <p class="text-xs text-zinc-500 leading-relaxed italic">Extracción en tiempo real de puntos resolutivos y decisiones críticas.</p>
-    <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] font-bold text-zinc-600 tracking-widest">STT_AI_FILTERING</div>
-</a>
-            
-            
-        </div>
-
-        <!-- Terminal Footer -->
-        <div class="mt-16 p-4 bg-zinc-900/30 border border-zinc-800 rounded flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <div id="statusIndicator" class="animate-pulse h-2 w-2 bg-green-500 rounded-full"></div>
-                <span id="statusText" class="text-[10px] uppercase font-bold tracking-[0.2em] text-zinc-500">Núcleo CORE Operativo</span>
-            </div>
-            <div class="text-[10px] font-mono text-zinc-600">
-                Uptime: <span id="uptime">00:00:00</span> | SW_STATUS: <span id="swStatus">INACTIVE</span>
-            </div>
-        </div>
+    <div class="screen">
+      <p class="prompt"><span class="sym">$</span> <span class="path" id="prompt-path">ls *.html</span><span class="cursor"></span></p>
+      <h1 id="heading">buscando archivos…</h1>
+      <ul id="list"></ul>
+      <footer>generado automáticamente al cargar la página, vía GitHub API</footer>
     </div>
+  </div>
 
-    <script>
-        // --- LÓGICA DE UPTIME ---
-        let startTime = Date.now();
-        setInterval(() => {
-            let diff = Math.floor((Date.now() - startTime) / 1000);
-            let h = Math.floor(diff / 3600).toString().padStart(2, '0');
-            let m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
-            let s = (diff % 60).toString().padStart(2, '0');
-            document.getElementById('uptime').innerText = `${h}:${m}:${s}`;
-        }, 1000);
+<script>
+(async function(){
+  const listEl = document.getElementById('list');
+  const headingEl = document.getElementById('heading');
+  const promptPathEl = document.getElementById('prompt-path');
 
-        // --- LÓGICA PWA (MANIFEST & SERVICE WORKER) ---
-        const manifest = {
-            "name": "CORE Toolset",
-            "short_name": "CORE",
-            "start_url": ".",
-            "display": "standalone",
-            "background_color": "#050505",
-            "theme_color": "#3b82f6",
-            "description": "Sistema operativo de utilidad urbana",
-            "icons": [
-                {
-                    "src": "https://cdn-icons-png.flaticon.com/512/3665/3665923.png",
-                    "sizes": "512x512",
-                    "type": "image/png",
-                    "purpose": "any maskable"
-                }
-            ]
-        };
+  function statusLine(text, isErr){
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="status ${isErr ? 'err' : ''}"><span class="sym">#</span> ${text}</div>`;
+    listEl.appendChild(li);
+  }
 
-        // Generar Manifest dinámicamente
-        const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(manifestBlob);
-        const manifestLink = document.createElement('link');
-        manifestLink.rel = 'manifest';
-        manifestLink.href = manifestURL;
-        document.head.appendChild(manifestLink);
+  function pathPartsFromLocation(){
+    let parts = location.pathname.split('/').filter(Boolean);
+    if (parts.length && /\.html?$/i.test(parts[parts.length - 1])) parts.pop();
+    return parts;
+  }
 
-        // Generar Service Worker dinámicamente
-        const swContent = `
-            const CACHE_NAME = 'core-v1.4';
-            self.addEventListener('install', (e) => {
-                self.skipWaiting();
-            });
-            self.addEventListener('fetch', (e) => {
-                e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-            });
-        `;
-        const swBlob = new Blob([swContent], {type: 'text/javascript'});
-        const swURL = URL.createObjectURL(swBlob);
+  async function tryListDir(owner, repo, dirParts, branch){
+    const dirPath = dirParts.join('/');
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${dirPath}${branch ? `?ref=${branch}` : ''}`;
+    const res = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github+json' } });
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error('no es un directorio');
+    return { data, owner, repo, dirPath, branch: branch || data[0]?.ref };
+  }
 
-        // Registro del Service Worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register(swURL).then(() => {
-                document.getElementById('swStatus').innerText = 'ACTIVE_SECURE';
-            });
-        }
-
-        // --- MANEJO DE INSTALACIÓN ---
-        let deferredPrompt;
-        const installBtn = document.getElementById('installBtn');
-        const statusText = document.getElementById('statusText');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevenir que el navegador muestre su propio prompt
-            e.preventDefault();
-            deferredPrompt = e;
-            // Mostrar nuestro botón táctico
-            installBtn.classList.remove('hidden');
-            statusText.innerText = "INSTALACIÓN_DISPONIBLE";
-            statusText.classList.add('text-blue-400');
-        });
-
-        installBtn.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            
-            if (outcome === 'accepted') {
-                console.log('User accepted the install prompt');
-                installBtn.classList.add('hidden');
-            }
-            deferredPrompt = null;
-        });
-
-        window.addEventListener('appinstalled', () => {
-            installBtn.classList.add('hidden');
-            statusText.innerText = "SISTEMA_CORE_INSTALADO";
-            statusText.classList.remove('text-blue-400');
-            statusText.classList.add('text-green-500');
-        });
-
-         // --- SISTEMA DE TELEMETRÍA CORE ---
-const telemetry = {
-    db: db, // Asumiendo que ya tienes inicializado Firebase Firestore como 'db'
-
-    async init() {
-        this.trackVisitor();
-        this.trackPWAStatus();
-        this.setupToolTracking();
-    },
-
-    // 1. Número total de personas (Usuarios Únicos)
-    async trackVisitor() {
-        const isReturningUser = localStorage.getItem('core_user_registered');
-        if (!isReturningUser) {
-            const statsRef = doc(this.db, "stats", "core_hub");
-            await updateDoc(statsRef, {
-                total_users: increment(1)
-            });
-            localStorage.setItem('core_user_registered', 'true');
-            console.log("Telemetry: New unique operator registered.");
-        }
-    },
-
-    // 2. Uso de herramientas específicas
-    async logToolAccess(toolName) {
-        const statsRef = doc(this.db, "stats", "core_hub");
-        const field = `tool_usage.${toolName}`;
-        await updateDoc(statsRef, {
-            [field]: increment(1)
-        });
-    },
-
-    // 3. Tracking de instalación PWA
-    trackPWAStatus() {
-        // Detecta si la app ya está instalada y se abre como app
-        if (window.matchMedia('(display-mode: standalone)').matches) {
-            const hasLoggedInstall = localStorage.getItem('core_pwa_installed_logged');
-            if (!hasLoggedInstall) {
-                const statsRef = doc(this.db, "stats", "core_hub");
-                updateDoc(statsRef, {
-                    pwa_installations: increment(1)
-                });
-                localStorage.setItem('core_pwa_installed_logged', 'true');
-            }
-        }
-
-        // Listener para el momento exacto en que le dan a "Instalar"
-        window.addEventListener('appinstalled', async () => {
-            const statsRef = doc(this.db, "stats", "core_hub");
-            await updateDoc(statsRef, {
-                pwa_installations: increment(1)
-            });
-            localStorage.setItem('core_pwa_installed_logged', 'true');
-            console.log('Telemetry: PWA Installation confirmed.');
-        });
-    },
-
-    setupToolTracking() {
-        // Vincula el click de los botones del HUB a la telemetría
-        document.querySelectorAll('.tool-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const toolId = card.getAttribute('data-tool-id');
-                if (toolId) this.logToolAccess(toolId);
-            });
-        });
+  async function resolveRepoListing(){
+    const hostname = location.hostname;
+    if (!hostname.endsWith('.github.io')){
+      throw new Error('esta página no está en un dominio *.github.io; la API de GitHub no puede inferir el repositorio automáticamente.');
     }
-};
+    const userLogin = hostname.split('.')[0];
+    const parts = pathPartsFromLocation();
 
-// Ejecutar al cargar el DOM
-document.addEventListener('DOMContentLoaded', () => telemetry.init());
-            
-    </script>
+    // Intento 1: sitio de usuario/organización -> repo = "<login>.github.io", carpeta = ruta completa
+    try {
+      return await tryListDir(userLogin, hostname, parts, null);
+    } catch (e1) {
+      // Intento 2: sitio de proyecto -> repo = primer segmento de la ruta, carpeta = el resto
+      if (parts.length){
+        try {
+          return await tryListDir(userLogin, parts[0], parts.slice(1), null);
+        } catch (e2) { /* sigue abajo */ }
+      }
+      throw new Error('no se pudo ubicar el repositorio o la carpeta vía GitHub API.');
+    }
+  }
+
+  async function extractTitle(rawUrl){
+    try {
+      const res = await fetch(rawUrl);
+      if (!res.ok) return null;
+      const html = await res.text();
+      const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      if (!match) return null;
+      const txt = document.createElement('textarea');
+      txt.innerHTML = match[1].trim();
+      return txt.value || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  try {
+    const { data, owner, repo, dirPath } = await resolveRepoListing();
+    promptPathEl.textContent = `ls ${dirPath ? '/' + dirPath + '/' : '/'}*.html`;
+
+    const files = data
+      .filter(item => item.type === 'file')
+      .filter(item => /\.html?$/i.test(item.name))
+      .filter(item => item.name.toLowerCase() !== 'index.html')
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (!files.length){
+      headingEl.innerHTML = `0 archivos encontrados`;
+      statusLine('no hay otros archivos .html en este directorio.', false);
+      return;
+    }
+
+    headingEl.innerHTML = `<span class="count">${files.length}</span> archivo${files.length === 1 ? '' : 's'} encontrado${files.length === 1 ? '' : 's'}`;
+
+    for (const file of files){
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <a class="row" href="${file.name}">
+          <span class="name">${file.name}</span>
+          <span class="sep">—</span>
+          <span class="doctitle">cargando título…</span>
+        </a>`;
+      listEl.appendChild(li);
+
+      extractTitle(file.download_url).then(title => {
+        const el = li.querySelector('.doctitle');
+        if (title) {
+          el.textContent = title;
+        } else {
+          el.textContent = 'sin título';
+          el.style.opacity = '0.5';
+        }
+      });
+    }
+  } catch (err) {
+    headingEl.textContent = 'error';
+    statusLine(err.message || 'ocurrió un error al listar los archivos.', true);
+  }
+})();
+</script>
 </body>
 </html>
