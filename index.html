@@ -92,9 +92,9 @@
   li:last-child{ border-bottom: 1px solid var(--panel-border); }
   a.row{
     display:flex;
-    align-items:baseline;
-    gap: 10px;
-    padding: 11px 6px;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 6px;
     text-decoration:none;
     color: var(--text);
     transition: background 0.12s ease, padding-left 0.12s ease;
@@ -107,15 +107,17 @@
   .name{
     font-weight: 600;
     font-size: 14px;
-    white-space: nowrap;
   }
-  .sep{ color: var(--text-dim); flex-shrink:0; }
+  .sep{ display:none; }
   .doctitle{
     font-size: 13px;
     color: var(--text-dim);
-    overflow:hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+  }
+  .doctitle::before{
+    content: "› ";
+    color: var(--accent-dim);
   }
   .status{
     font-size: 13px;
