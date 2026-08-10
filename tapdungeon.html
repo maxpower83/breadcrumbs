@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Tap Dungeon — Arena</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --void:#0E0B0C; --slate:#1E1720; --slate-2:#2A2029;
+    --ember:#E2703A; --ember-bright:#FF9A5C; --gold:#E8C34A;
+    --ash:#8B8078; --teal:#4FD6C4; --danger:#C0453F; --text:#EDE6DD; --frag:#B48CE8;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{margin:0;padding:0;height:100%;background:var(--void);color:var(--text);
+    font-family:'IBM Plex Mono',monospace; overflow:hidden; touch-action:none;}
+  #app{position:relative; width:100%; height:100vh; height:100dvh; transition:transform .05s;}
+  #app.shake{animation:shakeKf .32s ease;}
+  @keyframes shakeKf{
+    0%{transform:translate(0,0)} 20%{transform:translate(-6px,3px)} 40%{transform:translate(5px,-4px)}
+    60%{transform:translate(-4px,2px)} 80%{transform:translate(3px,-2px)} 100%{transform:translate(0,0)}
+  }
+
+  .screen{position:absolute; inset:0; display:none; flex-direction:column;
+    padding:20px 18px; opacity:0; pointer-events:none; transition:opacity .25s ease; overflow-y:auto;}
+  .screen.active{display:flex; opacity:1; pointer-events:auto;}
+
+  #app::before{content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:radial-gradient(ellipse at 50% -10%, rgba(226,112,58,.16), transparent 55%),
+               radial-gradient(ellipse at 50% 115%, rgba(79,214,196,.07), transparent 60%);}
+
+  /* ---------- menu ---------- */
+  #scr-menu{align-items:center; text-align:center; gap:4px; z-index:1;}
+  .title{font-family:'Cinzel',serif; font-weight:700; font-size:2.2rem; letter-spacing:.07em; margin:10px 0 0;
+    color:var(--ember-bright); text-shadow:0 0 18px rgba(226,112,58,.55),0 0 40px rgba(226,112,58,.25);
+    animation:flicker 4s infinite ease-in-out;}
+  @keyframes flicker{0%,100%{opacity:1;}48%{opacity:1;}50%{opacity:.85;}52%{opacity:1;}76%{opacity:.92;}}
+  .subtitle{color:var(--ash); font-size:.8rem; letter-spacing:.06em; margin:0 0 14px;}
+  .menu-stats{display:flex; gap:16px; font-size:.74rem; color:var(--ash); margin-bottom:16px; flex-wrap:wrap; justify-content:center;}
+  .menu-stats span{font-weight:600;}
+  .menu-stats .v-ecos{color:var(--gold);} .menu-stats .v-frag{color:var(--frag);} .menu-stats .v-floor{color:var(--teal);}
+  .btn-primary{background:linear-gradient(180deg,var(--ember),#B5511F); color:#1a0f08; border:none;
+    font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:.98rem; padding:13px 30px;
+    border-radius:6px; letter-spacing:.04em; cursor:pointer;
+    box-shadow:0 0 20px rgba(226,112,58,.35), inset 0 1px 0 rgba(255,255,255,.25);}
+  .btn-secondary{background:var(--slate-2); color:var(--teal); border:1px solid rgba(79,214,196,.35);
+    font-family:'IBM Plex Mono',monospace; font-size:.72rem; padding:9px 13px; border-radius:5px; cursor:pointer;}
+  .btn-secondary:disabled{opacity:.32; cursor:default;}
+  .btn-frag{color:var(--frag); border-color:rgba(180,140,232,.4);}
+
+  .shop{margin-top:16px; width:100%; max-width:360px;}
+  .shop-title{font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ash); margin-bottom:8px; text-align:left;}
+  .shop-row{display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--slate); border:1px solid rgba(255,255,255,.06); border-radius:8px; padding:10px 12px; margin-bottom:7px;}
+  .shop-name{font-size:.8rem; font-weight:600; text-align:left;}
+  .shop-desc{font-size:.62rem; color:var(--ash); margin-top:2px; text-align:left;}
+  .shop-lvl{font-size:.6rem; color:var(--gold); margin-left:6px;}
+
+  #btn-trees{margin-top:6px; width:100%; max-width:360px;}
+
+  /* ---------- trees screen ---------- */
+  #scr-trees{align-items:center; z-index:1; gap:6px;}
+  #trees-header{text-align:center; margin-bottom:6px;}
+  #trees-header h2{font-family:'Cinzel',serif; color:var(--frag); font-size:1.3rem; margin:8px 0 2px;}
+  .tree-card{width:100%; max-width:380px; background:var(--slate); border:1px solid rgba(255,255,255,.06);
+    border-radius:10px; padding:12px; margin-bottom:12px;}
+  .tree-title{font-family:'Cinzel',serif; font-size:.95rem; margin-bottom:8px;}
+  .tree-node{display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:8px 4px; border-bottom:1px solid rgba(255,255,255,.05);}
+  .tree-node:last-child{border-bottom:none;}
+  .node-name{font-size:.76rem; font-weight:600;}
+  .node-desc{font-size:.6rem; color:var(--ash); margin-top:1px;}
+  .node-state{font-size:.62rem; padding:5px 9px; border-radius:5px; white-space:nowrap;}
+  .node-locked{opacity:.35;}
+  .node-locked .node-state{background:#2a2029; color:var(--ash);}
+  .node-unlocked .node-state{background:rgba(79,214,196,.15); color:var(--teal);}
+  .node-available .node-state{background:var(--frag); color:#1a0f2a; cursor:pointer; font-weight:600;}
+  .node-available .node-state:disabled{opacity:.4; cursor:default;}
+
+  /* ---------- game ---------- */
+  #scr-game{z-index:1; gap:8px; padding-top:12px; overflow:hidden;}
+  .hud{display:flex; justify-content:space-between; align-items:flex-start; font-size:.66rem;}
+  .hud-right{text-align:right; color:var(--ash); line-height:1.5;}
+  .hud-right span{color:var(--gold);}
+  .hp-bar-wrap{position:relative; width:140px; height:14px; background:var(--slate-2);
+    border-radius:4px; overflow:hidden; border:1px solid rgba(255,255,255,.08);}
+  .hp-bar-fill{position:absolute; left:0; top:0; height:100%; width:100%;
+    background:linear-gradient(90deg,#6FBF73,#4E9E52); transition:width .35s ease;}
+
+  #enemy-row{display:flex; align-items:center; justify-content:center; gap:8px; font-size:.7rem;}
+  #enemy-name{font-family:'Cinzel',serif; letter-spacing:.03em;}
+  #enemy-name.elite{color:var(--frag);}
+  #enemy-name.boss{color:var(--ember-bright);}
+  #enemy-hp-wrap{position:relative; width:110px; height:9px; background:var(--slate-2); border-radius:3px; overflow:hidden; border:1px solid rgba(255,255,255,.08);}
+  #enemy-hp-bar{position:absolute; left:0; top:0; height:100%; width:100%; background:linear-gradient(90deg,var(--danger),#7A2626); transition:width .3s ease;}
+
+  #arena{position:relative; flex:1; margin:2px 0; min-height:210px; overflow:visible;}
+  #arena-floor{position:absolute; left:50%; bottom:2%; transform:translateX(-50%);
+    width:88%; height:74%; border-radius:50%;
+    background:radial-gradient(ellipse at 50% 40%, rgba(226,112,58,.15), rgba(0,0,0,0) 72%);
+    border:1px solid rgba(255,255,255,.05); box-shadow:0 0 60px rgba(226,112,58,.06) inset;}
+
+  .figure{position:absolute; left:50%; z-index:3; transition:transform .14s ease, filter .14s ease, opacity .35s ease;}
+  #player-figure{bottom:4%; transform:translateX(-50%);}
+  #enemy-figure{top:2%; transform:translateX(-50%); opacity:0;}
+  #enemy-figure.show{opacity:1;}
+  #enemy-figure.enter{transform:translateX(-50%) translateY(-30px); opacity:0;}
+  #enemy-figure.elite-mod .e-shape{transform:scale(1.18); filter:drop-shadow(0 0 10px var(--frag));}
+  #enemy-figure.boss-mod .e-shape{transform:scale(1.3);}
+
+  .p-body{width:42px; height:58px; border-radius:52% 52% 40% 40%/62% 62% 32% 32%;
+    background:linear-gradient(180deg,#3c3138,#241c22); position:relative;
+    box-shadow:0 0 14px rgba(226,112,58,.22);}
+  .p-body::before{content:''; position:absolute; top:-15px; left:50%; transform:translateX(-50%);
+    width:20px; height:20px; border-radius:50%; background:#2b2229; box-shadow:0 0 8px rgba(226,112,58,.25);}
+  .p-body::after{content:''; position:absolute; right:-7px; top:8px; width:3px; height:32px;
+    background:linear-gradient(180deg,var(--ember-bright),transparent); transform:rotate(18deg);
+    border-radius:2px; opacity:.9;}
+
+  .e-shape{width:44px; height:44px; position:relative; box-shadow:0 0 16px currentColor; transition:transform .2s ease, filter .2s ease;}
+  .e-rata{background:var(--ember); border-radius:50% 50% 40% 40%; clip-path:polygon(15% 100%,0 55%,20% 0,80% 0,100% 55%,85% 100%); color:var(--ember);}
+  .e-esqueleto{background:var(--ash); width:40px; height:56px; border-radius:30% 30% 40% 40%; clip-path:polygon(20% 100%,0 60%,15% 10%,50% 0,85% 10%,100% 60%,80% 100%); color:var(--ash);}
+  .e-arana{background:var(--teal); width:46px; height:34px; border-radius:50%; clip-path:polygon(50% 15%,80% 0,100% 25%,85% 45%,100% 65%,80% 90%,50% 100%,20% 90%,0 65%,15% 45%,0 25%,20% 0);color:var(--teal);}
+  .e-boss{background:var(--ember-bright); width:64px; height:70px; border-radius:20% 20% 40% 40%;
+    clip-path:polygon(50% 0,80% 8%,100% 35%,90% 60%,100% 85%,70% 100%,50% 90%,30% 100%,0 85%,10% 60%,0 35%,20% 8%);
+    color:var(--ember-bright);}
+  .e-reina{background:#C24FD6; width:56px;height:56px;border-radius:50%;
+    clip-path:polygon(50% 0,63% 20%,85% 10%,78% 32%,100% 40%,80% 52%,95% 72%,70% 65%,68% 90%,50% 72%,32% 90%,30% 65%,5% 72%,20% 52%,0 40%,22% 32%,15% 10%,37% 20%);
+    color:#C24FD6;}
+  .e-reloj{background:#E8C34A; width:58px;height:58px;border-radius:50%; clip-path:circle(50% at 50% 50%); color:#E8C34A;}
+
+  .figure.lunge-p{transform:translateX(-50%) translateY(-16px) scale(1.04);}
+  .figure.lunge-e{transform:translateX(-50%) translateY(16px) scale(1.04);}
+  .figure.hit-flash{filter:brightness(2.1) drop-shadow(0 0 10px #fff);}
+  .figure.dying{transform:translateX(-50%) scale(.15); opacity:0;}
+  .figure.guarding{filter:drop-shadow(0 0 10px var(--teal));}
+
+  #ring-wrap{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:180px; height:180px; z-index:4; pointer-events:none;}
+  #ring-wrap.hidden{display:none;}
+  #center-symbol{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:30px; height:30px;}
+  .sym-sword::before{content:''; position:absolute; left:50%; top:0; width:4px; height:30px;
+    background:var(--ember-bright); transform:translateX(-50%); border-radius:2px; box-shadow:0 0 10px var(--ember-bright);}
+  .sym-sword::after{content:''; position:absolute; left:50%; top:6px; width:16px; height:4px;
+    background:var(--ember-bright); transform:translateX(-50%); border-radius:2px;}
+  .sym-shield{width:30px; height:30px; background:var(--teal);
+    clip-path:polygon(50% 0,100% 20%,100% 62%,50% 100%,0 62%,0 20%); box-shadow:0 0 12px var(--teal); opacity:.92;}
+  .sym-rune{width:28px; height:28px; background:var(--gold); clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);
+    box-shadow:0 0 14px var(--gold); animation:spin 3s linear infinite;}
+  @keyframes spin{from{transform:translate(-50%,-50%) rotate(0deg);} to{transform:translate(-50%,-50%) rotate(360deg);}}
+
+  #floatext-layer{position:absolute; inset:0; z-index:6; pointer-events:none;}
+  .floatnum{position:absolute; left:50%; font-weight:700; font-size:.95rem; white-space:nowrap;
+    transform:translate(-50%,0); opacity:1; transition:transform .75s ease, opacity .75s ease;}
+  .floatnum.rise{transform:translate(-50%,-46px); opacity:0;}
+
+  .shockwave{position:absolute; left:50%; top:50%; width:8px; height:8px; border-radius:50%;
+    transform:translate(-50%,-50%); border:3px solid var(--gold); opacity:1; z-index:5;
+    transition:width .55s ease, height .55s ease, opacity .55s ease;}
+  .shockwave.go{width:320px; height:320px; opacity:0;}
+
+  #altar-glyph{position:absolute; left:50%; top:38%; transform:translate(-50%,-50%);
+    width:90px; height:90px; border-radius:50%; border:2px solid rgba(232,195,74,.4);
+    box-shadow:0 0 30px rgba(232,195,74,.25); display:none;}
+  #altar-glyph.show{display:block; animation:spin 8s linear infinite;}
+
+  #phase-label{text-align:center; font-size:.74rem; letter-spacing:.12em; text-transform:uppercase; color:var(--ash);}
+  #phase-label.attack{color:var(--ember-bright);}
+  #phase-label.guard{color:var(--teal);}
+  #message-overlay{text-align:center; font-size:.9rem; font-weight:600; min-height:1.3em; opacity:0; transition:opacity .15s ease;}
+  #message-overlay.show{opacity:1;}
+  #narrative-box{max-width:340px; margin:0 auto; text-align:center; font-size:.8rem; line-height:1.5; padding:0 6px;}
+  .hidden{display:none !important;}
+  #instruction-text{text-align:center; font-size:.68rem; color:var(--ash); letter-spacing:.05em; text-transform:uppercase; padding-bottom:4px;}
+
+  /* ---------- summary ---------- */
+  #scr-summary{align-items:center; justify-content:center; text-align:center; gap:10px; z-index:1;}
+  #summary-title{font-family:'Cinzel',serif; color:var(--ember-bright); font-size:1.4rem; margin:0;}
+  #summary-body{color:var(--ash); font-size:.8rem; line-height:1.9; margin-bottom:14px;}
+  #summary-body span{color:var(--gold);}
+  #summary-body .fv{color:var(--frag);}
+
+  #touch-layer{position:absolute; inset:0; z-index:10; pointer-events:none;}
+  #touch-layer.active{pointer-events:auto;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="scr-menu" class="screen active">
+    <h1 class="title">TAP DUNGEON</h1>
+    <p class="subtitle">un dedo · mil decisiones</p>
+    <div class="menu-stats">
+      <div>Mejor piso <span class="v-floor" id="stat-bestfloor">0</span></div>
+      <div>Ecos <span class="v-ecos" id="stat-ecos">0</span></div>
+      <div>Fragmentos <span class="v-frag" id="stat-fragments">0</span></div>
+    </div>
+    <button id="btn-start" class="btn-primary">COMENZAR RUN</button>
+
+    <div class="shop">
+      <div class="shop-title">Mejoras (con Ecos)</div>
+      <div id="stats-shop-list"></div>
+    </div>
+
+    <button id="btn-trees" class="btn-secondary btn-frag">🔮 Árboles de Talento</button>
+  </div>
+
+  <div id="scr-trees" class="screen">
+    <div id="trees-header">
+      <h2>Árboles de Talento</h2>
+      <div style="font-size:.72rem;color:var(--ash);">Fragmentos: <span id="trees-frag-count" style="color:var(--frag);font-weight:600;"></span></div>
+    </div>
+    <div id="trees-container"></div>
+    <button id="btn-trees-back" class="btn-primary" style="margin-top:4px;">VOLVER</button>
+  </div>
+
+  <div id="scr-game" class="screen">
+    <div class="hud">
+      <div class="hp-bar-wrap"><div id="hp-bar" class="hp-bar-fill"></div></div>
+      <div class="hud-right">
+        <div id="floor-text">Piso 1</div>
+        <div id="gold-text">Oro: <span>0</span></div>
+      </div>
+    </div>
+
+    <div id="enemy-row">
+      <span id="enemy-name">—</span>
+      <div id="enemy-hp-wrap"><div id="enemy-hp-bar"></div></div>
+    </div>
+
+    <div id="arena">
+      <div id="arena-floor"></div>
+      <div id="altar-glyph"></div>
+      <div id="enemy-figure" class="figure"><div class="e-shape"></div></div>
+      <div id="player-figure" class="figure"><div class="p-body"></div></div>
+
+      <div id="ring-wrap">
+        <svg viewBox="0 0 200 200" width="180" height="180">
+          <g id="ring-rotate" transform="rotate(-90 100 100)">
+            <circle cx="100" cy="100" r="82" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="10"/>
+            <g id="zone-group"></g>
+            <circle id="marker-dot" cx="182" cy="100" r="6" fill="#fff" style="filter:drop-shadow(0 0 6px #fff);"/>
+          </g>
+        </svg>
+        <div id="center-symbol"></div>
+      </div>
+
+      <div id="floatext-layer"></div>
+    </div>
+
+    <div id="phase-label"></div>
+    <div id="message-overlay"></div>
+    <div id="narrative-box" class="hidden"></div>
+    <div id="instruction-text">Tocá para atacar</div>
+  </div>
+
+  <div id="scr-summary" class="screen">
+    <h2 id="summary-title">Has caído</h2>
+    <div id="summary-body"></div>
+    <button id="btn-menu" class="btn-primary">VOLVER AL MENÚ</button>
+  </div>
+
+  <div id="touch-layer"></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===================== PERSISTENCIA ===================== */
+const SAVE_KEY = 'tapdungeon_save_v2';
+const OLD_SAVE_KEY = 'tapdungeon_save_v1';
+function defaultSave(){
+  return {
+    ecos:0, bestFloor:0, fragments:0,
+    stats:{ vit:0, force:0, fortune:0, precision:0, reflex:0 },
+    trees:{ ataque:0, tanque:0, explorador:0 }
+  };
+}
+function loadSave(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(raw) return Object.assign(defaultSave(), JSON.parse(raw));
+    const old = localStorage.getItem(OLD_SAVE_KEY);
+    if(old){
+      const o = JSON.parse(old);
+      const s = defaultSave();
+      s.ecos = o.ecos||0; s.bestFloor = o.bestFloor||0; s.stats.vit = o.vitLevel||0;
+      return s;
+    }
+  }catch(e){}
+  return defaultSave();
+}
+function persistSave(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
+let save = loadSave();
+
+/* ===================== DATOS ===================== */
+const ENEMIES = {
+  rata:      { key:'rata',      name:'Rata Rabiosa',     hp:12, dmg:3, atkMs:900,  guardMs:750 },
+  esqueleto: { key:'esqueleto', name:'Esqueleto Guardia', hp:20, dmg:5, atkMs:1300, guardMs:1050 },
+  arana:     { key:'arana',     name:'Araña Venenosa',    hp:16, dmg:2, atkMs:1000, guardMs:850, poison:true }
+};
+const BOSS_POOL = [
+  { key:'boss',  name:'El Centinela de Hierro', hp:60,  dmg:8,  atkMs:1150, guardMs:950 },
+  { key:'reina', name:'La Reina Araña',         hp:85,  dmg:9,  atkMs:1050, guardMs:900, poison:true },
+  { key:'reloj', name:'El Reloj sin Rostro',    hp:110, dmg:10, atkMs:950,  guardMs:850 }
+];
+
+const SKILL_POOL = [
+  { id:'filo',   name:'Filo Sangriento',    desc:'Cada golpe crítico te cura 2 HP.' },
+  { id:'contra', name:'Contraataque Doble', desc:'Los parries perfectos golpean el doble.' },
+  { id:'piedra', name:'Piel de Piedra',     desc:'Los bloqueos reducen 75% del daño en vez de 50%.' },
+  { id:'furia',  name:'Furia',              desc:'Por debajo del 30% HP, la ventana crítica se agranda.' },
+  { id:'reflejo',name:'Reflejo Rápido',     desc:'La ventana de parry perfecto es más amplia.' }
+];
+
+const EVENTS = [
+  { risky:false, text:'Un mercader herido te ofrece un ungüento a cambio de oro.', a:'Pagar 10 oro → +6 HP máx', b:'Ignorarlo',
+    doA:(p)=>{ p.gold=Math.max(0,p.gold-10); p.maxHp+=6; p.hp+=6; }, doB:()=>{} },
+  { risky:false, text:'Un altar oscuro promete filo a cambio de sangre.', a:'Ofrecer 5 HP → +1 daño', b:'Alejarse',
+    doA:(p)=>{ p.hp=Math.max(1,p.hp-5); p.dmg+=1; }, doB:()=>{} },
+  { risky:false, text:'Encontrás un cofre polvoriento medio escondido.', a:'Forzarlo → oro al azar', b:'Dejarlo, parece trampa',
+    doA:(p)=>{ p.gold += Math.round((8+Math.floor(Math.random()*10))*p.goldMult); }, doB:(p)=>{ p.gold += Math.round(2*p.goldMult); } },
+  { risky:false, text:'Un espíritu te ofrece ver el futuro cercano del pasillo.', a:'Aceptar → pequeño respiro (+4 HP)', b:'Rechazar, no confiás',
+    doA:(p)=>{ p.hp=Math.min(p.maxHp, p.hp+4); }, doB:(p)=>{ p.gold += Math.round(4*p.goldMult); } },
+  { risky:true, text:'Una grieta deja ver un brillo dorado, pero se ve inestable.', a:'Arriesgarte → oro, quizás dañado', b:'No vale la pena',
+    doA:(p)=>{ const chance = save.trees.explorador>=2 ? 0.85 : 0.6; const r=Math.random();
+      if(r<chance){ p.gold += Math.round(18*p.goldMult); } else { p.hp=Math.max(1,p.hp-6); } }, doB:()=>{} }
+];
+
+const STAT_DEFS = [
+  { id:'vit',       name:'Vitalidad',  desc:'+5 HP máximo',                          costBase:20, costStep:15 },
+  { id:'force',     name:'Fuerza',     desc:'+1 daño base',                          costBase:25, costStep:18 },
+  { id:'fortune',   name:'Fortuna',    desc:'+5% oro ganado',                        costBase:22, costStep:16 },
+  { id:'precision', name:'Precisión',  desc:'+0.6% ventana crítica',                 costBase:24, costStep:17 },
+  { id:'reflex',    name:'Reflejos',   desc:'+0.6% ventana de parry perfecto',       costBase:24, costStep:17 }
+];
+const STAT_CAP = 10;
+
+const TREE_DEFS = {
+  ataque: { name:'Árbol de Ataque', nodes:[
+    { name:'Golpe Certero',   desc:'+5% ventana crítica',                              cost:2 },
+    { name:'Sed de Sangre',   desc:'Críticos curan +1 HP extra',                       cost:3 },
+    { name:'Furia Constante', desc:'+10% daño con HP por debajo del 50%',              cost:4 },
+    { name:'Ejecutor',        desc:'Golpes a enemigos con <20% HP son siempre críticos', cost:6 }
+  ]},
+  tanque: { name:'Árbol de Tanque', nodes:[
+    { name:'Piel Curtida',      desc:'-10% de todo el daño recibido',            cost:2 },
+    { name:'Guardia Firme',     desc:'+10% reducción adicional al bloquear',      cost:3 },
+    { name:'Corazón de Hierro', desc:'+15 HP máximo',                            cost:4 },
+    { name:'Última Resistencia',desc:'Sobrevivís con 1 HP una vez por run',      cost:6 }
+  ]},
+  explorador: { name:'Árbol de Explorador', nodes:[
+    { name:'Ojo Codicioso',        desc:'+15% oro de todos los enemigos',                        cost:2 },
+    { name:'Paso Ligero',          desc:'Los eventos arriesgados salen mejor',                    cost:3 },
+    { name:'Cazador de Fragmentos',desc:'+10% prob. de que las élites dropeen fragmento',         cost:4 },
+    { name:'Suerte del Explorador',desc:'Empezás cada run con una skill de altar al azar',        cost:6 }
+  ]}
+};
+
+/* ===================== ESTADO ===================== */
+let player, run, combat;
+
+function statCost(id, lvl){ const d=STAT_DEFS.find(s=>s.id===id); return d.costBase + lvl*d.costStep; }
+
+function computeBaseStats(){
+  const s = save.stats, t = save.trees;
+  const maxHp = 30 + s.vit*5 + (t.tanque>=3?15:0);
+  const dmg = 4 + s.force*1;
+  const critBonus = s.precision*0.006 + (t.ataque>=1?0.05:0);
+  const perfectBonus = s.reflex*0.006;
+  const goldMult = 1 + s.fortune*0.05 + (t.explorador>=1?0.15:0);
+  const dmgReduction = (t.tanque>=1?0.10:0);
+  return {maxHp,dmg,critBonus,perfectBonus,goldMult,dmgReduction};
+}
+
+function newRun(){
+  const base = computeBaseStats();
+  player = {
+    hp:base.maxHp, maxHp:base.maxHp, dmg:base.dmg, gold:0, skills:[],
+    critBonus:base.critBonus, perfectBonus:base.perfectBonus,
+    goldMult:base.goldMult, dmgReduction:base.dmgReduction, lastStandUsed:false,
+    fragmentsThisRun:0
+  };
+  if(save.trees.explorador>=4){
+    const pick = SKILL_POOL[Math.floor(Math.random()*SKILL_POOL.length)];
+    player.skills.push(pick.id);
+  }
+  run = { floor:1, roomsThisFloor: generateFloorRooms(1), roomIndex:0 };
+}
+
+function generateFloorRooms(floor){
+  if(floor%10===0) return [{type:'boss'}];
+  if(floor%5===0) return [{type:'elite'}, {type:(floor%2===0?'evento':'altar')}];
+  return [{type:'combat'}, {type:(floor%2===0?'evento':'altar')}];
+}
+function pickEnemyKey(floor){
+  const roll=Math.random();
+  if(floor<=1) return 'rata';
+  if(roll<0.4) return 'rata';
+  if(roll<0.75) return 'esqueleto';
+  return 'arana';
+}
+function scaleForFloor(base, floor){
+  return {...base, hp:Math.round(base.hp*(1+(floor-1)*0.18)), dmg:Math.round(base.dmg*(1+(floor-1)*0.12))};
+}
+function makeElite(base, floor){
+  const scaled = scaleForFloor(base, floor);
+  return {...scaled, name:'Élite: '+base.name, hp:Math.round(scaled.hp*1.8), dmg:Math.round(scaled.dmg*1.4), elite:true};
+}
+function pickBoss(floor){
+  const idx = Math.floor(floor/10)-1;
+  const b = BOSS_POOL[idx % BOSS_POOL.length];
+  return {...scaleForFloor(b, floor), name:b.name, key:b.key, poison:b.poison, isBoss:true};
+}
+function hasSkill(id){ return player.skills.includes(id); }
+
+/* ===================== UI: pantallas ===================== */
+const $ = (id)=>document.getElementById(id);
+const screens = { menu:$('scr-menu'), trees:$('scr-trees'), game:$('scr-game'), summary:$('scr-summary') };
+function showScreen(name){
+  Object.values(screens).forEach(s=>s.classList.remove('active'));
+  screens[name].classList.add('active');
+  $('touch-layer').classList.toggle('active', name==='game');
+}
+
+function refreshMenuUI(){
+  $('stat-bestfloor').textContent = save.bestFloor;
+  $('stat-ecos').textContent = save.ecos;
+  $('stat-fragments').textContent = save.fragments;
+  renderStatsShop();
+}
+function renderStatsShop(){
+  const list = $('stats-shop-list');
+  list.innerHTML = '';
+  STAT_DEFS.forEach(d=>{
+    const lvl = save.stats[d.id];
+    const cost = statCost(d.id, lvl);
+    const maxed = lvl>=STAT_CAP;
+    const row = document.createElement('div');
+    row.className='shop-row';
+    row.innerHTML =
+      '<div><div class="shop-name">'+d.name+' <span class="shop-lvl">Nv.'+lvl+'</span></div>'+
+      '<div class="shop-desc">'+d.desc+'</div></div>'+
+      '<button class="btn-secondary" '+(maxed||save.ecos<cost?'disabled':'')+'>'+(maxed?'MÁX':'Mejorar · '+cost)+'</button>';
+    row.querySelector('button').addEventListener('click', ()=>{
+      if(save.stats[d.id]>=STAT_CAP) return;
+      const c = statCost(d.id, save.stats[d.id]);
+      if(save.ecos<c) return;
+      save.ecos -= c; save.stats[d.id]++;
+      persistSave(); refreshMenuUI();
+    });
+    list.appendChild(row);
+  });
+}
+function renderTrees(){
+  $('trees-frag-count').textContent = save.fragments;
+  const container = $('trees-container');
+  container.innerHTML = '';
+  Object.keys(TREE_DEFS).forEach(key=>{
+    const tree = TREE_DEFS[key];
+    const unlockedTier = save.trees[key];
+    const card = document.createElement('div');
+    card.className='tree-card';
+    let html = '<div class="tree-title" style="color:var(--frag)">'+tree.name+'</div>';
+    tree.nodes.forEach((node, i)=>{
+      let stateClass, stateHtml;
+      if(i < unlockedTier){ stateClass='node-unlocked'; stateHtml='<span class="node-state">✓ Activo</span>'; }
+      else if(i === unlockedTier){
+        const canAfford = save.fragments >= node.cost;
+        stateClass='node-available';
+        stateHtml = '<button class="node-state" data-tree="'+key+'" '+(canAfford?'':'disabled')+'>Desbloq · '+node.cost+' 🔮</button>';
+      } else { stateClass='node-locked'; stateHtml='<span class="node-state">Bloqueado</span>'; }
+      html += '<div class="tree-node '+stateClass+'"><div><div class="node-name">'+node.name+'</div>'+
+        '<div class="node-desc">'+node.desc+'</div></div>'+stateHtml+'</div>';
+    });
+    card.innerHTML = html;
+    container.appendChild(card);
+  });
+  container.querySelectorAll('button[data-tree]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = btn.getAttribute('data-tree');
+      const tier = save.trees[key];
+      const cost = TREE_DEFS[key].nodes[tier].cost;
+      if(save.fragments < cost) return;
+      save.fragments -= cost; save.trees[key]++;
+      persistSave(); renderTrees(); refreshMenuUI();
+    });
+  });
+}
+
+$('btn-start').addEventListener('click', ()=>{ newRun(); showScreen('game'); resetArenaVisual(); nextRoom(); });
+$('btn-menu').addEventListener('click', ()=>{ refreshMenuUI(); showScreen('menu'); });
+$('btn-trees').addEventListener('click', ()=>{ renderTrees(); showScreen('trees'); });
+$('btn-trees-back').addEventListener('click', ()=>{ refreshMenuUI(); showScreen('menu'); });
+
+function renderHud(){
+  const pct = Math.max(0, player.hp/player.maxHp*100);
+  $('hp-bar').style.width = pct+'%';
+  $('floor-text').textContent = 'Piso '+run.floor;
+  $('gold-text').innerHTML = 'Oro: <span>'+player.gold+'</span>';
+}
+function flash(msg, cls){
+  const el=$('message-overlay'); el.textContent=msg; el.style.color=cls||'#fff';
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+}
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+/* ===================== INPUT ===================== */
+const touchLayer = $('touch-layer');
+let phaseHandlers = { onDown:null, onUp:null };
+touchLayer.addEventListener('pointerdown', ()=>{ if(phaseHandlers.onDown) phaseHandlers.onDown(performance.now()); });
+touchLayer.addEventListener('pointerup',   ()=>{ if(phaseHandlers.onUp)   phaseHandlers.onUp(performance.now()); });
+
+/* ===================== ANILLO DE TIMING (SVG) ===================== */
+const R_RING = 82, CIRC = 2*Math.PI*R_RING;
+const zoneGroup = $('zone-group'), markerDot = $('marker-dot');
+function setZones(zoneList){
+  zoneGroup.innerHTML='';
+  zoneList.forEach(z=>{
+    const len = (z.to-z.from)*CIRC;
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',100); c.setAttribute('cy',100); c.setAttribute('r',R_RING);
+    c.setAttribute('fill','none'); c.setAttribute('stroke',z.color); c.setAttribute('stroke-width','10');
+    c.setAttribute('stroke-dasharray', len+' '+(CIRC-len));
+    c.setAttribute('stroke-dashoffset', -(z.from*CIRC));
+    zoneGroup.appendChild(c);
+  });
+}
+function setMarkerProgress(p){
+  const theta = p*2*Math.PI;
+  const x = 100 + R_RING*Math.cos(theta);
+  const y = 100 + R_RING*Math.sin(theta);
+  markerDot.setAttribute('cx', x); markerDot.setAttribute('cy', y);
+}
+function setCenterSymbol(kind){
+  const el = $('center-symbol');
+  el.className='';
+  el.innerHTML='';
+  if(kind==='sword') el.classList.add('sym-sword');
+  else if(kind==='shield') el.classList.add('sym-shield');
+  else if(kind==='rune') el.classList.add('sym-rune');
+}
+
+function runAttackPhase(duration){
+  return new Promise(resolve=>{
+    const start=performance.now(); let done=false;
+    function frame(now){
+      if(done) return;
+      const p=Math.min((now-start)/duration,1);
+      setMarkerProgress(p);
+      if(p>=1){ done=true; phaseHandlers.onDown=null; resolve({progress:1,tapped:false}); return; }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+    phaseHandlers.onDown=(t)=>{ if(done) return; done=true; phaseHandlers.onDown=null;
+      resolve({progress:Math.min((t-start)/duration,1), tapped:true}); };
+  });
+}
+function runGuardPhase(duration){
+  return new Promise(resolve=>{
+    const start=performance.now(); let done=false, held=false;
+    function frame(now){
+      if(done) return;
+      const p=Math.min((now-start)/duration,1);
+      setMarkerProgress(p);
+      if(p>=1){ done=true; phaseHandlers.onDown=null; phaseHandlers.onUp=null; resolve({released:false,progress:1,held}); return; }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+    phaseHandlers.onDown=()=>{ held=true; $('player-figure').classList.add('guarding'); };
+    phaseHandlers.onUp=(t)=>{
+      if(done || !held) return; done=true; phaseHandlers.onDown=null; phaseHandlers.onUp=null;
+      $('player-figure').classList.remove('guarding');
+      resolve({released:true, progress:Math.min((t-start)/duration,1), held:true});
+    };
+  });
+}
+
+/* ===================== FX ===================== */
+function screenShake(){ $('app').classList.remove('shake'); void $('app').offsetWidth; $('app').classList.add('shake'); }
+function hitFlash(el){ el.classList.remove('hit-flash'); void el.offsetWidth; el.classList.add('hit-flash');
+  setTimeout(()=>el.classList.remove('hit-flash'), 180); }
+function lungeFigure(el, cls){ el.classList.add(cls); setTimeout(()=>el.classList.remove(cls), 160); }
+function shockwave(color){
+  const layer = $('arena');
+  const d = document.createElement('div');
+  d.className='shockwave'; d.style.borderColor=color;
+  layer.appendChild(d);
+  requestAnimationFrame(()=>d.classList.add('go'));
+  setTimeout(()=>d.remove(), 620);
+}
+function spawnFloat(text, color, target){
+  const layer = $('floatext-layer');
+  const span = document.createElement('span');
+  span.className='floatnum'; span.textContent=text; span.style.color=color;
+  span.style.top = (target==='enemy' ? '22%' : '68%');
+  span.style.left = (48+Math.random()*4)+'%';
+  layer.appendChild(span);
+  requestAnimationFrame(()=>span.classList.add('rise'));
+  setTimeout(()=>span.remove(), 800);
+}
+function resetArenaVisual(){
+  $('enemy-figure').classList.remove('show','enter','dying','elite-mod','boss-mod');
+  $('altar-glyph').classList.remove('show');
+  $('player-figure').style.transform='';
+  $('player-figure').classList.remove('guarding');
+}
+function setEnemyShape(key){
+  const shapeEl = $('enemy-figure').querySelector('.e-shape');
+  shapeEl.className = 'e-shape e-'+key;
+}
+async function enterEnemy(name, key, tag){
+  const nameEl = $('enemy-name');
+  nameEl.textContent = name;
+  nameEl.className = tag||'';
+  setEnemyShape(key);
+  const fig = $('enemy-figure');
+  fig.classList.remove('show','dying','elite-mod','boss-mod');
+  if(tag==='elite') fig.classList.add('elite-mod');
+  if(tag==='boss') fig.classList.add('boss-mod');
+  fig.classList.add('enter');
+  void fig.offsetWidth;
+  fig.classList.remove('enter');
+  fig.classList.add('show');
+  await delay(320);
+}
+
+/* ===================== DAÑO AL JUGADOR (centralizado) ===================== */
+function applyDamageToPlayer(rawDmg){
+  if(rawDmg<=0) return 0;
+  let dmg = Math.max(1, Math.round(rawDmg*(1-player.dmgReduction)));
+  if(player.hp-dmg<=0 && !player.lastStandUsed && save.trees.tanque>=4){
+    dmg = Math.max(0, player.hp-1);
+    player.lastStandUsed = true;
+    player.hp -= dmg;
+    flash('¡ÚLTIMA RESISTENCIA!', '#E8C34A');
+    screenShake();
+    shockwave('#E8C34A');
+    return dmg;
+  }
+  player.hp = Math.max(0, player.hp-dmg);
+  return dmg;
+}
+
+/* ===================== COMBATE ===================== */
+async function startCombat(enemyDef, kind){
+  // kind: 'normal' | 'elite' | 'boss'
+  combat = { enemy:{...enemyDef, maxHp:enemyDef.hp}, kind, phase2:false, poisonStacks:0 };
+  $('narrative-box').classList.add('hidden');
+  $('ring-wrap').classList.remove('hidden');
+  $('altar-glyph').classList.remove('show');
+  $('enemy-row').style.visibility='visible';
+  renderEnemyHp();
+  renderHud();
+  const tag = kind==='boss' ? 'boss' : (kind==='elite' ? 'elite' : '');
+  await enterEnemy(combat.enemy.name, enemyDef.key, tag);
+  if(kind==='boss'){ flash('¡'+combat.enemy.name+'!', '#FF9A5C'); screenShake(); await delay(700); }
+  else if(kind==='elite'){ flash('¡Enemigo Élite!', '#B48CE8'); await delay(500); }
+
+  while(combat.enemy.hp>0 && player.hp>0){
+    await playerAttackRound();
+    if(combat.enemy.hp<=0) break;
+    await enemyGuardRound();
+    if(player.hp<=0) break;
+    checkBossPhase2();
+  }
+
+  if(player.hp<=0){
+    lungeFigure($('player-figure'),'dying');
+    await delay(500); endRun(false); return;
+  }
+
+  const dyingFig = $('enemy-figure');
+  dyingFig.classList.add('dying');
+
+  let baseGold = 6+run.floor*2+Math.floor(Math.random()*6);
+  if(kind==='elite') baseGold = Math.round(baseGold*2.2);
+  if(kind==='boss') baseGold = 40+Math.floor(Math.random()*20)+run.floor;
+  const goldWin = Math.round(baseGold*player.goldMult);
+  player.gold += goldWin;
+
+  let msg = (kind==='boss'?'¡JEFE VENCIDO! ':(kind==='elite'?'¡Élite derrotada! ':'Enemigo derrotado ')) + '+'+goldWin+' oro';
+
+  if(kind==='elite'){
+    const chance = 0.25 + (save.trees.explorador>=3?0.10:0);
+    if(Math.random()<chance){ save.fragments+=1; player.fragmentsThisRun+=1; msg+=' · +1 🔮'; shockwave('#B48CE8'); }
+  }
+  if(kind==='boss'){
+    const bonus = (run.floor%30===0) ? 2 : 1;
+    save.fragments += bonus; player.fragmentsThisRun += bonus;
+    msg += ' · +'+bonus+' 🔮';
+    shockwave('#E8C34A');
+  }
+  persistSave();
+  flash(msg, '#E8C34A');
+  renderHud();
+  await delay(900);
+  nextRoom();
+}
+
+function checkBossPhase2(){
+  if(combat.kind!=='boss' || combat.phase2) return;
+  if(combat.enemy.hp <= combat.enemy.maxHp*0.5){
+    combat.phase2=true;
+    combat.enemy.atkMs=Math.round(combat.enemy.atkMs*0.75);
+    combat.enemy.guardMs=Math.round(combat.enemy.guardMs*0.75);
+    flash('¡El jefe acelera!', '#FF6B4A');
+    screenShake();
+  }
+}
+function renderEnemyHp(){
+  const pct=Math.max(0, combat.enemy.hp/combat.enemy.maxHp*100);
+  $('enemy-hp-bar').style.width=pct+'%';
+}
+
+async function playerAttackRound(){
+  if(combat.enemy.poison && combat.poisonStacks>0){
+    const dmg = applyDamageToPlayer(combat.poisonStacks);
+    if(dmg>0) spawnFloat('-'+dmg+' veneno', '#4FD6C4', 'player');
+    renderHud();
+    await delay(450);
+    if(player.hp<=0) return;
+  }
+
+  $('phase-label').textContent='Atacá'; $('phase-label').className='attack';
+  $('instruction-text').textContent='Tocá en el momento justo';
+  setCenterSymbol('sword');
+
+  let critFrom=0.62-player.critBonus/2, critTo=0.80+player.critBonus/2;
+  if(hasSkill('furia') && player.hp <= player.maxHp*0.3){ critFrom-=0.07; critTo+=0.05; }
+  critFrom = Math.max(0.42, critFrom); critTo = Math.min(0.93, critTo);
+
+  setZones([
+    {from:0,        to:0.40,     color:'#3a2f33'},
+    {from:0.40,     to:critFrom, color:'#5c4a1f'},
+    {from:critFrom, to:critTo,   color:'#E2703A'},
+    {from:critTo,   to:0.95,     color:'#5c4a1f'},
+    {from:0.95,     to:1.0,      color:'#3a2f33'}
+  ]);
+  setMarkerProgress(0);
+
+  const res = await runAttackPhase(1200);
+  let dmg=0, label='', color='#fff', isCrit=false;
+  if(!res.tapped || res.progress<0.40 || res.progress>=0.95){
+    label='Fallaste'; color='#8B8078'; dmg=0;
+  } else if(res.progress>=critFrom && res.progress<critTo){
+    isCrit=true; dmg=player.dmg*2; label='¡CRÍTICO!'; color='#FF9A5C';
+  } else {
+    dmg=player.dmg; label='Golpe'; color='#E8C34A';
+  }
+
+  // Ejecutor: enemigos con <20% HP siempre reciben crítico si el golpe conectó
+  if(dmg>0 && !isCrit && save.trees.ataque>=4 && combat.enemy.hp<=combat.enemy.maxHp*0.2){
+    isCrit=true; dmg=player.dmg*2; label='¡EJECUCIÓN!'; color='#FF9A5C';
+  }
+  // Furia Constante: +10% daño con HP<50%
+  if(dmg>0 && save.trees.ataque>=3 && player.hp<=player.maxHp*0.5){
+    dmg = Math.round(dmg*1.10);
+  }
+  if(isCrit){
+    let heal = 0;
+    if(hasSkill('filo')) heal+=2;
+    if(save.trees.ataque>=2) heal+=1;
+    if(heal>0) player.hp=Math.min(player.maxHp, player.hp+heal);
+  }
+
+  if(dmg>0){
+    lungeFigure($('player-figure'),'lunge-p');
+    await delay(60);
+    hitFlash($('enemy-figure'));
+    if(isCrit) screenShake();
+    spawnFloat('-'+dmg, color, 'enemy');
+    combat.enemy.hp=Math.max(0, combat.enemy.hp-dmg);
+    renderEnemyHp();
+  }
+  flash(label, color);
+  renderHud();
+  await delay(380);
+}
+
+async function enemyGuardRound(){
+  if(combat.enemy.hp<=0) return;
+  $('phase-label').textContent='Defendé'; $('phase-label').className='guard';
+  $('instruction-text').textContent='Mantené y soltá en el momento justo';
+  setCenterSymbol('shield');
+
+  let blockFrom=0.55, perfFrom=0.85-player.perfectBonus;
+  if(hasSkill('reflejo')) perfFrom-=0.07;
+  perfFrom = Math.max(blockFrom+0.10, perfFrom);
+
+  setZones([
+    {from:0,         to:blockFrom, color:'#3a2f33'},
+    {from:blockFrom, to:perfFrom,  color:'#2f6e66'},
+    {from:perfFrom,  to:1.0,       color:'#4FD6C4'}
+  ]);
+  setMarkerProgress(0);
+  lungeFigure($('enemy-figure'),'lunge-e');
+
+  const res = await runGuardPhase(combat.enemy.guardMs + 300);
+  const rawDmg = combat.enemy.dmg;
+  let outcomeDmg=0, label='', color='#fff';
+
+  if(!res.held){ outcomeDmg=rawDmg; label='Sin guardia'; color='#C0453F'; }
+  else if(!res.released){ outcomeDmg=rawDmg; label='Soltaste tarde'; color='#C0453F'; }
+  else if(res.progress < blockFrom){ outcomeDmg=rawDmg; label='Muy pronto'; color='#C0453F'; }
+  else if(res.progress < perfFrom){
+    let reduction = hasSkill('piedra') ? 0.75 : 0.5;
+    if(save.trees.tanque>=2) reduction += 0.10;
+    reduction = Math.min(0.92, reduction);
+    outcomeDmg = Math.max(1, Math.round(rawDmg*(1-reduction)));
+    label='Bloqueo'; color='#4FD6C4';
+  } else {
+    outcomeDmg=0;
+    const counter = player.dmg * (hasSkill('contra') ? 2 : 1);
+    combat.enemy.hp = Math.max(0, combat.enemy.hp-counter);
+    label='¡PARRY PERFECTO!'; color='#8CFFDE';
+    renderEnemyHp();
+    hitFlash($('enemy-figure'));
+    spawnFloat('-'+counter, '#8CFFDE', 'enemy');
+    shockwave('#4FD6C4');
+  }
+
+  if(outcomeDmg>0){
+    if(combat.enemy.poison) combat.poisonStacks = Math.min(3, combat.poisonStacks+1);
+    const actualDmg = applyDamageToPlayer(outcomeDmg);
+    hitFlash($('player-figure'));
+    if(actualDmg>0){ spawnFloat('-'+actualDmg, color, 'player'); if(actualDmg>=6) screenShake(); }
+  }
+
+  renderHud();
+  flash(label, color);
+  await delay(420);
+}
+
+/* ===================== ALTAR ===================== */
+async function startAltar(){
+  $('enemy-row').style.visibility='hidden';
+  $('ring-wrap').classList.add('hidden');
+  resetArenaVisual();
+  $('enemy-figure').classList.remove('show');
+  $('altar-glyph').classList.add('show');
+  setCenterSymbol('rune');
+  const box=$('narrative-box'); box.classList.remove('hidden');
+
+  const available = SKILL_POOL.filter(s=>!hasSkill(s.id));
+  if(available.length===0){
+    player.gold+=Math.round(10*player.goldMult); flash('Altar vacío · +'+Math.round(10*player.goldMult)+' oro', '#E8C34A'); await delay(750); nextRoom(); return;
+  }
+  const candidates = shuffle(available).slice(0,3);
+  let idx=0;
+  while(idx < candidates.length){
+    const s = candidates[idx];
+    box.innerHTML = '<b style="color:#FF9A5C">'+s.name+'</b><br><br>'+s.desc+
+      '<br><br><span style="color:#E8C34A">TOCÁ</span> para tomarla · <span style="color:#4FD6C4">MANTENÉ</span> para descartar';
+    $('phase-label').textContent='Altar'; $('phase-label').className='';
+    $('instruction-text').textContent='';
+    const choice = await waitTapOrHold();
+    if(choice==='tap'){
+      player.skills.push(s.id);
+      flash('Skill obtenida: '+s.name, '#FF9A5C');
+      shockwave('#E8C34A');
+      await delay(700); nextRoom(); return;
+    }
+    idx++;
+  }
+  flash('Seguiste de largo', '#8B8078');
+  await delay(450); nextRoom();
+}
+
+/* ===================== EVENTO ===================== */
+async function startEvent(){
+  $('enemy-row').style.visibility='hidden';
+  $('ring-wrap').classList.add('hidden');
+  resetArenaVisual();
+  $('enemy-figure').classList.remove('show');
+  $('altar-glyph').classList.add('show');
+  setCenterSymbol('rune');
+  const box=$('narrative-box'); box.classList.remove('hidden');
+
+  const ev = EVENTS[Math.floor(Math.random()*EVENTS.length)];
+  box.innerHTML = ev.text+'<br><br><span style="color:#E8C34A">TOCÁ</span>: '+ev.a+
+    '<br><span style="color:#4FD6C4">MANTENÉ</span>: '+ev.b;
+  $('phase-label').textContent='Evento'; $('phase-label').className='';
+  $('instruction-text').textContent='';
+
+  const choice = await waitTapOrHold();
+  if(choice==='tap'){ ev.doA(player); flash(ev.a, '#E8C34A'); }
+  else { ev.doB(player); flash(ev.b, '#4FD6C4'); }
+  renderHud();
+  await delay(700); nextRoom();
+}
+
+function waitTapOrHold(){
+  return new Promise(resolve=>{
+    let downAt=null, resolved=false;
+    phaseHandlers.onDown=(t)=>{ downAt=t; };
+    phaseHandlers.onUp=(t)=>{
+      if(resolved || downAt===null) return;
+      resolved=true;
+      const heldMs=t-downAt;
+      phaseHandlers.onDown=null; phaseHandlers.onUp=null;
+      resolve(heldMs<220 ? 'tap' : 'hold');
+    };
+  });
+}
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+/* ===================== FLUJO DE SALAS ===================== */
+function nextRoom(){
+  if(run.roomIndex >= run.roomsThisFloor.length){
+    run.floor++;
+    run.roomsThisFloor = generateFloorRooms(run.floor);
+    run.roomIndex = 0;
+  }
+  const room = run.roomsThisFloor[run.roomIndex];
+  run.roomIndex++;
+  renderHud();
+
+  if(room.type==='combat'){
+    const key = pickEnemyKey(run.floor);
+    startCombat(scaleForFloor(ENEMIES[key], run.floor), 'normal');
+  } else if(room.type==='elite'){
+    const key = pickEnemyKey(run.floor);
+    startCombat(makeElite(ENEMIES[key], run.floor), 'elite');
+  } else if(room.type==='boss'){
+    startCombat(pickBoss(run.floor), 'boss');
+  } else if(room.type==='altar'){
+    startAltar();
+  } else {
+    startEvent();
+  }
+}
+
+function endRun(cleared){
+  const floorReached = run.floor;
+  const ecosEarned = floorReached*8 + Math.floor(player.gold/2);
+  save.ecos += ecosEarned;
+  if(floorReached > save.bestFloor) save.bestFloor = floorReached;
+  persistSave();
+
+  $('summary-title').textContent = 'Has caído';
+  $('summary-body').innerHTML =
+    'Piso alcanzado: <span>'+floorReached+'</span><br>'+
+    'Oro recolectado: <span>'+player.gold+'</span><br>'+
+    'Skills obtenidas: <span>'+player.skills.length+'</span><br>'+
+    'Fragmentos ganados: <span class="fv">+'+player.fragmentsThisRun+'</span><br>'+
+    'Ecos ganados: <span>+'+ecosEarned+'</span>';
+  showScreen('summary');
+}
+
+/* ===================== INICIO ===================== */
+refreshMenuUI();
+showScreen('menu');
+
+})();
+</script>
+</body>
+</html>
