@@ -85,6 +85,20 @@
     letter-spacing: 0.02em;
   }
   h1 .count{ color: var(--accent); }
+  .category{
+    margin: 22px 0 0;
+  }
+  .category:first-of-type{ margin-top: 0; }
+  .category-label{
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    margin: 0 0 6px;
+    padding: 0 6px;
+  }
+  .category-label::before{ content: "# "; color: var(--accent-dim); }
   ul{ list-style:none; margin:0; padding:0; }
   li{
     border-top: 1px solid var(--panel-border);
@@ -157,7 +171,7 @@
     <div class="screen">
       <p class="prompt"><span class="sym">$</span> <span class="path" id="prompt-path">ls *.html</span><span class="cursor"></span></p>
       <h1 id="heading">buscando archivos…</h1>
-      <ul id="list"></ul>
+      <div id="list"></div>
       <p class="cachebar" id="cachebar"></p>
       <footer>generado automáticamente al cargar la página, vía GitHub API</footer>
     </div>
@@ -204,6 +218,8 @@
     cachebarEl.innerHTML = parts.join(' — ');
   }
 
+  const NO_CATEGORY = 'sin categoría';
+
   function renderFiles(files){
     listEl.innerHTML = '';
     if (!files.length){
@@ -212,26 +228,51 @@
       return;
     }
     headingEl.innerHTML = `<span class="count">${files.length}</span> archivo${files.length === 1 ? '' : 's'} encontrado${files.length === 1 ? '' : 's'}`;
+
+    const groups = new Map();
     for (const file of files){
-      const li = document.createElement('li');
-      const titleHtml = file.title
-        ? `<span class="doctitle">${file.title}</span>`
-        : file.pending
-          ? `<span class="doctitle" style="opacity:.5">cargando título…</span>`
-          : `<span class="doctitle" style="opacity:.5">sin título</span>`;
-      li.innerHTML = `
-        <a class="row" href="${file.name}">
-          <span class="name">${file.name}</span>
-          ${titleHtml}
-        </a>`;
-      listEl.appendChild(li);
+      const cat = file.category || NO_CATEGORY;
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat).push(file);
+    }
+    const sortedCats = [...groups.keys()].sort((a, b) => {
+      if (a === NO_CATEGORY) return 1;
+      if (b === NO_CATEGORY) return -1;
+      return a.localeCompare(b);
+    });
+
+    for (const cat of sortedCats){
+      const section = document.createElement('div');
+      section.className = 'category';
+      const label = document.createElement('p');
+      label.className = 'category-label';
+      label.textContent = cat;
+      section.appendChild(label);
+
+      const ul = document.createElement('ul');
+      for (const file of groups.get(cat)){
+        const li = document.createElement('li');
+        const titleHtml = file.title
+          ? `<span class="doctitle">${file.title}</span>`
+          : file.pending
+            ? `<span class="doctitle" style="opacity:.5">cargando título…</span>`
+            : `<span class="doctitle" style="opacity:.5">sin título</span>`;
+        li.innerHTML = `
+          <a class="row" href="${file.name}">
+            <span class="name">${file.name}</span>
+            ${titleHtml}
+          </a>`;
+        ul.appendChild(li);
+      }
+      section.appendChild(ul);
+      listEl.appendChild(section);
     }
   }
 
   function statusLine(text, isErr){
-    const li = document.createElement('li');
-    li.innerHTML = `<div class="status ${isErr ? 'err' : ''}"><span class="sym">#</span> ${text}</div>`;
-    listEl.appendChild(li);
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<div class="status ${isErr ? 'err' : ''}"><span class="sym">#</span> ${text}</div>`;
+    listEl.appendChild(wrap);
   }
 
   function pathPartsFromLocation(){
@@ -272,18 +313,34 @@
     }
   }
 
-  async function extractTitle(rawUrl){
+  async function extractMeta(rawUrl){
     try {
       const res = await fetch(rawUrl);
-      if (!res.ok) return null;
+      if (!res.ok) return { title: null, category: null };
       const html = await res.text();
-      const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-      if (!match) return null;
-      const txt = document.createElement('textarea');
-      txt.innerHTML = match[1].trim();
-      return txt.value || null;
+
+      let title = null;
+      const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      if (titleMatch){
+        const txt = document.createElement('textarea');
+        txt.innerHTML = titleMatch[1].trim();
+        title = txt.value || null;
+      }
+
+      let category = null;
+      const metaMatch = html.match(/<meta[^>]+name=["']category["'][^>]*>/i);
+      if (metaMatch){
+        const contentMatch = metaMatch[0].match(/content=["']([^"']*)["']/i);
+        if (contentMatch){
+          const txt = document.createElement('textarea');
+          txt.innerHTML = contentMatch[1].trim();
+          category = txt.value || null;
+        }
+      }
+
+      return { title, category };
     } catch (e) {
-      return null;
+      return { title: null, category: null };
     }
   }
 
@@ -310,39 +367,37 @@
 
     const prevByName = new Map((cache?.files || []).map(f => [f.name, f]));
 
-    // Render inmediato con lo que ya se sabe (título "cargando…" solo para lo nuevo/cambiado)
+    // Render inmediato con lo que ya se sabe (título/categoría "cargando…" solo para lo nuevo/cambiado)
     renderFiles(current.map(f => {
       const prev = prevByName.get(f.name);
-      return { name: f.name, title: (prev && prev.sha === f.sha) ? prev.title : null, sha: f.sha, pending: !(prev && prev.sha === f.sha) };
+      const unchanged = prev && prev.sha === f.sha;
+      return { name: f.name, title: unchanged ? prev.title : null, category: unchanged ? prev.category : null, sha: f.sha, pending: !unchanged };
     }));
 
-    // 3) Solo se hace fetch del título en archivos nuevos o con sha distinto al cacheado.
+    // 3) Solo se hace fetch del contenido en archivos nuevos o con sha distinto al cacheado.
     const finalFiles = [];
     let pendingCount = 0;
     for (const f of current){
       const prev = prevByName.get(f.name);
       if (prev && prev.sha === f.sha){
-        finalFiles.push({ name: f.name, sha: f.sha, title: prev.title });
+        finalFiles.push({ name: f.name, sha: f.sha, title: prev.title, category: prev.category });
       } else {
         pendingCount++;
-        finalFiles.push({ name: f.name, sha: f.sha, title: null });
+        finalFiles.push({ name: f.name, sha: f.sha, title: null, category: null });
       }
     }
 
     if (pendingCount){
-      const titlePromises = current.map(async (f, i) => {
+      const metaPromises = current.map(async (f, i) => {
         const prev = prevByName.get(f.name);
         if (prev && prev.sha === f.sha) return; // sin cambios: no se pide de nuevo
-        const title = await extractTitle(f.download_url);
+        const { title, category } = await extractMeta(f.download_url);
         finalFiles[i].title = title;
-        const rows = listEl.querySelectorAll('a.row');
-        const el = rows[i]?.querySelector('.doctitle');
-        if (el){
-          el.textContent = title || 'sin título';
-          el.style.opacity = title ? '' : '0.5';
-        }
+        finalFiles[i].category = category;
       });
-      await Promise.all(titlePromises);
+      await Promise.all(metaPromises);
+      // Con categorías ya resueltas, se re-renderiza agrupado correctamente.
+      renderFiles(finalFiles);
     }
 
     const newCache = { ts: Date.now(), dirPath, files: finalFiles };
