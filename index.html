@@ -126,8 +126,19 @@
   }
   .status.err{ color: var(--err); }
   .status .sym{ color: var(--accent); }
+  .cachebar{
+    margin: 16px 0 0;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .cachebar a{
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--accent-dim);
+  }
+  .cachebar a:hover{ color: #ffce6b; }
   footer{
-    margin-top: 20px;
+    margin-top: 10px;
     font-size: 11px;
     color: var(--text-dim);
     opacity: 0.7;
@@ -147,6 +158,7 @@
       <p class="prompt"><span class="sym">$</span> <span class="path" id="prompt-path">ls *.html</span><span class="cursor"></span></p>
       <h1 id="heading">buscando archivos…</h1>
       <ul id="list"></ul>
+      <p class="cachebar" id="cachebar"></p>
       <footer>generado automáticamente al cargar la página, vía GitHub API</footer>
     </div>
   </div>
@@ -156,6 +168,65 @@
   const listEl = document.getElementById('list');
   const headingEl = document.getElementById('heading');
   const promptPathEl = document.getElementById('prompt-path');
+  const cachebarEl = document.getElementById('cachebar');
+
+  const CACHE_KEY = 'gh-html-index:' + location.hostname + location.pathname;
+  const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas: dentro de este lapso no se consulta la API en absoluto
+  const forceRefresh = location.hash === '#refresh';
+
+  function readCache(){
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.files)) return null;
+      return parsed;
+    } catch (e) { return null; }
+  }
+
+  function writeCache(cache){
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch (e) { /* localStorage lleno o no disponible: seguir sin cachear */ }
+  }
+
+  function timeAgo(ts){
+    const diffMin = Math.round((Date.now() - ts) / 60000);
+    if (diffMin < 1) return 'recién';
+    if (diffMin < 60) return `hace ${diffMin} min`;
+    const diffH = Math.round(diffMin / 60);
+    if (diffH < 24) return `hace ${diffH} h`;
+    return `hace ${Math.round(diffH / 24)} d`;
+  }
+
+  function renderCachebar(cache, fromCacheOnly){
+    const parts = [];
+    if (cache) parts.push(`índice ${fromCacheOnly ? 'servido desde caché' : 'actualizado'} · ${timeAgo(cache.ts)}`);
+    parts.push('<a href="#refresh" onclick="location.reload()">revisar ahora</a>');
+    cachebarEl.innerHTML = parts.join(' — ');
+  }
+
+  function renderFiles(files){
+    listEl.innerHTML = '';
+    if (!files.length){
+      headingEl.innerHTML = `0 archivos encontrados`;
+      statusLine('no hay otros archivos .html en este directorio.', false);
+      return;
+    }
+    headingEl.innerHTML = `<span class="count">${files.length}</span> archivo${files.length === 1 ? '' : 's'} encontrado${files.length === 1 ? '' : 's'}`;
+    for (const file of files){
+      const li = document.createElement('li');
+      const titleHtml = file.title
+        ? `<span class="doctitle">${file.title}</span>`
+        : file.pending
+          ? `<span class="doctitle" style="opacity:.5">cargando título…</span>`
+          : `<span class="doctitle" style="opacity:.5">sin título</span>`;
+      li.innerHTML = `
+        <a class="row" href="${file.name}">
+          <span class="name">${file.name}</span>
+          ${titleHtml}
+        </a>`;
+      listEl.appendChild(li);
+    }
+  }
 
   function statusLine(text, isErr){
     const li = document.createElement('li');
@@ -217,44 +288,76 @@
   }
 
   try {
-    const { data, owner, repo, dirPath } = await resolveRepoListing();
+    const cache = readCache();
+
+    // 1) Caché fresca dentro del TTL: renderizar directo, cero requests.
+    if (cache && !forceRefresh && (Date.now() - cache.ts) < CACHE_TTL_MS){
+      promptPathEl.textContent = `ls ${cache.dirPath ? '/' + cache.dirPath + '/' : '/'}*.html`;
+      renderFiles(cache.files);
+      renderCachebar(cache, true);
+      return;
+    }
+
+    // 2) Caché vencida o inexistente: un solo request para listar el directorio.
+    const { data, dirPath } = await resolveRepoListing();
     promptPathEl.textContent = `ls ${dirPath ? '/' + dirPath + '/' : '/'}*.html`;
 
-    const files = data
+    const current = data
       .filter(item => item.type === 'file')
       .filter(item => /\.html?$/i.test(item.name))
       .filter(item => item.name.toLowerCase() !== 'index.html')
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    if (!files.length){
-      headingEl.innerHTML = `0 archivos encontrados`;
-      statusLine('no hay otros archivos .html en este directorio.', false);
-      return;
+    const prevByName = new Map((cache?.files || []).map(f => [f.name, f]));
+
+    // Render inmediato con lo que ya se sabe (título "cargando…" solo para lo nuevo/cambiado)
+    renderFiles(current.map(f => {
+      const prev = prevByName.get(f.name);
+      return { name: f.name, title: (prev && prev.sha === f.sha) ? prev.title : null, sha: f.sha, pending: !(prev && prev.sha === f.sha) };
+    }));
+
+    // 3) Solo se hace fetch del título en archivos nuevos o con sha distinto al cacheado.
+    const finalFiles = [];
+    let pendingCount = 0;
+    for (const f of current){
+      const prev = prevByName.get(f.name);
+      if (prev && prev.sha === f.sha){
+        finalFiles.push({ name: f.name, sha: f.sha, title: prev.title });
+      } else {
+        pendingCount++;
+        finalFiles.push({ name: f.name, sha: f.sha, title: null });
+      }
     }
 
-    headingEl.innerHTML = `<span class="count">${files.length}</span> archivo${files.length === 1 ? '' : 's'} encontrado${files.length === 1 ? '' : 's'}`;
-
-    for (const file of files){
-      const li = document.createElement('li');
-      li.innerHTML = `
-        <a class="row" href="${file.name}">
-          <span class="name">${file.name}</span>
-          <span class="sep">—</span>
-          <span class="doctitle">cargando título…</span>
-        </a>`;
-      listEl.appendChild(li);
-
-      extractTitle(file.download_url).then(title => {
-        const el = li.querySelector('.doctitle');
-        if (title) {
-          el.textContent = title;
-        } else {
-          el.textContent = 'sin título';
-          el.style.opacity = '0.5';
+    if (pendingCount){
+      const titlePromises = current.map(async (f, i) => {
+        const prev = prevByName.get(f.name);
+        if (prev && prev.sha === f.sha) return; // sin cambios: no se pide de nuevo
+        const title = await extractTitle(f.download_url);
+        finalFiles[i].title = title;
+        const rows = listEl.querySelectorAll('a.row');
+        const el = rows[i]?.querySelector('.doctitle');
+        if (el){
+          el.textContent = title || 'sin título';
+          el.style.opacity = title ? '' : '0.5';
         }
       });
+      await Promise.all(titlePromises);
     }
+
+    const newCache = { ts: Date.now(), dirPath, files: finalFiles };
+    writeCache(newCache);
+    renderCachebar(newCache, false);
   } catch (err) {
+    // Si falla la API (p. ej. límite de requests alcanzado) pero hay caché vieja, se usa como respaldo.
+    const staleCache = readCache();
+    if (staleCache){
+      promptPathEl.textContent = `ls ${staleCache.dirPath ? '/' + staleCache.dirPath + '/' : '/'}*.html`;
+      renderFiles(staleCache.files);
+      renderCachebar(staleCache, true);
+      statusLine(`no se pudo actualizar (${err.message || 'error'}); mostrando caché.`, true);
+      return;
+    }
     headingEl.textContent = 'error';
     statusLine(err.message || 'ocurrió un error al listar los archivos.', true);
   }
