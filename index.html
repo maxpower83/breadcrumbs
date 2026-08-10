@@ -185,6 +185,7 @@
   const cachebarEl = document.getElementById('cachebar');
 
   const CACHE_KEY = 'gh-html-index:' + location.hostname + location.pathname;
+  const CACHE_SCHEMA_VERSION = 2; // subir este número invalida cachés viejas (ej. al agregar nuevos campos por archivo)
   const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas: dentro de este lapso no se consulta la API en absoluto
   const forceRefresh = location.hash === '#refresh';
 
@@ -194,12 +195,13 @@
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (!parsed || !Array.isArray(parsed.files)) return null;
+      if (parsed.v !== CACHE_SCHEMA_VERSION) return null; // esquema desactualizado: se ignora y se relee todo una vez
       return parsed;
     } catch (e) { return null; }
   }
 
   function writeCache(cache){
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch (e) { /* localStorage lleno o no disponible: seguir sin cachear */ }
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ...cache, v: CACHE_SCHEMA_VERSION })); } catch (e) { /* localStorage lleno o no disponible: seguir sin cachear */ }
   }
 
   function timeAgo(ts){
@@ -214,8 +216,16 @@
   function renderCachebar(cache, fromCacheOnly){
     const parts = [];
     if (cache) parts.push(`índice ${fromCacheOnly ? 'servido desde caché' : 'actualizado'} · ${timeAgo(cache.ts)}`);
-    parts.push('<a href="#refresh" onclick="location.reload()">revisar ahora</a>');
+    parts.push('<a href="#" id="refresh-link">revisar ahora</a>');
     cachebarEl.innerHTML = parts.join(' — ');
+    const link = document.getElementById('refresh-link');
+    if (link){
+      link.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        try { localStorage.removeItem(CACHE_KEY); } catch (e) { /* nada que limpiar */ }
+        location.reload();
+      });
+    }
   }
 
   const NO_CATEGORY = 'sin categoría';
@@ -365,7 +375,7 @@
       .filter(item => item.name.toLowerCase() !== 'index.html')
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    const prevByName = new Map((cache?.files || []).map(f => [f.name, f]));
+    const prevByName = forceRefresh ? new Map() : new Map((cache?.files || []).map(f => [f.name, f]));
 
     // Render inmediato con lo que ya se sabe (título/categoría "cargando…" solo para lo nuevo/cambiado)
     renderFiles(current.map(f => {
