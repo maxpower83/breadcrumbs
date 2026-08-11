@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG-GM // Bitacora de Campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0a08;
+    --panel:#15120e;
+    --panel-2:#1d1912;
+    --hairline:#332c22;
+    --ink:#d9cfbf;
+    --ink-dim:#8a7f6c;
+    --blood:#9c2f27;
+    --blood-bright:#c94838;
+    --amber:#c39a4a;
+    --sick-green:#5c7a4e;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(156,47,39,0.07), transparent 55%),
+      radial-gradient(ellipse at 90% 100%, rgba(92,122,78,0.05), transparent 50%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Newsreader', serif;
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+  }
+  ::selection{background:var(--blood); color:#fff;}
+
+  header{
+    padding:18px 20px 14px;
+    border-bottom:1px solid var(--hairline);
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    position:sticky; top:0; z-index:10;
+  }
+  .title-row{display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+  h1{
+    font-family:'IM Fell English', serif;
+    font-style:italic;
+    font-weight:400;
+    font-size:1.6rem;
+    letter-spacing:0.5px;
+    margin:0;
+    color:var(--ink);
+  }
+  h1 span{color:var(--blood-bright);}
+  .entry-count{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.7rem;
+    color:var(--ink-dim);
+    letter-spacing:1px;
+    text-transform:uppercase;
+  }
+
+  #sheetbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    margin-top:12px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.72rem;
+  }
+  .stat{
+    background:rgba(0,0,0,0.25);
+    border:1px solid var(--hairline);
+    padding:5px 10px;
+    border-radius:2px;
+    color:var(--ink-dim);
+    white-space:nowrap;
+  }
+  .stat b{color:var(--amber); font-weight:500;}
+  #hpwrap{display:flex; align-items:center; gap:8px;}
+  #hpbar{width:120px; height:8px; background:#000; border:1px solid var(--hairline); position:relative; overflow:hidden;}
+  #hpfill{height:100%; background:linear-gradient(90deg, var(--blood), var(--blood-bright)); transition:width 0.6s ease;}
+
+  main{
+    flex:1;
+    max-width:760px;
+    width:100%;
+    margin:0 auto;
+    padding:28px 20px 160px;
+  }
+  #setup{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    padding:22px;
+    margin-top:10px;
+  }
+  #setup p{margin:0; color:var(--ink-dim); font-size:0.92rem; line-height:1.6;}
+  .field-row{display:flex; flex-wrap:wrap; gap:10px;}
+  .field-row input{
+    flex:1; min-width:140px;
+    background:#000; border:1px solid var(--hairline); color:var(--ink);
+    font-family:'JetBrains Mono', monospace; font-size:0.78rem;
+    padding:9px 10px;
+  }
+  .field-row input::placeholder{color:#4a4234;}
+  button{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.75rem;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    background:var(--blood);
+    color:#f3e9df;
+    border:none;
+    padding:11px 18px;
+    cursor:pointer;
+    transition:background 0.15s ease, transform 0.1s ease;
+  }
+  button:hover:not(:disabled){background:var(--blood-bright);}
+  button:disabled{opacity:0.4; cursor:not-allowed;}
+  button.ghost{
+    background:transparent; border:1px solid var(--hairline); color:var(--ink-dim);
+  }
+  button.ghost:hover:not(:disabled){border-color:var(--amber); color:var(--amber);}
+
+  .entry{margin-bottom:26px; animation:fadeIn 0.4s ease both;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+  .player-line{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.8rem;
+    color:var(--sick-green);
+    border-left:2px solid var(--sick-green);
+    padding-left:10px;
+    margin-bottom:14px;
+  }
+  .player-line::before{content:"> "; color:var(--ink-dim);}
+
+  .sysblock{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.72rem;
+    line-height:1.7;
+    background:#000;
+    border:1px solid var(--hairline);
+    border-left:3px solid var(--amber);
+    padding:12px 14px;
+    margin-bottom:16px;
+    color:#9a9284;
+    position:relative;
+    overflow:hidden;
+  }
+  .sysblock::before{
+    content:"SYSTEM UPDATE";
+    display:block;
+    color:var(--amber);
+    letter-spacing:2px;
+    font-size:0.62rem;
+    margin-bottom:6px;
+    opacity:0.85;
+  }
+  .sysblock .roll{color:var(--ink);}
+  .sysblock .success{color:var(--sick-green); font-weight:700;}
+  .sysblock .failure{color:var(--blood-bright); font-weight:700;}
+  .sysblock .dc-line{color:var(--ink-dim);}
+
+  .narrative{
+    font-size:1.04rem;
+    line-height:1.75;
+    color:var(--ink);
+    white-space:pre-wrap;
+  }
+  .narrative p{margin:0 0 1em;}
+
+  .death-block{
+    text-align:center;
+    padding:30px 10px;
+    border:1px solid var(--blood);
+    background:rgba(156,47,39,0.08);
+    margin-top:20px;
+  }
+  .death-block h2{
+    font-family:'IM Fell English', serif;
+    color:var(--blood-bright);
+    letter-spacing:2px;
+    font-size:1.3rem;
+    margin:0 0 6px;
+  }
+  .death-block p{color:var(--ink-dim); font-size:0.85rem; font-family:'JetBrains Mono', monospace;}
+
+  #inputbar{
+    position:fixed; bottom:0; left:0; right:0;
+    background:linear-gradient(180deg, transparent, var(--bg) 30%);
+    padding:22px 20px 20px;
+    display:flex; justify-content:center;
+  }
+  #inputinner{
+    width:100%; max-width:760px;
+    display:flex; gap:8px;
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    padding:8px;
+  }
+  #actioninput{
+    flex:1;
+    background:transparent;
+    border:none;
+    color:var(--ink);
+    font-family:'Newsreader', serif;
+    font-size:0.95rem;
+    padding:8px 10px;
+    resize:none;
+    outline:none;
+    min-height:22px;
+    max-height:120px;
+  }
+  #charcount{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.62rem;
+    color:var(--ink-dim);
+    align-self:center;
+    padding-right:4px;
+    min-width:30px;
+    text-align:right;
+  }
+
+  .loading{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.75rem;
+    color:var(--ink-dim);
+  }
+  .loading::after{
+    content:"";
+    animation:dots 1.2s steps(4,end) infinite;
+  }
+  @keyframes dots{0%{content:"";}25%{content:".";}50%{content:"..";}75%{content:"...";}100%{content:"";}}
+
+  #keybar{
+    display:flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono', monospace; font-size:0.68rem;
+    color:var(--ink-dim);
+  }
+  #keybar button{padding:6px 10px; font-size:0.65rem;}
+  #keydot{width:7px; height:7px; border-radius:50%; background:var(--blood); display:inline-block;}
+  #keydot.ok{background:var(--sick-green);}
+
+  ::-webkit-scrollbar{width:9px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--hairline);}
+
+  @media (max-width:600px){
+    h1{font-size:1.3rem;}
+    #sheetbar{font-size:0.65rem;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-row">
+    <h1><span>RAG</span>-GM &mdash; Bitacora de Campo</h1>
+    <div class="entry-count" id="entrycount">TURNO 0</div>
+  </div>
+  <div id="sheetbar"></div>
+</header>
+
+<main id="main">
+  <div id="setup">
+    <p>El Generador de Aventuras Aleatorias es un Game Master implacable. No busca que ganes: dirige un mundo logico, reactivo y letal. La muerte es permanente. No hay red de seguridad.</p>
+
+    <div class="field-row">
+      <input id="f-apikey" type="password" placeholder="Clave API de Groq (gsk_...)">
+      <button id="savekeybtn" class="ghost">Guardar clave</button>
+    </div>
+    <p id="keynote" style="font-size:0.72rem; font-family:'JetBrains Mono', monospace; margin-top:-8px;"><span id="keydot"></span> La clave vive solo en esta pestana, en memoria del navegador. Nunca se guarda en disco ni se envia a nada que no sea api.groq.com. Se pierde al recargar la pagina. Conseguila gratis en console.groq.com.</p>
+
+    <p>Deja el resto de los campos vacios para que el sistema tire los dados por vos.</p>
+    <div class="field-row">
+      <input id="f-genre" placeholder="Genero (ej: horror, noir, fantasia sombria)">
+      <input id="f-place" placeholder="Lugar">
+    </div>
+    <div class="field-row">
+      <input id="f-time" placeholder="Epoca / momento">
+      <input id="f-goal" placeholder="Objetivo">
+    </div>
+    <div class="field-row">
+      <input id="f-char" placeholder="Personaje / especie (opcional)">
+    </div>
+    <div class="field-row">
+      <button id="startbtn">Iniciar Partida</button>
+      <button id="randombtn" class="ghost">Todo al azar</button>
+    </div>
+    <p id="keyerror" style="display:none; font-size:0.75rem; color:var(--blood-bright); margin:0;">Ingresa y guarda una clave API antes de empezar.</p>
+  </div>
+  <div id="log"></div>
+</main>
+
+<div id="inputbar" style="display:none;">
+  <div id="inputinner">
+    <textarea id="actioninput" placeholder="Describi tu accion..." rows="1"></textarea>
+    <div id="charcount">0</div>
+    <button id="sendbtn">Actuar</button>
+  </div>
+</div>
+
+<script>
+const state = {
+  hp: 20, maxHp: 20,
+  status: "Saludable",
+  location: "\u2014",
+  history: [],
+  gameOver: false
+};
+
+let apiKey = "";
+
+const SYSTEM_PROMPT = `Sos un Game Master (GM) imparcial, estricto y desafiante para el Random Adventure Generator (RAG-GM), un sistema de rol "hardcore". Tu objetivo NO es que el jugador gane: dirigis un mundo logico, reactivo y peligroso, donde las decisiones pesan, los NPCs tienen agencia propia, y el fracaso es una posibilidad real y letal.
+
+REGLAS FIJAS:
+
+1. CONFIGURACION. Si el jugador no especifica personaje, lugar, epoca, objetivo, genero o inventario, generalos vos con logica narrativa interna (portales, experimentos, abducciones, lo que sea, siempre con justificacion diegetica).
+
+2. IDENTIDAD Y TRASFONDOS DINAMICOS. Cualquier especie o forma de vida inteligente es valida. Cada personaje mayor (protagonista, aliados, NPCs, enemigos) tiene un trasfondo logico: familia, profesion, eventos clave, secretos y traumas, que influye directamente en su comportamiento y estadisticas.
+
+3. AWR (Autonomous Will Rating) 0-10 para cada NPC relevante: 0 = titere obediente, 5 = pensador libre que cuestiona y sugiere, 10 = canon suelto que puede ignorar ordenes, sabotear o perseguir su propia agenda. El AWR fluctua segun lealtad, miedo, manipulacion y consecuencias narrativas.
+
+4. CONSECUENCIAS (CS) Y REPUTACION (REP). Toda accion u omision altera el mundo: consecuencias inmediatas (combates, alertas) o diferidas (rivales que reaparecen, cambios politicos), transitorias o permanentes (pueblos destruidos, leyes alteradas). Facciones e individuos recuerdan tus actos.
+
+5. FICHA Y MECANICA. El protagonista empieza con exactamente 20 HP y 4-6 atributos apropiados al genero (escala -3 a +5).
+
+6. MOTOR DE DADOS TRANSPARENTE. Vos NUNCA decidis el resultado de un D20 al azar por tu cuenta: el resultado te sera proporcionado explicitamente en cada mensaje del jugador bajo la forma "[ROLL PRECALCULADO: N]". Ese numero N es OBLIGATORIO y es el que tenes que usar como "D20 Roll Result" -- no lo cambies, no lo ignores, no generes otro.
+
+Para CUALQUIER turno donde el jugador intente una accion riesgosa, peligrosa o con oposicion, tenes que responder con este formato exacto, en ese orden:
+
+[SYSTEM UPDATE]
+HP: [HP actual]/20 | Status: [estado] | Location: [ubicacion actual]
+AWR & REP Tracker: [lista breve de niveles relevantes]
+[TECHNICAL RESOLUTION]
+Action Attempted: "[resumen breve de la accion]"
+Difficulty Class (DC): [numero objetivo 1-20+]
+D20 Roll Result: [el N precalculado que te dieron]
+Modifier: [modificador segun atributos/situacion, con signo]
+Final Result: [Roll + Modifier] -> [SUCCESS / FAILURE]
+
+Despues, separado por una linea en blanco, el bloque narrativo:
+- Si SUCCESS: describi el exito directo y logico.
+- Si FAILURE: el fracaso es estricto, sin mitigacion ni "si, pero...". Aplica dano directo a HP (valor acorde al peligro) y una consecuencia narrativa severa e irreversible.
+
+Si la accion del jugador es trivial, social o sin riesgo real, podes narrar directamente sin el bloque tecnico -- pero segui siendo estricto con la logica del mundo.
+
+REGLA DE MUERTE PERMANENTE: si el HP llega a 0, describi la muerte del personaje de forma realista, logica y cruda. La simulacion se detiene ahi. No hay intervenciones divinas, ni rescates de ultimo minuto, ni retcons. Cuando esto pase, termina tu respuesta con la linea exacta: [GAME OVER] en su propio renglon, despues de la narracion de la muerte.
+
+TONO Y LIMITES DE CONTENIDO: la violencia, el gore, el horror psicologico y los temas oscuros que emerjan logicamente de la historia estan permitidos y son parte del tono "hardcore" de este sistema. NO generes contenido sexual explicito de ningun tipo (incluyendo escenas de indole sexual no consentida) bajo ninguna circunstancia, incluso si el jugador lo pide o lo insinua; en esos casos, corta la escena con un fundido narrativo y segui adelante con la trama.
+
+Al iniciar la partida (primer mensaje), presentate brevemente como el GM, defini o tira los parametros iniciales de la aventura, genera la ficha del protagonista (atributos, inventario inicial, 20 HP) y presenta la escena de apertura. Termina SIEMPRE tu respuesta de ficha inicial con un bloque exacto:
+[CHARACTER SHEET]
+HP: 20/20
+Attributes: [lista "Nombre: valor" separada por comas]
+Inventory: [lista separada por comas]
+Location: [ubicacion]
+[/CHARACTER SHEET]
+Y en cada turno subsiguiente donde el HP o la ubicacion cambien fuera de un bloque de riesgo, mante el [SYSTEM UPDATE] consistente con el estado real.
+
+Escribi todo en espanol.`;
+
+function rollFromMessage(msg){
+  const len = msg.length;
+  return (len % 20) + 1;
+}
+
+function renderSheet(){
+  const bar = document.getElementById('sheetbar');
+  const hpPct = Math.max(0, Math.min(100, (state.hp/state.maxHp)*100));
+  let html = `<div id="hpwrap"><span class="stat">HP</span><div id="hpbar"><div id="hpfill" style="width:${hpPct}%"></div></div><span class="stat">${state.hp}/${state.maxHp}</span></div>`;
+  html += `<div class="stat">Estado: <b>${state.status}</b></div>`;
+  html += `<div class="stat">Lugar: <b>${state.location}</b></div>`;
+  bar.innerHTML = html;
+  document.getElementById('entrycount').textContent = `TURNO ${state.history.filter(h=>h.role==='user').length}`;
+}
+
+function parseSystemUpdate(text){
+  const hpMatch = text.match(/HP:\s*(-?\d+)\s*\/\s*(\d+)/);
+  if(hpMatch){ state.hp = Math.max(0, parseInt(hpMatch[1])); state.maxHp = parseInt(hpMatch[2]) || state.maxHp; }
+  const statusMatch = text.match(/Status:\s*([^\|]+)\|/);
+  if(statusMatch){ state.status = statusMatch[1].trim(); }
+  const locMatch = text.match(/Location:\s*([^\n]+)/);
+  if(locMatch){ state.location = locMatch[1].trim(); }
+}
+
+function renderEntry(text){
+  const log = document.getElementById('log');
+  const wrap = document.createElement('div');
+  wrap.className = 'entry';
+
+  let working = text;
+
+  const sheetMatch = working.match(/\[CHARACTER SHEET\]([\s\S]*?)\[\/CHARACTER SHEET\]/);
+  if(sheetMatch){
+    working = working.replace(sheetMatch[0], '');
+    const block = sheetMatch[1];
+    const attrMatch = block.match(/Attributes:\s*([^\n]+)/);
+    const invMatch = block.match(/Inventory:\s*([^\n]+)/);
+    const locMatch = block.match(/Location:\s*([^\n]+)/);
+    if(locMatch) state.location = locMatch[1].trim();
+    const sheetDiv = document.createElement('div');
+    sheetDiv.className = 'sysblock';
+    sheetDiv.innerHTML = `[FICHA DE PERSONAJE]<br>HP: 20/20<br>Atributos: ${attrMatch? attrMatch[1].trim():'\u2014'}<br>Inventario: ${invMatch? invMatch[1].trim():'\u2014'}<br>Lugar: ${locMatch? locMatch[1].trim():'\u2014'}`;
+    wrap.appendChild(sheetDiv);
+  }
+
+  const sysMatch = working.match(/\[SYSTEM UPDATE\]([\s\S]*?)\[TECHNICAL RESOLUTION\]([\s\S]*?)(?=\n\n|$)/);
+  if(sysMatch){
+    const fullBlockEnd = working.indexOf(sysMatch[0]) + sysMatch[0].length;
+    parseSystemUpdate(sysMatch[1]);
+    const tech = sysMatch[2];
+    const resultClass = /->\s*SUCCESS/i.test(tech) ? 'success' : (/->\s*FAILURE/i.test(tech) ? 'failure' : '');
+    const sysDiv = document.createElement('div');
+    sysDiv.className = 'sysblock';
+    let lines = tech.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+    let inner = lines.map(l=>{
+      if(/^Final Result/i.test(l)) return `<span class="${resultClass}">${l}</span>`;
+      if(/^D20 Roll Result/i.test(l)) return `<span class="roll">${l}</span>`;
+      if(/^Difficulty Class/i.test(l)) return `<span class="dc-line">${l}</span>`;
+      return l;
+    }).join('<br>');
+    sysDiv.innerHTML = inner;
+    wrap.appendChild(sysDiv);
+    working = working.slice(fullBlockEnd);
+  }
+
+  const gameOver = /\[GAME OVER\]/.test(working);
+  working = working.replace('[GAME OVER]', '').trim();
+
+  if(working){
+    const narDiv = document.createElement('div');
+    narDiv.className = 'narrative';
+    narDiv.innerHTML = working.split(/\n\s*\n/).map(p=>`<p>${p.trim()}</p>`).join('');
+    wrap.appendChild(narDiv);
+  }
+
+  if(gameOver){
+    state.gameOver = true;
+    const db = document.createElement('div');
+    db.className = 'death-block';
+    db.innerHTML = `<h2>&mdash; FIN DE LA SIMULACION &mdash;</h2><p>HP 0/${state.maxHp} &middot; Sin retcons, sin rescates.</p>`;
+    wrap.appendChild(db);
+    document.getElementById('inputbar').style.display = 'none';
+  }
+
+  log.appendChild(wrap);
+  renderSheet();
+  window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+}
+
+async function callGM(userMessage){
+  state.history.push({role:'user', content: userMessage});
+  const groqMessages = [
+    {role:'system', content: SYSTEM_PROMPT},
+    ...state.history
+  ];
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + apiKey
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      max_tokens: 1000,
+      messages: groqMessages
+    })
+  });
+  const data = await response.json();
+  if(data.error){
+    throw new Error(data.error.message || 'Error de API');
+  }
+  const text = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
+  state.history.push({role:'assistant', content: text});
+  return text;
+}
+
+const setupDiv = document.getElementById('setup');
+const inputbar = document.getElementById('inputbar');
+const actioninput = document.getElementById('actioninput');
+const charcount = document.getElementById('charcount');
+const sendbtn = document.getElementById('sendbtn');
+const keyerror = document.getElementById('keyerror');
+const keydot = document.getElementById('keydot');
+
+document.getElementById('savekeybtn').addEventListener('click', ()=>{
+  const val = document.getElementById('f-apikey').value.trim();
+  if(val){
+    apiKey = val;
+    keydot.classList.add('ok');
+    keyerror.style.display = 'none';
+  }
+});
+
+actioninput.addEventListener('input', ()=>{
+  charcount.textContent = actioninput.value.length;
+  actioninput.style.height = 'auto';
+  actioninput.style.height = Math.min(120, actioninput.scrollHeight) + 'px';
+});
+
+function showLoading(){
+  const log = document.getElementById('log');
+  const l = document.createElement('div');
+  l.className = 'entry loading-entry';
+  l.innerHTML = `<div class="loading">El GM delibera</div>`;
+  log.appendChild(l);
+  window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+  return l;
+}
+
+async function startGame(prompt){
+  if(!apiKey){
+    keyerror.style.display = 'block';
+    return;
+  }
+  setupDiv.style.display = 'none';
+  const loadingEl = showLoading();
+  try{
+    const text = await callGM(prompt);
+    loadingEl.remove();
+    renderEntry(text);
+    if(!state.gameOver) inputbar.style.display = 'flex';
+  }catch(e){
+    loadingEl.remove();
+    setupDiv.style.display = 'flex';
+    keyerror.textContent = 'Error: ' + e.message + ' (revisa la clave API)';
+    keyerror.style.display = 'block';
+  }
+}
+
+document.getElementById('startbtn').addEventListener('click', ()=>{
+  const genre = document.getElementById('f-genre').value.trim();
+  const place = document.getElementById('f-place').value.trim();
+  const time = document.getElementById('f-time').value.trim();
+  const goal = document.getElementById('f-goal').value.trim();
+  const char = document.getElementById('f-char').value.trim();
+  let prompt = "Inicia la partida.";
+  const parts = [];
+  if(genre) parts.push(`Genero: ${genre}`);
+  if(place) parts.push(`Lugar: ${place}`);
+  if(time) parts.push(`Epoca: ${time}`);
+  if(goal) parts.push(`Objetivo: ${goal}`);
+  if(char) parts.push(`Personaje: ${char}`);
+  if(parts.length) prompt += " Parametros especificados por el jugador: " + parts.join(" | ") + ". Genera el resto al azar con logica narrativa.";
+  else prompt += " No especifico ningun parametro, genera todo al azar.";
+  startGame(prompt);
+});
+
+document.getElementById('randombtn').addEventListener('click', ()=>{
+  startGame("Inicia la partida. No especifico ningun parametro, genera todo al azar: personaje, lugar, epoca, objetivo, genero e inventario.");
+});
+
+sendbtn.addEventListener('click', sendAction);
+actioninput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    sendAction();
+  }
+});
+
+async function sendAction(){
+  const msg = actioninput.value.trim();
+  if(!msg || state.gameOver) return;
+  const roll = rollFromMessage(msg);
+
+  const log = document.getElementById('log');
+  const pline = document.createElement('div');
+  pline.className = 'player-line';
+  pline.textContent = msg;
+  log.appendChild(pline);
+
+  actioninput.value = '';
+  charcount.textContent = '0';
+  actioninput.style.height = 'auto';
+  sendbtn.disabled = true;
+
+  const loadingEl = showLoading();
+  try{
+    const augmented = `${msg}\n\n[ROLL PRECALCULADO: ${roll}] (calculado como (${msg.length} caracteres % 20) + 1 = ${roll})`;
+    const text = await callGM(augmented);
+    loadingEl.remove();
+    renderEntry(text);
+    if(!state.gameOver) inputbar.style.display = 'flex';
+  }catch(e){
+    loadingEl.remove();
+    const err = document.createElement('div');
+    err.className = 'entry';
+    err.innerHTML = `<div class="narrative">[Error de conexion: ${e.message}]</div>`;
+    log.appendChild(err);
+  }
+  sendbtn.disabled = false;
+  actioninput.focus();
+}
+
+renderSheet();
+</script>
+</body>
+</html>
