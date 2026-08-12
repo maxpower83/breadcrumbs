@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Cada Uno - Una Persona Detrás de la Máscara</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#2a2f52;
+    --paper:#f6ead0;
+    --paper2:#fbf3e2;
+    --hero-blue:#2f5fd1;
+    --hero-blue-dk:#1d3f96;
+    --cape-red:#d1382b;
+    --villain:#8a2f6b;
+    --villain-dk:#5c1f49;
+    --gold:#e8a93d;
+    --secuaz:#5f7aa8;
+    --saved:#2f6fd1;
+    --lost:#c23b3b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html, body {
+    height:100%; overflow:hidden;
+    font-family: 'Comic Neue', sans-serif; color:var(--ink);
+    touch-action:none;
+  }
+  #app {
+    position:relative; width:100vw; height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(255,214,150,0.55), transparent 55%),
+      radial-gradient(circle at 85% 80%, rgba(140,180,255,0.35), transparent 55%),
+      linear-gradient(160deg, #ffe3b0 0%, #f6c98f 30%, #e78a7c 60%, #7d6fae 100%);
+  }
+  #stage {
+    position:relative;
+    width: min(94vw, 380px);
+    aspect-ratio: 380 / 640;
+    height: auto;
+    max-height: 96vh;
+  }
+  canvas {
+    width:100%; height:100%; display:block;
+    background:#fdf2da;
+    border:4px solid var(--ink);
+    box-shadow: 0 0 0 2px var(--gold), 6px 8px 0 rgba(42,47,82,0.35);
+    border-radius:10px;
+  }
+  #vignette {
+    position:absolute; inset:0; border-radius:10px; pointer-events:none;
+    background: radial-gradient(ellipse at 50% 50%, transparent 38%, rgba(110,10,20,0.6) 100%);
+    opacity:0; transition:opacity .4s;
+  }
+  #hud {
+    position:absolute; top:8px; left:8px; right:8px;
+    display:flex; flex-direction:column; gap:5px; pointer-events:none;
+  }
+  .row { display:flex; justify-content:space-between; align-items:center; gap:6px; }
+  .bar-bg {
+    flex:1; height:11px; background:rgba(42,47,82,0.25);
+    border:2px solid var(--ink); border-radius:6px; overflow:hidden;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+  }
+  .bar-fill { height:100%; transition:width .2s; }
+  #hp-fill { background:linear-gradient(90deg,#d1382b,#ff7a5c); width:100%; }
+  #guilt-fill { background:linear-gradient(90deg,#8a2f6b,#c766a8); width:0%; }
+  .label {
+    min-width:56px; font-family:'Bangers', cursive; font-size:15px;
+    letter-spacing:1px; color:var(--paper2); text-shadow:1px 1px 0 var(--ink);
+  }
+  #topstats {
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:'Bangers', cursive; font-size:17px; letter-spacing:1px;
+    color:var(--paper2); text-shadow:1px 1px 0 var(--ink);
+  }
+  #topstats b { color:var(--gold); }
+  #curstats {
+    font-family:'Bangers', cursive; font-size:12.5px; letter-spacing:.5px;
+    color:var(--paper2); text-shadow:1px 1px 0 var(--ink);
+  }
+  #curstats .c1 b { color:#bcd6ff; }
+  #curstats .c2 b { color:#ffb4a8; }
+
+  #joystick-zone {
+    position:absolute; left:0; bottom:0; width:45%; height:38%;
+    touch-action:none;
+  }
+  #stick-base {
+    position:absolute; width:80px; height:80px; border-radius:50%;
+    background:rgba(255,255,255,0.18); border:2px solid rgba(255,255,255,0.6);
+    display:none;
+  }
+  #stick-thumb {
+    position:absolute; width:34px; height:34px; border-radius:50%;
+    background:var(--hero-blue); border:2px solid var(--paper2);
+    left:23px; top:23px;
+  }
+
+  #actions {
+    position:absolute; right:10px; bottom:14px;
+    display:flex; flex-direction:column; gap:10px; align-items:flex-end;
+  }
+  .action-btn {
+    width:76px; height:76px; border-radius:50%; border:3px solid var(--ink);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    font-family:'Bangers', cursive; font-size:13px; letter-spacing:.5px; color:#fff;
+    -webkit-user-select:none; cursor:pointer;
+    box-shadow:3px 4px 0 rgba(42,47,82,0.45);
+    text-shadow:1px 1px 0 rgba(0,0,0,0.4);
+  }
+  #btn-neutral { background:radial-gradient(circle at 32% 28%, #5b8bee, var(--hero-blue-dk)); }
+  #btn-neutral.ready { box-shadow:3px 4px 0 rgba(42,47,82,0.45), 0 0 0 3px var(--gold); }
+  #btn-neutral.disabled { filter:grayscale(0.7) brightness(0.75); }
+  #btn-blast { background:radial-gradient(circle at 32% 28%, #ff7a5c, var(--cape-red)); }
+  #btn-blast.cooling { filter:grayscale(0.5) brightness(0.7); }
+  .chan-ring {
+    position:absolute; inset:-4px; border-radius:50%;
+    border:3px solid var(--gold); opacity:0; pointer-events:none;
+  }
+
+  #toast-layer {
+    position:absolute; left:6px; right:6px; bottom:40%; display:flex;
+    flex-direction:column; align-items:center; gap:8px; pointer-events:none;
+  }
+  .toast {
+    position:relative;
+    background:var(--paper2); color:var(--ink); border:2px solid var(--ink); border-radius:9px 9px 9px 2px;
+    padding:9px 12px; max-width:270px; text-align:left;
+    font-family:'Comic Neue', sans-serif; font-weight:700;
+    font-size:13px; line-height:1.4; opacity:0; transform:translateY(6px) rotate(-0.6deg);
+    animation: toastIn .3s ease forwards, toastOut .4s ease 2.5s forwards;
+    box-shadow:3px 3px 0 rgba(42,47,82,0.3);
+  }
+  .toast b { font-family:'Bangers', cursive; font-size:15px; letter-spacing:.5px; color:var(--hero-blue-dk); }
+  .toast.killed b { color:var(--lost); }
+  .toast.event { border-color:var(--gold); }
+  .toast.event b { color:var(--gold); font-size:13px; }
+  .toast .stamp {
+    display:inline-block; font-family:'Bangers', cursive; font-size:11px;
+    letter-spacing:1px; padding:1px 7px; border:2px solid; border-radius:10px;
+    transform:rotate(-4deg); float:right; margin-left:6px;
+  }
+  .toast.saved .stamp { color:var(--saved); border-color:var(--saved); }
+  .toast.killed .stamp { color:var(--lost); border-color:var(--lost); }
+  @keyframes toastIn { to { opacity:1; transform:translateY(0) rotate(-0.6deg);} }
+  @keyframes toastOut { to { opacity:0; transform:translateY(-8px) rotate(-0.6deg);} }
+
+  #overlay {
+    position:absolute; inset:0; z-index:10; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; gap:10px;
+    background:var(--paper); padding:20px 18px; overflow-y:auto;
+    border:4px solid var(--ink); border-radius:8px;
+  }
+  #overlay h1 {
+    font-family:'Bangers', cursive; font-size:34px; color:var(--hero-blue-dk);
+    letter-spacing:2px; text-shadow:2px 2px 0 var(--gold), -1px -1px 0 var(--ink);
+  }
+  #overlay p, #overlay li {
+    font-family:'Comic Neue', sans-serif; font-weight:700; font-size:13.5px; color:var(--ink); line-height:1.45;
+  }
+  #overlay b { color:var(--villain-dk); }
+  #overlay button {
+    background:var(--hero-blue); color:#fff; border:3px solid var(--ink);
+    padding:10px 22px; font-family:'Bangers', cursive; font-size:17px;
+    letter-spacing:1px; border-radius:30px; box-shadow:3px 4px 0 var(--ink); cursor:pointer;
+  }
+  #overlay button:active { box-shadow:1px 1px 0 var(--ink); transform:translate(2px,3px); }
+  #summary-list {
+    text-align:left; max-height:150px; overflow-y:auto; width:100%; font-size:11.5px;
+    padding:8px; background:var(--paper2); border:2px solid var(--ink); border-radius:8px;
+    font-family:'Comic Neue', sans-serif; color:var(--ink);
+  }
+  #summary-list div { padding:4px 0; border-bottom:1px dashed rgba(42,47,82,0.25); }
+  .hidden { display:none !important; }
+  #wave-banner {
+    position:absolute; top:32%; left:50%; transform:translate(-50%,-50%);
+    font-family:'Bangers', cursive; font-size:30px; color:#fff; letter-spacing:3px;
+    opacity:0; pointer-events:none; transition:opacity .3s; text-align:center;
+    text-shadow:2px 2px 0 var(--cape-red), -2px -2px 0 var(--ink), 3px 3px 0 var(--ink);
+  }
+  .choice-grid { display:flex; gap:8px; width:100%; justify-content:center; flex-wrap:wrap; }
+  .choice-card {
+    flex:1 1 100px; min-width:96px; max-width:150px;
+    background:var(--paper2); border:3px solid var(--ink); border-radius:10px;
+    padding:10px 7px; cursor:pointer; text-align:center;
+    box-shadow:3px 3px 0 rgba(42,47,82,0.3);
+  }
+  .choice-card:active { transform:translate(2px,2px); box-shadow:1px 1px 0 rgba(42,47,82,0.3); }
+  .choice-card .ico { font-size:24px; }
+  .choice-card h3 { font-family:'Bangers',cursive; font-size:14px; color:var(--hero-blue-dk); margin:3px 0; letter-spacing:.5px; }
+  .choice-card p { font-size:10.5px; line-height:1.3; font-weight:700; }
+  .currency-row { display:flex; gap:14px; font-family:'Bangers', cursive; font-size:14px; }
+  .currency-row .c1 { color:var(--hero-blue-dk); }
+  .currency-row .c2 { color:var(--lost); }
+  .relic-chip {
+    display:inline-block; background:var(--paper2); border:2px solid var(--gold);
+    border-radius:20px; padding:3px 9px; font-size:10.5px; margin:2px; font-weight:700;
+  }
+  .cape-swatch {
+    width:28px; height:28px; border-radius:50%; border:3px solid var(--ink);
+    display:inline-block; cursor:pointer; margin:3px;
+  }
+  .cape-swatch.selected { box-shadow:0 0 0 3px var(--gold); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="game" width="380" height="640"></canvas>
+    <div id="vignette"></div>
+
+    <div id="hud">
+      <div id="topstats">
+        <span>OLEADA <b id="wave-num">1</b></span>
+        <span>PUNTOS <b id="score">0</b></span>
+      </div>
+      <div class="row">
+        <span class="label">VIDA</span>
+        <div class="bar-bg"><div id="hp-fill" class="bar-fill"></div></div>
+      </div>
+      <div class="row">
+        <span class="label">PESO*</span>
+        <div class="bar-bg"><div id="guilt-fill" class="bar-fill"></div></div>
+      </div>
+      <div class="row" id="curstats">
+        <span class="c1">🤝 Confianza <b id="confianza-val">0</b></span>
+        <span class="c2">😨 Miedo <b id="miedo-val">0</b></span>
+      </div>
+    </div>
+
+    <div id="wave-banner"></div>
+    <div id="toast-layer"></div>
+
+    <div id="joystick-zone">
+      <div id="stick-base"><div id="stick-thumb"></div></div>
+    </div>
+
+    <div id="actions">
+      <div id="btn-neutral" class="action-btn disabled">
+        <div class="chan-ring" id="chan-ring"></div>
+        <span>REDUCIR</span>
+      </div>
+      <div id="btn-blast" class="action-btn">
+        <span>ENERGÍA</span>
+      </div>
+    </div>
+
+    <div id="overlay"><h1>CADA UNO</h1><p>Cargando...</p></div>
+  </div>
+</div>
+
+<script>
+(function(){
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const LW = 380, LH = 640; // logical world units
+
+const hpFill = document.getElementById('hp-fill');
+const guiltFill = document.getElementById('guilt-fill');
+const scoreEl = document.getElementById('score');
+const waveEl = document.getElementById('wave-num');
+const overlay = document.getElementById('overlay');
+const waveBanner = document.getElementById('wave-banner');
+const toastLayer = document.getElementById('toast-layer');
+const btnNeutral = document.getElementById('btn-neutral');
+const btnBlast = document.getElementById('btn-blast');
+const chanRing = document.getElementById('chan-ring');
+const joyZone = document.getElementById('joystick-zone');
+const stickBase = document.getElementById('stick-base');
+const stickThumb = document.getElementById('stick-thumb');
+const vignetteEl = document.getElementById('vignette');
+const confianzaVal = document.getElementById('confianza-val');
+const miedoVal = document.getElementById('miedo-val');
+
+function rand(a,b){ return a + Math.random()*(b-a); }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+// ---- persistence ----
+const META_KEY = 'cadaUno_meta_v1';
+const MEMORIAL_KEY = 'cadaUno_memorial_v1';
+
+function loadMeta(){
+  try {
+    const raw = localStorage.getItem(META_KEY);
+    if(raw) return Object.assign({relics:[],capes:['red'],selectedCape:'red',quotes:[],totalSaved:0,totalKilled:0,runsPlayed:0,bestWave:0}, JSON.parse(raw));
+  } catch(e){}
+  return { relics:[], capes:['red'], selectedCape:'red', quotes:[], totalSaved:0, totalKilled:0, runsPlayed:0, bestWave:0 };
+}
+function saveMeta(){ try{ localStorage.setItem(META_KEY, JSON.stringify(meta)); }catch(e){} }
+function loadMemorial(){
+  try { const raw = localStorage.getItem(MEMORIAL_KEY); if(raw) return JSON.parse(raw); } catch(e){}
+  return [];
+}
+function saveMemorialEntries(entries){
+  try {
+    const all = loadMemorial().concat(entries);
+    localStorage.setItem(MEMORIAL_KEY, JSON.stringify(all.slice(-500)));
+  } catch(e){}
+}
+
+let meta = loadMeta();
+
+// ---- content pools ----
+const secuazNames = ["Martín","Lucía","Diego","Valentina","Sebastián","Camila","Nicolás","Julieta","Franco","Rocío","Emanuel","Agostina","Braian","Milagros","Ezequiel","Ayelén","Rodrigo","Yamila","Tomás","Carla","Gonzalo","Florencia","Ramiro","Antonella","Ignacio","Daiana","Bruno","Micaela","Federico","Sol","Matías","Belén","Cristian","Noelia","Facundo","Abril","Leonel","Guadalupe","Maximiliano","Estefanía"];
+const secuazRelations = [
+  "padre de dos hijos pequeños","esposa de un electricista","hijo único, todavía vivía con sus padres",
+  "el hermano mayor de tres","recién casado, esperaba su primer hijo","cuidaba solo a su madre enferma",
+  "estudiaba de noche para terminar el secundario","ahorraba para comprarse una moto","tenía un perro que lo esperaba en casa",
+  "hacía esto porque no conseguía otro trabajo","mandaba la mitad de su sueldo a su familia","soñaba con abrir su propio taller algún día",
+  "acababa de mudarse solo por primera vez","jugaba al fútbol los domingos con sus sobrinos","era la única que sostenía económicamente a su casa",
+  "cursaba el profesorado por las tardes","criaba sola a su hija de cuatro años","acababa de salir de un tratamiento para dejar las adicciones",
+  "le enseñaba a leer a su abuelo","trabajaba doble turno para pagar el alquiler","tenía una banda de covers con sus amigos de la infancia",
+  "cuidaba de su hermano menor con discapacidad","juntaba plata para el boleto de egresados de su hija","acababa de salir de la cárcel y no consiguió otro trabajo",
+  "era voluntario en un comedor comunitario los fines de semana","quería anotarse en la facultad el año que viene","vivía en una pensión desde que perdió su casa",
+  "le tenía miedo a quien lo había reclutado","todavía le debía plata a su familia por un préstamo","cuidaba las plantas de su balcón como si fueran lo único suyo"
+];
+const secuazExtras = [
+  "tenía 19 años","tenía 23 años","tenía 34 años","tenía 45 años","acababa de empezar esta semana",
+  "llevaba años metido en esto sin saber cómo salir","les escribía todas las noches a sus hijos antes de dormir",
+  "guardaba los ahorros para operar a su perro","nunca quiso lastimar a nadie","seguía órdenes por miedo, no por convicción",
+  "tenía un tatuaje con el nombre de su mamá","coleccionaba figuritas con su sobrino","no sabía cómo decirle a su familia en qué andaba metido"
+];
+const villanoNames = ["Dr. Ferro","Sombra Escarlata","El Cartógrafo","Nébula Gris","Marejada","El Relojero","Ceniza","Vidrio Negro","La Viuda de Hierro","Contraluz","Umbral","Fósforo","Eclipse Rota","El Curador","Estática","La Grieta","Cuervo de Latón","Media Luna","El Injerto","Polvo de Estrellas"];
+const villanoBackstories = [
+  "antes de esto era un científico, despedido tras denunciar a su empresa","perdió a su hija en un accidente que la ciudad nunca investigó",
+  "fue un héroe hace años, hasta que el sistema lo abandonó","buscaba justicia por su cuenta después de que nadie le creyera",
+  "era ingeniera y sus inventos se los robó una corporación","se quedó sin nada tras un desalojo forzado en su barrio",
+  "cree genuinamente que está salvando a la ciudad, a su manera","carga con años de tratamiento que nadie le costeó",
+  "fue el primer superhéroe de la ciudad, antes de que lo reemplazaran y olvidaran","sus poderes aparecieron después de un accidente laboral que la empresa nunca indemnizó",
+  "perdió su casa cuando dos héroes destruyeron su barrio en una pelea y nadie pagó por eso","fue preso injustamente y salió sin nada, ni siquiera una disculpa",
+  "era maestra rural hasta que cerraron la escuela de su pueblo","empezó como voluntario en emergencias, hasta que el sistema lo dejó solo en la peor noche",
+  "todavía cree que puede arreglar las cosas, aunque los métodos lo estén destruyendo","protege lo poco que le queda de la única forma que aprendió: peleando"
+];
+const villanoExtras = [
+  "tiene una familia que no sabe en qué anda metido","guarda una foto vieja de cuando todavía confiaba en la gente",
+  "no ha dormido bien en años","todavía visita la tumba de quien perdió, cada aniversario",
+  "cree que nadie más va a hacer justicia si no lo hace él","en el fondo, sigue esperando que alguien le pregunte por qué"
+];
+const neutralOutcomes = [
+  "Se despertó horas después en un hospital, dolorido pero con vida.","Quedó con una contusión leve. Va a estar bien.",
+  "Lo encontraron a tiempo. Se va a recuperar.","Pasó la noche en observación. Sobrevivió.",
+  "Alguien avisó a su familia. Van a poder verlo mañana.","Se despertó confundido, sin recordar el golpe, pero entero.",
+  "Los médicos dijeron que tuvo suerte.","Va a necesitar semanas de descanso, pero va a caminar de nuevo."
+];
+const lethalOutcomes = [
+  "No hubo forma de traerlo de vuelta.","Su historia terminó ahí, en esa calle.","Alguien tuvo que darle la noticia a su familia.",
+  "No volvió a casa esa noche.","Nadie llegó a despedirse.","Quedó una silla vacía en alguna mesa esta noche.",
+  "No hubo funeral con demasiada gente. Casi nadie sabía a qué se dedicaba.","Su nombre quedó en un informe policial, nada más."
+];
+const reflectionPrompts = [
+  "¿Cuántas de estas personas elegiste conocer antes de decidir?","Cada punto que sumaste tuvo un nombre detrás. ¿Los recordás?",
+  "La ciudad está más segura. ¿A qué costo, esta vez?","No todos los que se cruzan en tu camino eligieron estar ahí.",
+  "¿Qué diferencia a un secuaz de alguien que simplemente no tuvo opciones?","La próxima oleada trae más gente con historias como estas.",
+  "Ser más rápido no siempre significa ser más justo.","Pensalo antes de la próxima oleada: ¿cuántos podrías haber salvado?"
+];
+function allPrompts(){ return reflectionPrompts.concat(meta.quotes||[]); }
+
+const RELIC_POOL = [
+  {id:'corazon_sereno', name:'Corazón Sereno', desc:'El canal de reducir es 15% más rápido.', icon:'💙'},
+  {id:'paso_ligero', name:'Paso Ligero', desc:'+10% velocidad de movimiento.', icon:'👟'},
+  {id:'confianza_barrio', name:'Confianza del Barrio', desc:'Empezás cada patrulla con +15 de Confianza.', icon:'🤝'},
+  {id:'manos_firmes', name:'Manos Firmes', desc:'Más alcance para reducir.', icon:'✋'},
+  {id:'memoria_viva', name:'Memoria Viva', desc:'A veces recordás a alguien que salvaste antes.', icon:'🕯️'}
+];
+const CAPES = [
+  {id:'red', color:'#d1382b', unlockAt:0},
+  {id:'gold', color:'#e8a93d', unlockAt:10},
+  {id:'teal', color:'#2f9e8f', unlockAt:25},
+  {id:'violet', color:'#7a4fc9', unlockAt:50}
+];
+const BONUS_QUOTES = [
+  {at:10, text:'Ya salvaste a diez personas. La ciudad empieza a confiar distinto en vos.'},
+  {at:25, text:'Veinticinco historias que no terminaron esa noche. ¿Las recordás todas?'},
+  {at:50, text:'Cincuenta veces elegiste ver a la persona antes que a la amenaza.'}
+];
+const UPGRADES = [
+  {id:'manos_firmes_up', tree:'confianza', name:'Manos Firmes', desc:'Más alcance para reducir.', apply:()=>{ neutralRangeBonus += 10; }},
+  {id:'reflejos_calmos', tree:'confianza', name:'Reflejos Calmos', desc:'Canal de reducir 20% más rápido.', apply:()=>{ neutralSpeedBonus *= 0.8; }},
+  {id:'escudo_confianza', tree:'confianza', name:'Escudo de Confianza', desc:'Mientras reducís, otros enemigos hacen 40% menos daño.', apply:()=>{ shieldWhileChanneling = true; }},
+  {id:'corazon_resistente', tree:'confianza', name:'Corazón Resistente', desc:'+20 de vida máxima.', apply:()=>{ player.maxHp+=20; player.hp+=20; }},
+  {id:'descarga_rapida', tree:'miedo', name:'Descarga Rápida', desc:'-25% cooldown de energía.', apply:()=>{ blastCooldownMax = Math.round(blastCooldownMax*0.75); }},
+  {id:'impacto_perforante', tree:'miedo', name:'Impacto Perforante', desc:'Los disparos atraviesan un enemigo más.', apply:()=>{ blastPierce += 1; }},
+  {id:'puno_acero', tree:'miedo', name:'Puño de Acero', desc:'Los disparos hacen +1 de daño.', apply:()=>{ blastDamage += 1; }},
+  {id:'paso_agresivo', tree:'miedo', name:'Paso Agresivo', desc:'+15% velocidad de movimiento.', apply:()=>{ player.baseSpeed *= 1.15; }},
+  {id:'botas_ligeras', tree:'neutral', name:'Botas Ligeras', desc:'+10% velocidad de movimiento.', apply:()=>{ player.baseSpeed *= 1.1; }},
+  {id:'segundo_aliento', tree:'neutral', name:'Segundo Aliento', desc:'Recuperás 25 de vida ahora.', apply:()=>{ player.hp = Math.min(player.maxHp, player.hp+25); }}
+];
+const PATHS = [
+  {id:'calma', icon:'🌇', name:'Patrulla Tranquila', desc:'Menos enemigos. +Confianza garantizada.', enemyMult:0.7, forceEvent:null, confianzaBonus:15},
+  {id:'caliente', icon:'🔥', name:'Zona Caliente', desc:'Más enemigos y villanos. Mejor paga.', enemyMult:1.4, forceEvent:null, confianzaBonus:0},
+  {id:'callejon', icon:'🌑', name:'Callejón Oscuro', desc:'Un evento especial te espera.', enemyMult:1.0, forceEvent:'random', confianzaBonus:0}
+];
+const BOSSES = [
+  {name:'El Relojero', detail:'perdió a toda su familia en un incendio al que los bomberos llegaron tarde', intro:'Ya no queda tiempo que perder.', epilogueSpared:'Se derrumbó llorando cuando lo redujiste. Todavía puede cambiar.', epilogueKilled:'No hubo últimas palabras. Solo silencio.'},
+  {name:'Marejada', detail:'ex ingeniera portuaria; culpa a la ciudad por inundar su barrio y nunca reconstruirlo', intro:'Ustedes construyeron esto. Yo solo lo devuelvo.', epilogueSpared:'Aceptó hablar, por primera vez en años.', epilogueKilled:'El mar quedó tan en silencio como ella.'},
+  {name:'La Viuda de Hierro', detail:'perdió a su esposo policía en un operativo mal planificado y nunca tuvo respuestas', intro:'Yo también hice guardia toda mi vida. ¿Y para qué?', epilogueSpared:'Por fin consiguió las respuestas que buscaba.', epilogueKilled:'Nadie fue a buscar respuestas por ella.'}
+];
+
+// ---- state ----
+let player, enemies, blasts, particles, bursts, hostage;
+let score=0, guilt=0, wave=1, running=false, gameOver=false;
+let waveEnemiesLeft=0, spawnTimer=0;
+let blastCooldown=0, blastCooldownMax=55, blastDamage=1, blastPierce=0;
+let neutralCharge=0, neutralTarget=null, neutralHeld=false;
+let neutralRangeBonus=0, neutralSpeedBonus=1, shieldWhileChanneling=false;
+let confianza=0, miedo=0, lethalKillsThisRun=0, usedCitizenAssist=false;
+let blackout=false, hostageActive=false, bossThisWave=false, bossSpawned=false, currentEvent=null;
+let pendingPathMods = { enemyMult:1, forceEvent:null };
+let pickedUpgradeIds = new Set();
+let relicBonus = { neutralSpeedMult:1, moveSpeedMult:1, startConfianza:0, neutralRangeBonus:0, memoriaViva:false };
+let log = [];
+let waveLog = [];
+
+function computeRelicBonus(){
+  relicBonus = { neutralSpeedMult:1, moveSpeedMult:1, startConfianza:0, neutralRangeBonus:0, memoriaViva:false };
+  for(const id of meta.relics){
+    if(id==='corazon_sereno') relicBonus.neutralSpeedMult *= 0.85;
+    if(id==='paso_ligero') relicBonus.moveSpeedMult *= 1.1;
+    if(id==='confianza_barrio') relicBonus.startConfianza += 15;
+    if(id==='manos_firmes') relicBonus.neutralRangeBonus += 10;
+    if(id==='memoria_viva') relicBonus.memoriaViva = true;
+  }
+}
+
+function resetGame(){
+  computeRelicBonus();
+  player = { x:LW/2, y:LH/2, r:13, hp:100, maxHp:100, baseSpeed:2.4*relicBonus.moveSpeedMult, facing:0 };
+  enemies=[]; blasts=[]; particles=[]; bursts=[]; hostage=null;
+  score=0; guilt=0; wave=1; gameOver=false;
+  log=[]; waveLog=[];
+  confianza = relicBonus.startConfianza; miedo=0;
+  neutralRangeBonus = relicBonus.neutralRangeBonus;
+  neutralSpeedBonus = relicBonus.neutralSpeedMult;
+  shieldWhileChanneling = false;
+  blastDamage=1; blastPierce=0; blastCooldownMax=55;
+  lethalKillsThisRun=0; usedCitizenAssist=false;
+  blackout=false; hostageActive=false; bossThisWave=false; bossSpawned=false; currentEvent=null;
+  pendingPathMods = { enemyMult:1, forceEvent:null };
+  pickedUpgradeIds = new Set();
+  scoreEl.textContent=0; waveEl.textContent=1;
+  hpFill.style.width='100%'; guiltFill.style.width='0%'; vignetteEl.style.opacity=0;
+  updateCurrencyHUD();
+  blastCooldown=0; neutralCharge=0; neutralTarget=null;
+  running=true;
+  startWave();
+}
+
+function updateCurrencyHUD(){ confianzaVal.textContent = confianza; miedoVal.textContent = miedo; }
+
+function startWave(){
+  const baseCount = 4 + wave*2;
+  waveEnemiesLeft = Math.max(2, Math.round(baseCount * (pendingPathMods.enemyMult||1)));
+  spawnTimer = 20;
+  currentEvent = maybeTriggerEvent(pendingPathMods);
+  pendingPathMods = { enemyMult:1, forceEvent:null };
+  blackout = currentEvent==='apagon';
+  hostageActive = currentEvent==='rehen';
+  if(hostageActive) spawnHostage();
+  bossThisWave = (wave % 5 === 0);
+  bossSpawned = false;
+  showBanner('OLEADA ' + wave);
+  if(currentEvent){ setTimeout(()=> eventToast(currentEvent), 650); }
+  if(bossThisWave){ setTimeout(bossIntroToast, currentEvent ? 2200 : 650); }
+}
+function showBanner(t){
+  waveBanner.textContent = t;
+  waveBanner.style.opacity = 1;
+  setTimeout(()=> waveBanner.style.opacity = 0, 1000);
+}
+
+function maybeTriggerEvent(pathMods){
+  if(pathMods.forceEvent === 'random') return pick(['rehen','apagon']);
+  if(Math.random() < 0.22) return pick(['rehen','apagon']);
+  return null;
+}
+function eventToast(ev){
+  if(ev==='rehen') toastEventNote('Hay un civil atrapado en esta oleada. Si un enemigo lo alcanza, va a salir lastimado.');
+  if(ev==='apagon') toastEventNote('Apagón: no vas a saber quién es nadie hasta que decidas reducir a alguien en vez de eliminarlo.');
+}
+function bossIntroToast(){
+  const boss = BOSSES[Math.floor(wave/5-1) % BOSSES.length];
+  toastEventNote(boss.name + ' está en la ciudad. "' + boss.intro + '"');
+}
+
+function spawnHostage(){
+  hostage = { x: rand(60,LW-60), y: rand(120,LH-200), r:9, vx: rand(-0.4,0.4)||0.3, vy: rand(-0.4,0.4)||0.3, alive:true };
+}
+
+function spawnBoss(){
+  const boss = BOSSES[Math.floor(wave/5-1) % BOSSES.length];
+  const side = Math.floor(rand(0,4));
+  let x,y;
+  if(side===0){ x=rand(30,LW-30); y=-25; }
+  else if(side===1){ x=LW+25; y=rand(30,LH-30); }
+  else if(side===2){ x=rand(30,LW-30); y=LH+25; }
+  else { x=-25; y=rand(30,LH-30); }
+  enemies.push({
+    x,y, r:22, speed:1.0, isVillain:true, isBoss:true, bossRef:boss,
+    blastHp:6, blastMaxHp:6, neutralNeed: 3.2*neutralSpeedBonus,
+    hitFlash:0, name:boss.name, detail:boss.detail
+  });
+}
+
+function spawnEnemy(){
+  if(bossThisWave && !bossSpawned){ spawnBoss(); bossSpawned=true; return; }
+  const side = Math.floor(rand(0,4));
+  let x,y;
+  if(side===0){ x=rand(20,LW-20); y=-20; }
+  else if(side===1){ x=LW+20; y=rand(20,LH-20); }
+  else if(side===2){ x=rand(20,LW-20); y=LH+20; }
+  else { x=-20; y=rand(20,LH-20); }
+
+  const isVillain = Math.random() < Math.min(0.12 + wave*0.02, 0.35);
+  const e = {
+    x,y,
+    r: isVillain ? 17 : 11,
+    speed: isVillain ? 1.0 : rand(1.1,1.6),
+    isVillain,
+    blastHp: isVillain ? 3 : 1,
+    blastMaxHp: isVillain ? 3 : 1,
+    neutralNeed: (isVillain ? 1.7 : 0.8) * neutralSpeedBonus,
+    hitFlash:0,
+    name: isVillain ? pick(villanoNames) : pick(secuazNames),
+    detail: (isVillain ? pick(villanoBackstories) : pick(secuazRelations))
+      + (Math.random() < 0.55 ? (', ' + (isVillain ? pick(villanoExtras) : pick(secuazExtras))) : '')
+  };
+  enemies.push(e);
+}
+
+function nearestEnemy(maxRange){
+  let best=null, bd=Infinity;
+  for(const e of enemies){
+    const d = dist(player,e);
+    if(d < bd && (!maxRange || d <= maxRange)){ bd=d; best=e; }
+  }
+  return best;
+}
+
+function addScore(n){ score += n; scoreEl.textContent = score; }
+function addGuilt(n){ guilt = Math.max(0, Math.min(100, guilt+n)); guiltFill.style.width = guilt+'%'; }
+
+function killByBlast(e){
+  lethalKillsThisRun++;
+  miedo += e.isVillain ? 20 : 8;
+  addScore(e.isVillain ? 15 : 5);
+  addGuilt(e.isVillain ? 6 : 3);
+  spawnBurst(e.x,e.y,'#c23b3b');
+  const entry = {name:e.name, detail:e.detail, method:'blast', wave, villain:e.isVillain};
+  log.push(entry); waveLog.push(entry);
+  const outcome = e.isBoss ? e.bossRef.epilogueKilled : pick(lethalOutcomes);
+  toast(e.name, e.detail, outcome, 'killed', 'ELIMINADO');
+  updateCurrencyHUD();
+  removeEnemy(e);
+}
+function neutralizeEnemy(e){
+  confianza += e.isVillain ? 25 : 10;
+  addScore(e.isVillain ? 60 : 20);
+  addGuilt(-(e.isVillain ? 4 : 2));
+  spawnBurst(e.x,e.y,'#2f5fd1');
+  const entry = {name:e.name, detail:e.detail, method:'neutral', wave, villain:e.isVillain};
+  log.push(entry); waveLog.push(entry);
+  const outcome = e.isBoss ? e.bossRef.epilogueSpared : pick(neutralOutcomes);
+  toast(e.name, e.detail, outcome, 'saved', 'REDUCIDO');
+  if(blackout){ blackout=false; toastEventNote('Las luces vuelven. Elegiste ver.'); }
+  updateCurrencyHUD();
+  removeEnemy(e);
+}
+function removeEnemy(e){
+  const i = enemies.indexOf(e);
+  if(i>=0) enemies.splice(i,1);
+  if(neutralTarget===e){ neutralTarget=null; neutralCharge=0; }
+}
+
+function toast(name, detail, outcome, cls, stamp){
+  let dName=name, dDetail=detail, dOutcome=outcome;
+  if(blackout){ dName='???'; dDetail='alguien con una historia que todavía no conocés'; dOutcome=''; }
+  const d = document.createElement('div');
+  d.className = 'toast ' + cls;
+  d.innerHTML = `<span class="stamp">${stamp}</span><b>${dName}</b><br>${dDetail}.` + (dOutcome ? `<br><i>${dOutcome}</i>` : '');
+  toastLayer.appendChild(d);
+  setTimeout(()=> d.remove(), 2950);
+  while(toastLayer.children.length > 3) toastLayer.removeChild(toastLayer.firstChild);
+}
+function toastEventNote(text){
+  const d = document.createElement('div');
+  d.className = 'toast event';
+  d.innerHTML = `<b>⚠ AVISO</b><br>${text}`;
+  toastLayer.appendChild(d);
+  setTimeout(()=> d.remove(), 3400);
+  while(toastLayer.children.length > 3) toastLayer.removeChild(toastLayer.firstChild);
+}
+
+function spawnParticles(x,y,color,n){
+  for(let i=0;i<n;i++){
+    particles.push({x,y,vx:rand(-3,3),vy:rand(-3,3),life:rand(15,28),maxLife:28,color});
+  }
+}
+function spawnBurst(x,y,color){
+  bursts.push({x,y,color,life:22,maxLife:22});
+  spawnParticles(x,y,color,10);
+}
+
+// ---- controls: joystick ----
+let joyActive=false, joyVec={x:0,y:0};
+let joyStartId=null, joyOrigin={x:0,y:0};
+const JOY_MAX = 36;
+
+function joyRectToStage(clientX, clientY){
+  const r = joyZone.getBoundingClientRect();
+  return { x: clientX - r.left, y: clientY - r.top };
+}
+joyZone.addEventListener('pointerdown', e=>{
+  joyZone.setPointerCapture(e.pointerId);
+  joyStartId = e.pointerId;
+  const p = joyRectToStage(e.clientX, e.clientY);
+  joyOrigin = { x:p.x, y:p.y };
+  stickBase.style.display='block';
+  stickBase.style.left = (p.x-39)+'px';
+  stickBase.style.top = (p.y-39)+'px';
+  stickThumb.style.left='22px'; stickThumb.style.top='22px';
+  joyActive=true;
+});
+joyZone.addEventListener('pointermove', e=>{
+  if(!joyActive || e.pointerId!==joyStartId) return;
+  const p = joyRectToStage(e.clientX, e.clientY);
+  let dx = p.x - joyOrigin.x, dy = p.y - joyOrigin.y;
+  const d = Math.hypot(dx,dy);
+  if(d > JOY_MAX){ dx = dx/d*JOY_MAX; dy = dy/d*JOY_MAX; }
+  stickThumb.style.left = (22+dx)+'px';
+  stickThumb.style.top = (22+dy)+'px';
+  joyVec = { x: dx/JOY_MAX, y: dy/JOY_MAX };
+});
+function endJoy(e){
+  if(e && e.pointerId!==joyStartId) return;
+  joyActive=false; joyVec={x:0,y:0}; joyStartId=null;
+  stickBase.style.display='none';
+}
+joyZone.addEventListener('pointerup', endJoy);
+joyZone.addEventListener('pointercancel', endJoy);
+
+let keys={};
+window.addEventListener('keydown', e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(e.key===' ') triggerBlast();
+});
+window.addEventListener('keyup', e=> keys[e.key.toLowerCase()]=false);
+
+function triggerBlast(){
+  if(!running || blastCooldown>0) return;
+  const target = nearestEnemy(280);
+  if(!target) return;
+  blastCooldown = blastCooldownMax;
+  const a = Math.atan2(target.y-player.y, target.x-player.x);
+  blasts.push({x:player.x+Math.cos(a)*16, y:player.y+Math.sin(a)*16, vx:Math.cos(a)*8.5, vy:Math.sin(a)*8.5, r:5, hitSet:new Set(), hitsLeft:1+blastPierce});
+}
+btnBlast.addEventListener('pointerdown', e=>{ e.preventDefault(); triggerBlast(); });
+
+btnNeutral.addEventListener('pointerdown', e=>{ e.preventDefault(); if(running) neutralHeld=true; });
+window.addEventListener('pointerup', ()=> neutralHeld=false);
+window.addEventListener('keydown', e=>{ if(e.key.toLowerCase()==='e' && running) neutralHeld=true; });
+window.addEventListener('keyup', e=>{ if(e.key.toLowerCase()==='e') neutralHeld=false; });
+
+// ---- update ----
+function update(){
+  if(!running) return;
+
+  let dx=0, dy=0;
+  if(keys['w']||keys['arrowup']) dy-=1;
+  if(keys['s']||keys['arrowdown']) dy+=1;
+  if(keys['a']||keys['arrowleft']) dx-=1;
+  if(keys['d']||keys['arrowright']) dx+=1;
+  if(joyActive){ dx += joyVec.x; dy += joyVec.y; }
+  const len = Math.hypot(dx,dy);
+  if(len > 0.1){
+    const nx=dx/Math.max(len,1), ny=dy/Math.max(len,1);
+    player.facing = Math.atan2(ny,nx);
+    let eff = player.baseSpeed;
+    if(neutralTarget && neutralCharge>0) eff *= 0.5;
+    if(guilt>=60) eff *= 0.85;
+    player.x += nx*eff;
+    player.y += ny*eff;
+  }
+  player.x = Math.max(player.r, Math.min(LW-player.r, player.x));
+  player.y = Math.max(player.r, Math.min(LH-player.r, player.y));
+
+  spawnTimer--;
+  if(spawnTimer<=0 && waveEnemiesLeft>0){
+    spawnEnemy(); waveEnemiesLeft--;
+    spawnTimer = Math.max(50-wave*2, 18);
+  }
+  if(waveEnemiesLeft<=0 && enemies.length===0){
+    if(player.hp<=0 && !gameOver){ gameOver=true; running=false; endGame(); return; }
+    finishWave();
+    return;
+  }
+
+  if(blastCooldown>0) blastCooldown--;
+  btnBlast.classList.toggle('cooling', blastCooldown>0);
+
+  for(let i=blasts.length-1;i>=0;i--){
+    const b = blasts[i];
+    b.x+=b.vx; b.y+=b.vy;
+    let consumed=false;
+    for(const e of enemies){
+      if(b.hitSet.has(e)) continue;
+      if(dist(b,e) < b.r+e.r+2){
+        e.blastHp -= blastDamage; e.hitFlash=6;
+        b.hitSet.add(e);
+        if(e.blastHp<=0) killByBlast(e);
+        b.hitsLeft--;
+        if(b.hitsLeft<=0){ blasts.splice(i,1); consumed=true; }
+        break;
+      }
+    }
+    if(consumed) continue;
+    if(b.x<-30||b.x>LW+30||b.y<-30||b.y>LH+30) blasts.splice(i,1);
+  }
+
+  let target = neutralTarget;
+  const neutralRange = 34 + neutralRangeBonus;
+  if(neutralHeld){
+    if(!target || !enemies.includes(target)){
+      target = nearestEnemy(player.r + neutralRange);
+      neutralTarget = target;
+      neutralCharge = 0;
+    }
+    if(target && dist(player,target) <= player.r + neutralRange + 4){
+      neutralCharge += 1/60;
+      if(neutralCharge >= target.neutralNeed){
+        neutralizeEnemy(target);
+        neutralTarget=null; neutralCharge=0;
+      }
+    } else {
+      neutralTarget=null; neutralCharge=0;
+    }
+  } else {
+    neutralTarget=null; neutralCharge=0;
+  }
+  const inRange = !!nearestEnemy(player.r + neutralRange);
+  btnNeutral.classList.toggle('disabled', !inRange && !neutralTarget);
+  btnNeutral.classList.toggle('ready', inRange);
+  if(neutralTarget){
+    const pct = Math.min(1, neutralCharge/neutralTarget.neutralNeed);
+    chanRing.style.opacity = 1;
+    chanRing.style.background = `conic-gradient(#e8a93d ${pct*360}deg, transparent 0deg)`;
+    chanRing.style.borderRadius='50%';
+  } else {
+    chanRing.style.opacity = 0;
+  }
+
+  if(hostage && hostage.alive){
+    hostage.x += hostage.vx; hostage.y += hostage.vy;
+    if(hostage.x<20||hostage.x>LW-20) hostage.vx*=-1;
+    if(hostage.y<80||hostage.y>LH-40) hostage.vy*=-1;
+  }
+
+  const enemyAggroMult = 1 + Math.min(lethalKillsThisRun*0.015, 0.3);
+  for(const e of enemies){
+    const a = Math.atan2(player.y-e.y, player.x-e.x);
+    if(e!==neutralTarget){
+      e.x += Math.cos(a)*e.speed*enemyAggroMult;
+      e.y += Math.sin(a)*e.speed*enemyAggroMult;
+    }
+    if(e.hitFlash>0) e.hitFlash--;
+    if(dist(e,player) < e.r+player.r){
+      if(e!==neutralTarget){
+        let dmg = (e.isVillain?0.55:0.35) * enemyAggroMult;
+        if(neutralTarget && shieldWhileChanneling) dmg *= 0.6;
+        player.hp -= dmg;
+        const push=2.2;
+        player.x -= Math.cos(a)*push; player.y -= Math.sin(a)*push;
+      }
+    }
+    if(hostage && hostage.alive && dist(e,hostage) < e.r+hostage.r+2){
+      hostage.alive=false;
+      addGuilt(10);
+      toastEventNote('El rehén salió lastimado. Esto también pesa.');
+    }
+  }
+
+  if(confianza>=50 && !usedCitizenAssist && player.hp>0 && player.hp < player.maxHp*0.25){
+    player.hp = Math.min(player.maxHp, player.hp+20);
+    usedCitizenAssist = true;
+    toastEventNote('Un vecino te ayuda a levantarte.');
+  }
+
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.life--;
+    if(p.life<=0) particles.splice(i,1);
+  }
+  for(let i=bursts.length-1;i>=0;i--){
+    if(--bursts[i].life<=0) bursts.splice(i,1);
+  }
+
+  hpFill.style.width = Math.max(0,(player.hp/player.maxHp)*100)+'%';
+  vignetteEl.style.opacity = guilt>=50 ? Math.min(0.85,(guilt-50)/50*0.85) : 0;
+  if(player.hp<=0 && !gameOver){ gameOver=true; running=false; endGame(); }
+}
+
+// ---- draw: acuarela urbana / heroico clásico ----
+const grain = document.createElement('canvas');
+grain.width = 14; grain.height = 14;
+(function(){
+  const gctx = grain.getContext('2d');
+  gctx.fillStyle = '#fdf2da'; gctx.fillRect(0,0,14,14);
+  gctx.fillStyle = 'rgba(180,120,70,0.06)';
+  gctx.beginPath(); gctx.arc(3,4,1.3,0,Math.PI*2); gctx.fill();
+  gctx.beginPath(); gctx.arc(10,10,1.1,0,Math.PI*2); gctx.fill();
+  gctx.fillStyle = 'rgba(120,90,180,0.05)';
+  gctx.beginPath(); gctx.arc(11,3,1,0,Math.PI*2); gctx.fill();
+})();
+const grainPattern = ctx.createPattern(grain, 'repeat');
+
+function drawGrid(){
+  const sky = ctx.createLinearGradient(0,0,0,LH);
+  sky.addColorStop(0, '#ffe0ad'); sky.addColorStop(0.35, '#f6c390');
+  sky.addColorStop(0.7, '#e79a86'); sky.addColorStop(1, '#c9a8d8');
+  ctx.fillStyle = sky; ctx.fillRect(0,0,LW,LH);
+
+  ctx.save();
+  ctx.globalAlpha = 0.16; ctx.fillStyle = '#5a3d6b';
+  ctx.shadowColor = '#5a3d6b'; ctx.shadowBlur = 14;
+  let bx = -10;
+  while(bx < LW+20){
+    const bw = rand(24,46), bh = rand(40,120);
+    ctx.fillRect(bx, 70-bh*0.15, bw, bh);
+    bx += bw + rand(2,8);
+  }
+  ctx.restore();
+
+  ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = grainPattern; ctx.fillRect(0,0,LW,LH); ctx.restore();
+}
+
+function inkCircle(x,y,r,fill,jagged){
+  ctx.save(); ctx.translate(x,y); ctx.beginPath();
+  if(jagged){
+    const spikes = 8;
+    for(let i=0;i<spikes;i++){
+      const ang=(i/spikes)*Math.PI*2, rr=r*(i%2===0?1:0.7);
+      const px=Math.cos(ang)*rr, py=Math.sin(ang)*rr;
+      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+  } else { ctx.arc(0,0,r,0,Math.PI*2); }
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.lineWidth=2.5; ctx.strokeStyle='#2a2f52'; ctx.stroke();
+  ctx.restore();
+}
+
+function draw(){
+  ctx.clearRect(0,0,LW,LH);
+  drawGrid();
+
+  for(const p of particles){
+    ctx.globalAlpha = p.life/p.maxLife;
+    ctx.fillStyle = p.color; ctx.strokeStyle='#2a2f52'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+
+  for(const b of bursts){
+    const t=1-b.life/b.maxLife, rOuter=8+t*34;
+    ctx.save(); ctx.globalAlpha=1-t; ctx.strokeStyle=b.color; ctx.lineWidth=3-t*2;
+    const rays=10;
+    for(let i=0;i<rays;i++){
+      const ang=(i/rays)*Math.PI*2+t*0.4;
+      ctx.beginPath();
+      ctx.moveTo(b.x+Math.cos(ang)*(rOuter*0.4), b.y+Math.sin(ang)*(rOuter*0.4));
+      ctx.lineTo(b.x+Math.cos(ang)*rOuter, b.y+Math.sin(ang)*rOuter);
+      ctx.stroke();
+    }
+    ctx.strokeStyle=b.color; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(b.x,b.y,rOuter*0.55,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  for(const b of blasts){
+    ctx.save(); ctx.translate(b.x,b.y);
+    ctx.rotate(Math.atan2(b.vy,b.vx));
+    ctx.fillStyle='#e8a93d'; ctx.strokeStyle='#2a2f52'; ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(9,0); ctx.lineTo(-2,-5); ctx.lineTo(-6,-1);
+    ctx.lineTo(-9,0); ctx.lineTo(-6,1); ctx.lineTo(-2,5);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  if(hostage && hostage.alive){
+    ctx.save(); ctx.translate(hostage.x,hostage.y);
+    ctx.fillStyle='#3aa66f'; ctx.strokeStyle='#2a2f52'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(0,0,hostage.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle='rgba(58,166,111,0.6)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(hostage.x,hostage.y,hostage.r+6+Math.sin(Date.now()/200)*2,0,Math.PI*2); ctx.stroke();
+  }
+
+  for(const e of enemies){
+    const baseFill = e.hitFlash>0 ? '#fdf2da' : (e.isVillain ? '#8a2f6b' : '#5f7aa8');
+    inkCircle(e.x, e.y, e.r, baseFill, e.isVillain);
+    if(e.isBoss){
+      ctx.strokeStyle='#e8a93d'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(e.x,e.y,e.r+3,0,Math.PI*2); ctx.stroke();
+    }
+    if(e.isVillain){
+      ctx.fillStyle='#2a2f52'; ctx.fillRect(e.x-16,e.y-e.r-11,32,4);
+      ctx.strokeStyle='#fdf2da'; ctx.lineWidth=1; ctx.strokeRect(e.x-16,e.y-e.r-11,32,4);
+      ctx.fillStyle='#c23b3b'; ctx.fillRect(e.x-16,e.y-e.r-11,32*(e.blastHp/e.blastMaxHp),4);
+    }
+    if(e===neutralTarget){
+      ctx.strokeStyle='#e8a93d'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(e.x,e.y,e.r+7,0,Math.PI*2*(neutralCharge/e.neutralNeed)); ctx.stroke();
+    }
+  }
+
+  const capeColor = (CAPES.find(c=>c.id===meta.selectedCape)||CAPES[0]).color;
+  ctx.save(); ctx.translate(player.x,player.y); ctx.rotate(player.facing);
+  ctx.fillStyle=capeColor; ctx.strokeStyle='#2a2f52'; ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(-4,-4); ctx.lineTo(-17,-9); ctx.lineTo(-13,0); ctx.lineTo(-17,9); ctx.lineTo(-4,4);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#2f5fd1';
+  ctx.beginPath();
+  ctx.moveTo(16,0); ctx.lineTo(-9,-10); ctx.lineTo(-3,0); ctx.lineTo(-9,10);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#e8a93d';
+  ctx.beginPath(); ctx.arc(2,0,3,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function loop(){ update(); draw(); requestAnimationFrame(loop); }
+
+// ---- wave-end flow: reflexión -> (mejora) -> mapa de rutas ----
+function finishWave(){
+  running = false;
+  if(hostageActive && hostage && hostage.alive){
+    confianza += 20; addScore(20);
+    toastEventNote('El rehén está a salvo gracias a vos.');
+  }
+  hostage=null; hostageActive=false;
+  showReflection();
+}
+
+function showReflection(){
+  const spared = waveLog.filter(l=>l.method==='neutral');
+  const killed = waveLog.filter(l=>l.method==='blast');
+  const rows = waveLog.map(l => `<div>${l.method==='neutral'?'🟦':'🟥'} <b>${l.name}</b> ${l.villain?'(villano)':'(secuaz)'} — ${l.detail}</div>`).join('');
+  let prompt = pick(allPrompts());
+  if(relicBonus.memoriaViva && Math.random()<0.4){
+    const past = loadMemorial().filter(e=>e.method==='neutral');
+    if(past.length){
+      const person = pick(past);
+      prompt = `Te acordás de ${person.name}, a quien salvaste antes. Sigue con vida gracias a vos.`;
+    }
+  }
+  overlay.classList.remove('hidden');
+  overlay.innerHTML = `
+    <h1>FIN DE LA OLEADA ${wave}</h1>
+    <p style="font-style:italic;">${prompt}</p>
+    <p>Redujiste a <b style="color:#2f6fd1">${spared.length}</b> y eliminaste a <b style="color:#c23b3b">${killed.length}</b> en esta oleada.</p>
+    <div class="currency-row"><span class="c1">🤝 ${confianza}</span><span class="c2">😨 ${miedo}</span></div>
+    <div id="summary-list">${rows || '<div>Nadie se cruzó en tu camino esta vez.</div>'}</div>
+    <button id="continue-btn">CONTINUAR</button>
+  `;
+  document.getElementById('continue-btn').addEventListener('click', proceedAfterReflection);
+}
+
+function proceedAfterReflection(){
+  overlay.classList.add('hidden');
+  wave++; waveEl.textContent = wave;
+  waveLog = [];
+  if((wave-1) % 3 === 0){
+    showUpgradeChoice(showPathChoice);
+  } else {
+    showPathChoice();
+  }
+}
+
+function rollUpgrades(){
+  const pool = UPGRADES.filter(u=>!pickedUpgradeIds.has(u.id));
+  const weighted = pool.map(u=>{
+    let w = 10;
+    if(u.tree==='confianza') w += confianza*0.5;
+    if(u.tree==='miedo') w += miedo*0.5;
+    return {u,w};
+  });
+  const picks = [];
+  for(let i=0;i<3 && weighted.length;i++){
+    const total = weighted.reduce((s,x)=>s+x.w,0);
+    let r = Math.random()*total, idx=0;
+    for(;idx<weighted.length;idx++){ r-=weighted[idx].w; if(r<=0) break; }
+    idx = Math.min(idx, weighted.length-1);
+    picks.push(weighted[idx].u);
+    weighted.splice(idx,1);
+  }
+  return picks;
+}
+
+function showUpgradeChoice(next){
+  const picks = rollUpgrades();
+  if(picks.length===0){ next(); return; }
+  overlay.classList.remove('hidden');
+  overlay.innerHTML = `<h1>ELEGÍ UNA MEJORA</h1><p style="font-style:italic;">Cada camino deja huella.</p><div class="choice-grid" id="upg-grid"></div>`;
+  const grid = document.getElementById('upg-grid');
+  picks.forEach(u=>{
+    const card = document.createElement('div');
+    card.className = 'choice-card';
+    card.innerHTML = `<div class="ico">${u.tree==='confianza'?'🤝':u.tree==='miedo'?'😨':'⭐'}</div><h3>${u.name}</h3><p>${u.desc}</p>`;
+    card.addEventListener('click', ()=>{ u.apply(); pickedUpgradeIds.add(u.id); next(); });
+    grid.appendChild(card);
+  });
+}
+
+function showPathChoice(){
+  overlay.classList.remove('hidden');
+  overlay.innerHTML = `<h1>ELEGÍ TU CAMINO</h1><p style="font-style:italic;">¿Por dónde seguís la patrulla?</p><div class="choice-grid" id="path-grid"></div>`;
+  const grid = document.getElementById('path-grid');
+  PATHS.forEach(p=>{
+    const card = document.createElement('div');
+    card.className = 'choice-card';
+    card.innerHTML = `<div class="ico">${p.icon}</div><h3>${p.name}</h3><p>${p.desc}</p>`;
+    card.addEventListener('click', ()=>{
+      pendingPathMods = { enemyMult:p.enemyMult, forceEvent:p.forceEvent };
+      if(p.confianzaBonus){ confianza += p.confianzaBonus; updateCurrencyHUD(); }
+      overlay.classList.add('hidden');
+      running = true;
+      startWave();
+    });
+    grid.appendChild(card);
+  });
+}
+
+// ---- fin de partida (permadeath real) ----
+function endGame(){
+  const spared = log.filter(l=>l.method==='neutral').length;
+  const killed = log.filter(l=>l.method==='blast').length;
+
+  saveMemorialEntries(log.map(l=>({name:l.name, detail:l.detail, method:l.method, villain:l.villain, wave:l.wave})));
+
+  meta.totalSaved += spared;
+  meta.totalKilled += killed;
+  meta.runsPlayed += 1;
+  meta.bestWave = Math.max(meta.bestWave, wave);
+
+  let unlockMsgs = [];
+  if(wave>=3 && guilt<=25){
+    const nextRelic = RELIC_POOL.find(r=>!meta.relics.includes(r.id));
+    if(nextRelic){
+      meta.relics.push(nextRelic.id);
+      unlockMsgs.push(`${nextRelic.icon} Nueva reliquia: <b>${nextRelic.name}</b> — ${nextRelic.desc}`);
+    }
+  }
+  CAPES.forEach(c=>{
+    if(meta.totalSaved>=c.unlockAt && !meta.capes.includes(c.id)){
+      meta.capes.push(c.id);
+      unlockMsgs.push('Nueva capa disponible en la pantalla de inicio.');
+    }
+  });
+  BONUS_QUOTES.forEach(q=>{
+    if(meta.totalSaved>=q.at && !meta.quotes.includes(q.text)){
+      meta.quotes.push(q.text);
+      unlockMsgs.push('Nueva frase de reflexión desbloqueada.');
+    }
+  });
+  saveMeta();
+
+  const listHtml = log.map(l=>`<div>${l.method==='neutral'?'🟦':'🟥'} <b>${l.name}</b> ${l.villain?'(villano)':'(secuaz)'} — Oleada ${l.wave} — ${l.method==='neutral'?'reducido':'eliminado'}</div>`).join('');
+  overlay.classList.remove('hidden');
+  overlay.innerHTML = `
+    <h1>FIN DE LA PATRULLA</h1>
+    <p>Llegaste a la oleada <b>${wave}</b> con <b>${score}</b> puntos.<br>
+    Redujiste a <b style="color:#2f6fd1">${spared}</b> y eliminaste a <b style="color:#c23b3b">${killed}</b>.</p>
+    ${unlockMsgs.length ? `<p style="color:var(--villain-dk);">${unlockMsgs.join('<br>')}</p>` : ''}
+    <div id="summary-list">${listHtml || '<div>Sin registros.</div>'}</div>
+    <button id="restart-btn">VOLVER A PATRULLAR</button>
+    <button id="home-btn" style="background:var(--paper2); color:var(--ink);">VOLVER AL INICIO</button>
+  `;
+  document.getElementById('restart-btn').addEventListener('click', ()=>{
+    overlay.classList.add('hidden'); resetGame();
+  });
+  document.getElementById('home-btn').addEventListener('click', ()=>{
+    renderStartScreen();
+  });
+}
+
+// ---- pantalla de inicio y muro memorial ----
+function renderStartScreen(){
+  overlay.classList.remove('hidden');
+  const relicsHtml = meta.relics.length
+    ? meta.relics.map(id=>{ const r=RELIC_POOL.find(x=>x.id===id); return r?`<span class="relic-chip">${r.icon} ${r.name}</span>`:''; }).join('')
+    : '<span style="opacity:.65; font-size:12px;">Todavía ninguna.</span>';
+  const capesHtml = CAPES.filter(c=>meta.capes.includes(c.id)).map(c=>
+    `<span class="cape-swatch ${meta.selectedCape===c.id?'selected':''}" data-cape="${c.id}" style="background:${c.color}"></span>`
+  ).join('');
+  overlay.innerHTML = `
+    <h1>CADA UNO</h1>
+    <p>Sos un héroe patrullando la ciudad. Los secuaces y villanos que se te acercan también tienen una historia.</p>
+    <p><b>REDUCIR</b> (mantené presionado cerca del enemigo): los deja inconscientes. Da más puntos y Confianza — mientras lo hacés, otros enemigos pueden seguir acercándose.<br><br>
+    <b>ENERGÍA</b> (a distancia): los elimina al instante. Más rápido y seguro, pero suma menos puntos, Miedo, y pesa en tu conciencia.</p>
+    <p style="font-size:11.5px;">Cada patrulla es una corrida única: si caés, no hay continuar. Lo que ganás jugando compasivo (reliquias, capas) queda para la próxima.</p>
+    <div style="width:100%;"><p style="margin-bottom:2px;"><b>Reliquias:</b></p><div>${relicsHtml}</div></div>
+    ${capesHtml ? `<div style="width:100%;"><p style="margin-bottom:2px;"><b>Capa:</b></p><div>${capesHtml}</div></div>` : ''}
+    <button id="start-btn">EMPEZAR PATRULLA</button>
+    <button id="memorial-btn" style="background:var(--paper2); color:var(--ink);">MURO MEMORIAL</button>
+  `;
+  document.getElementById('start-btn').addEventListener('click', ()=>{ overlay.classList.add('hidden'); resetGame(); });
+  document.getElementById('memorial-btn').addEventListener('click', showMemorial);
+  overlay.querySelectorAll('.cape-swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=>{
+      meta.selectedCape = sw.getAttribute('data-cape');
+      saveMeta();
+      renderStartScreen();
+    });
+  });
+}
+
+function showMemorial(){
+  const entries = loadMemorial();
+  const totalSaved = entries.filter(e=>e.method==='neutral').length;
+  const totalKilled = entries.filter(e=>e.method==='blast').length;
+  const recent = entries.slice(-40).reverse();
+  const rows = recent.map(e=>`<div>${e.method==='neutral'?'🟦':'🟥'} <b>${e.name}</b> — ${e.detail}</div>`).join('');
+  overlay.innerHTML = `
+    <h1>MURO MEMORIAL</h1>
+    <p>A lo largo de todas tus patrullas: <b style="color:#2f6fd1">${totalSaved}</b> salvados, <b style="color:#c23b3b">${totalKilled}</b> perdidos.</p>
+    <p style="font-size:11px;">El peso que carga tu conciencia, oleada tras oleada, patrulla tras patrulla.</p>
+    <div id="summary-list">${rows || '<div>Todavía no cruzaste a nadie.</div>'}</div>
+    <button id="back-btn">VOLVER</button>
+  `;
+  document.getElementById('back-btn').addEventListener('click', renderStartScreen);
+}
+
+// idle init
+player = { x:LW/2, y:LH/2, r:13, hp:100, maxHp:100, baseSpeed:2.4, facing:0 };
+enemies=[]; blasts=[]; particles=[]; bursts=[]; hostage=null;
+computeRelicBonus();
+renderStartScreen();
+draw();
+loop();
+})();
+</script>
+</body>
+</html>
