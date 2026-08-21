@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ALTAR RÚNICO</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body { height:100%; background:#0a0810; }
+  body {
+    font-family:'Georgia','Times New Roman',serif;
+    color:#e8e2d0; display:flex; align-items:center; justify-content:center; overflow:hidden;
+    background:
+      radial-gradient(ellipse at 50% 0%, #1a1428 0%, #0a0810 60%);
+  }
+  #app { width:100%; max-width:460px; height:100%; max-height:900px; position:relative; display:flex; flex-direction:column; padding:18px 16px; }
+
+  .screen { display:none; flex-direction:column; height:100%; animation:fadein .5s ease; }
+  .screen.active { display:flex; }
+  @keyframes fadein { from{opacity:0} to{opacity:1} }
+
+  /* ---- title ---- */
+  #titleScreen { align-items:center; justify-content:center; text-align:center; gap:14px; }
+  #titleScreen h1 { font-size:2rem; letter-spacing:0.1em; color:#f0e6c8; text-shadow:0 0 30px rgba(230,200,140,0.25); }
+  #titleScreen .sub { font-size:0.82rem; color:#8f88a0; font-style:italic; letter-spacing:0.05em; }
+  #titleScreen p.desc { max-width:340px; color:#a89fb0; line-height:1.7; font-size:0.9rem; margin-top:4px; }
+  #bestRecord { margin-top:6px; font-size:0.85rem; color:#c9a24a; letter-spacing:0.05em; }
+  .btn { margin-top:10px; background:linear-gradient(135deg,#3a2a5c,#241a3d); border:1px solid #6b5a8f; color:#f0e6c8;
+    padding:13px 34px; font-family:inherit; font-size:0.88rem; letter-spacing:0.1em; cursor:pointer; border-radius:4px;
+    text-transform:uppercase; transition:filter .2s; }
+  .btn:active { filter:brightness(1.3); }
+  .btn.small { padding:9px 22px; font-size:0.78rem; }
+  .btn.ghost { background:transparent; border:1px solid #4a4260; color:#b8b0c8; }
+
+  /* ---- game header ---- */
+  #gameScreen { }
+  #topBar { display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; }
+  #trialLabel { font-size:0.95rem; color:#e0d4a8; letter-spacing:0.06em; }
+  #infoBtn { background:transparent; border:1px solid #4a4260; color:#a89fb0; width:26px; height:26px; border-radius:50%; font-size:0.75rem; cursor:pointer; }
+
+  #scoreBar { display:flex; justify-content:space-between; align-items:baseline; padding:6px 2px 12px; border-bottom:1px solid #241e34; margin-bottom:10px; }
+  #scoreBar .cur { font-size:1.3rem; color:#f0e6c8; font-weight:bold; }
+  #scoreBar .cur span { color:#7d7495; font-size:0.7rem; font-weight:normal; }
+  #scoreBar .target { font-size:0.85rem; color:#8f88a0; }
+  #scoreBar .target b { color:#c9a24a; }
+
+  #modBanner { font-size:0.72rem; color:#a894d8; background:#1c1530; border:1px solid #3a2f54; border-radius:6px; padding:6px 10px; margin-bottom:10px; line-height:1.5; display:none; }
+
+  #gridWrap { display:flex; justify-content:center; margin-bottom:14px; position:relative; }
+  #grid { display:grid; gap:6px; }
+  .cell { aspect-ratio:1; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    background:#151022; border:1px solid #2a2340; position:relative; font-size:1.4rem; transition:all .25s ease; }
+  .cell.empty.selectable { border-color:#6b5a8f; box-shadow:0 0 10px rgba(150,120,220,0.35); cursor:pointer; }
+  .cell.empty.selectable:active { background:#221a38; }
+  .cell.blocked { background:#0d0a14; border-color:#1c1626; }
+  .cell.blocked::after { content:"✕"; color:#3a3248; font-size:1rem; }
+  .cell.filled { box-shadow: inset 0 0 12px rgba(0,0,0,0.4); cursor:pointer; }
+  #cellInspect { min-height:1.6em; text-align:center; font-size:0.78rem; color:#c9c2d8; margin-bottom:6px; line-height:1.5; }
+  #cellInspect .seg.pos { color:#8fe0a0; }
+  #cellInspect .seg.neg { color:#e08080; }
+  .cell .val { position:absolute; bottom:2px; right:5px; font-size:0.58rem; color:#0a0810; font-weight:bold; background:rgba(255,255,255,0.55); border-radius:4px; padding:0 3px; }
+  .floaty { position:absolute; font-size:0.7rem; font-weight:bold; pointer-events:none; animation:floatUp 1s ease forwards; z-index:10; }
+  @keyframes floatUp { from{ opacity:1; transform:translateY(0);} to{ opacity:0; transform:translateY(-22px);} }
+
+  #draftArea { display:flex; flex-direction:column; align-items:center; gap:8px; margin-top:auto; padding-top:8px; }
+  #draftLabel { font-size:0.72rem; color:#8f88a0; letter-spacing:0.1em; text-transform:uppercase; }
+  #draftOptions { display:flex; gap:10px; }
+  .draft-rune { width:64px; height:64px; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-size:1.6rem; border:2px solid transparent; cursor:pointer; transition:all .2s ease; background:#151022; }
+  .draft-rune .v { font-size:0.62rem; margin-top:2px; opacity:0.85; }
+  .draft-rune.selected { border-color:#f0e6c8; transform:translateY(-4px) scale(1.06); box-shadow:0 6px 16px rgba(0,0,0,0.5); }
+  #placeHint { font-size:0.72rem; color:#6b6482; min-height:1.4em; text-align:center; }
+  #progressLabel { font-size:0.72rem; color:#7d7495; margin-top:2px; }
+
+  /* ---- overlay (trial result / game over) ---- */
+  #overlay { position:absolute; inset:0; background:rgba(8,6,14,0.94); display:none; align-items:center; justify-content:center; flex-direction:column; text-align:center; padding:30px; z-index:20; }
+  #overlay.active { display:flex; }
+  #overlayTitle { font-size:1.5rem; letter-spacing:0.06em; margin-bottom:10px; }
+  #overlayTitle.win { color:#c9a24a; }
+  #overlayTitle.lose { color:#a05050; }
+  #overlayText { color:#b8b0c8; font-size:0.92rem; line-height:1.7; max-width:320px; margin-bottom:18px; }
+  #overlayStats { font-size:0.78rem; color:#7d7495; line-height:2; margin-bottom:14px; }
+  #overlayStats b { color:#c9c2d8; }
+
+  /* info modal */
+  #infoModal { position:absolute; inset:0; background:rgba(8,6,14,0.96); display:none; align-items:center; justify-content:center; padding:26px; z-index:30; }
+  #infoModal.active { display:flex; }
+  #infoBox { max-width:360px; text-align:center; }
+  #infoBox h3 { color:#f0e6c8; margin-bottom:12px; letter-spacing:0.05em; }
+  #infoBox p { color:#a89fb0; font-size:0.86rem; line-height:1.75; margin-bottom:8px; }
+  #elemList { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:14px 0; }
+  .elem-chip { display:flex; align-items:center; gap:4px; font-size:0.78rem; padding:4px 9px; border-radius:14px; background:#1c1530; }
+  .syn-row { display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; padding:5px 8px; border-bottom:1px solid #1c1530; }
+  .syn-row .pair { color:#c9c2d8; }
+  .syn-row .val { font-weight:bold; }
+  .syn-row .val.pos { color:#8fe0a0; }
+  .syn-row .val.neg { color:#e08080; }
+  .syn-row .val.zero { color:#7d7495; }
+
+  #breakdownWrap { max-height:150px; overflow-y:auto; text-align:left; margin:10px 0; border-top:1px solid #241e34; border-bottom:1px solid #241e34; padding:6px 2px; }
+  #breakdownWrap .brow { display:flex; justify-content:space-between; font-size:0.76rem; padding:3px 4px; color:#a89fb0; }
+  #breakdownWrap .brow .bval.pos { color:#8fe0a0; }
+  #breakdownWrap .brow .bval.neg { color:#e08080; }
+  #breakdownToggle { background:transparent; border:none; color:#8f88a0; font-size:0.75rem; text-decoration:underline; cursor:pointer; margin-bottom:6px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TITLE -->
+  <div class="screen active" id="titleScreen">
+    <div class="sub">combiná. sinergiza. sobrevivé al altar.</div>
+    <h1>ALTAR RÚNICO</h1>
+    <p class="desc">Cada trial te ofrece runas al azar. Colocalas en el grid formando combinaciones elementales para superar el puntaje exigido. El altar nunca pide lo mismo dos veces.</p>
+    <div id="bestRecord"></div>
+    <button class="btn" id="startBtn">Comenzar Trial</button>
+    <button class="btn ghost small" id="howBtn">¿Cómo funciona?</button>
+  </div>
+
+  <!-- GAME -->
+  <div class="screen" id="gameScreen" style="position:relative;">
+    <div id="topBar">
+      <div id="trialLabel">Trial 1</div>
+      <button id="infoBtn">?</button>
+    </div>
+    <div id="scoreBar">
+      <div class="cur" id="curScore">0 <span>pts</span></div>
+      <div class="target">objetivo <b id="targetScore">0</b></div>
+    </div>
+    <div id="modBanner"></div>
+    <div id="gridWrap"><div id="grid"></div></div>
+    <div id="cellInspect"></div>
+    <div id="draftArea">
+      <div id="draftLabel">El altar ofrece</div>
+      <div id="draftOptions"></div>
+      <div id="placeHint">Elegí una runa y tocá una celda vacía para colocarla</div>
+      <div id="progressLabel"></div>
+    </div>
+
+    <div id="overlay">
+      <div id="overlayTitle"></div>
+      <div id="overlayText"></div>
+      <div id="overlayStats"></div>
+      <button id="breakdownToggle" style="display:none;">Ver desglose del puntaje</button>
+      <div id="breakdownWrap" style="display:none;"></div>
+      <button class="btn small" id="overlayBtn"></button>
+    </div>
+
+    <div id="infoModal">
+      <div id="infoBox">
+        <h3>Cómo leer el altar</h3>
+        <p>8 elementos, cada uno con un valor. Al colocarlos adyacentes en el grid, generan sinergias: combinaciones afines suman puntos extra, opuestas los restan, y dos runas del mismo elemento juntas dan una resonancia leve.</p>
+        <p>No hay una tabla fija que memorizar — el altar recompensa experimentar. Desde el trial 3, aparecen modificadores que cambian las reglas del juego.</p>
+        <div id="elemList"></div>
+        <button class="btn small" id="toggleTableBtn">Ver tabla de sinergias</button>
+        <div id="synTable" style="display:none; max-height:260px; overflow-y:auto; margin-top:12px; text-align:left;"></div>
+        <button class="btn small" id="closeInfoBtn">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = "altar_runico_best";
+
+  const ELEMENTS = [
+    {id:'agua',   name:'Agua',   symbol:'ᚢ', color:'#3d8fd6'},
+    {id:'aire',   name:'Aire',   symbol:'ᚨ', color:'#b9c6d1'},
+    {id:'fuego',  name:'Fuego',  symbol:'ᚱ', color:'#e2572b'},
+    {id:'hielo',  name:'Hielo',  symbol:'ᚦ', color:'#8fe0e6'},
+    {id:'luz',    name:'Luz',    symbol:'ᚹ', color:'#f5e6a8'},
+    {id:'rayo',   name:'Rayo',   symbol:'ᚲ', color:'#e8d34d'},
+    {id:'sombra', name:'Sombra', symbol:'ᚷ', color:'#7d6ba8'},
+    {id:'tierra', name:'Tierra', symbol:'ᚠ', color:'#8a6b3d'},
+  ];
+  const ELEM_BY_ID = Object.fromEntries(ELEMENTS.map(e=>[e.id,e]));
+
+  const SYNERGY = {};
+  function setSyn(a,b,v){ const k = [a,b].sort().join('|'); SYNERGY[k] = v; }
+  setSyn('agua','aire',3); setSyn('agua','fuego',6); setSyn('agua','hielo',3); setSyn('agua','luz',3);
+  setSyn('agua','rayo',6); setSyn('agua','sombra',-3); setSyn('agua','tierra',-3);
+  setSyn('aire','fuego',3); setSyn('aire','hielo',3); setSyn('aire','luz',3); setSyn('aire','rayo',6);
+  setSyn('aire','sombra',0); setSyn('aire','tierra',-3);
+  setSyn('fuego','hielo',-6); setSyn('fuego','luz',3); setSyn('fuego','rayo',3); setSyn('fuego','sombra',0); setSyn('fuego','tierra',6);
+  setSyn('hielo','luz',3); setSyn('hielo','rayo',0); setSyn('hielo','sombra',3); setSyn('hielo','tierra',-3);
+  setSyn('luz','rayo',3); setSyn('luz','sombra',-6); setSyn('luz','tierra',0);
+  setSyn('rayo','sombra',0); setSyn('rayo','tierra',-3);
+  setSyn('sombra','tierra',3);
+
+  function synergyValue(e1, e2, boosted){
+    let base;
+    if(e1 === e2){ base = 2; }
+    else { base = SYNERGY[[e1,e2].sort().join('|')] ?? 0; }
+    if(boosted && (e1===boosted || e2===boosted)) base += 3;
+    return base;
+  }
+
+  function neighborsOf(cell){
+    const out = [];
+    const dirs = [
+      {dr:0, dc:1, side:'right', inset:'inset -4px 0 0 0'},
+      {dr:0, dc:-1, side:'left', inset:'inset 4px 0 0 0'},
+      {dr:1, dc:0, side:'down', inset:'inset 0 -4px 0 0'},
+      {dr:-1, dc:0, side:'up', inset:'inset 0 4px 0 0'},
+    ];
+    dirs.forEach(d=>{
+      const nr = cell.row + d.dr, nc = cell.col + d.dc;
+      if(nr<0 || nr>=cfg.rows || nc<0 || nc>=cfg.cols) return;
+      const n = cells[nr*cfg.cols + nc];
+      if(n && n.rune) out.push({neighbor:n, inset:d.inset});
+    });
+    return out;
+  }
+
+  function edgeGlow(cell){
+    if(!cell.rune) return '';
+    const shadows = ['inset 0 0 10px rgba(0,0,0,0.35)'];
+    neighborsOf(cell).forEach(({neighbor, inset})=>{
+      const v = synergyValue(cell.rune.element, neighbor.rune.element, cfg.boosted);
+      if(v === 0) return;
+      const mag = Math.min(Math.abs(v)/8, 1);
+      const color = v>0 ? `rgba(95,216,138,${0.4+0.5*mag})` : `rgba(224,90,90,${0.4+0.5*mag})`;
+      shadows.push(`${inset} ${color}`);
+    });
+    return shadows.join(', ');
+  }
+
+  function inspectCell(cell){
+    const box = document.getElementById('cellInspect');
+    const links = neighborsOf(cell).map(({neighbor})=>{
+      const v = synergyValue(cell.rune.element, neighbor.rune.element, cfg.boosted);
+      const cls = v>0?'pos':(v<0?'neg':'');
+      const label = `${ELEM_BY_ID[cell.rune.element].name} + ${ELEM_BY_ID[neighbor.rune.element].name}`;
+      return `<span class="seg ${cls}">${label}: ${v>0?'+':''}${v}</span>`;
+    });
+    box.innerHTML = links.length ? links.join(' &nbsp;·&nbsp; ') : 'Esta runa no tiene vecinos ocupados todavía.';
+    clearTimeout(window.__inspectTimeout);
+    window.__inspectTimeout = setTimeout(()=>{ box.innerHTML = ''; }, 4000);
+  }
+
+  // ---------------- STATE ----------------
+  let trial = 1;
+  let completedTrials = 0;
+  let cfg = null;
+  let cells = []; // {row,col,idx,rune:null|{element,value},blocked:bool}
+  let draft = [];
+  let selectedDraftIdx = null;
+  let placedCount = 0;
+  let curScore = 0;
+
+  function bestRecord(){
+    try{ return parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10); }catch(e){ return 0; }
+  }
+  function saveBest(v){
+    try{ localStorage.setItem(STORAGE_KEY, String(v)); }catch(e){}
+  }
+
+  const screens = { title:document.getElementById('titleScreen'), game:document.getElementById('gameScreen') };
+  function show(name){ Object.values(screens).forEach(s=>s.classList.remove('active')); screens[name].classList.add('active'); }
+
+  document.getElementById('bestRecord').textContent = bestRecord() > 0 ? `Récord: ${bestRecord()} trials superados` : 'Sin récord todavía';
+
+  document.getElementById('startBtn').addEventListener('click', ()=>{
+    trial = 1; completedTrials = 0;
+    show('game');
+    startTrial();
+  });
+
+  // info modal
+  const infoModal = document.getElementById('infoModal');
+  function openInfo(){
+    const list = document.getElementById('elemList');
+    list.innerHTML = ELEMENTS.map(e=>`<div class="elem-chip" style="color:${e.color}">${e.symbol} ${e.name}</div>`).join('');
+    infoModal.classList.add('active');
+  }
+  document.getElementById('howBtn').addEventListener('click', openInfo);
+  document.getElementById('infoBtn').addEventListener('click', openInfo);
+  document.getElementById('closeInfoBtn').addEventListener('click', ()=> infoModal.classList.remove('active'));
+
+  function renderSynergyTable(){
+    const rows = [];
+    ELEMENTS.forEach(e=>{
+      rows.push({pair:`${e.symbol} ${e.name} + ${e.symbol} ${e.name} (misma runa)`, val:2});
+    });
+    for(let i=0;i<ELEMENTS.length;i++){
+      for(let j=i+1;j<ELEMENTS.length;j++){
+        const a = ELEMENTS[i], b = ELEMENTS[j];
+        const v = SYNERGY[[a.id,b.id].sort().join('|')] ?? 0;
+        rows.push({pair:`${a.symbol} ${a.name} + ${b.symbol} ${b.name}`, val:v});
+      }
+    }
+    rows.sort((r1,r2)=> r2.val - r1.val);
+    const cls = v => v>0?'pos':(v<0?'neg':'zero');
+    document.getElementById('synTable').innerHTML = rows.map(r=>
+      `<div class="syn-row"><span class="pair">${r.pair}</span><span class="val ${cls(r.val)}">${r.val>0?'+':''}${r.val}</span></div>`
+    ).join('');
+  }
+  document.getElementById('toggleTableBtn').addEventListener('click', ()=>{
+    const t = document.getElementById('synTable');
+    if(t.style.display === 'none'){ renderSynergyTable(); t.style.display = 'block'; document.getElementById('toggleTableBtn').textContent = 'Ocultar tabla de sinergias'; }
+    else { t.style.display = 'none'; document.getElementById('toggleTableBtn').textContent = 'Ver tabla de sinergias'; }
+  });
+
+  // ---------------- TRIAL BUILD ----------------
+  function buildTrialConfig(t){
+    let rows=4, cols=4, blocked=[], draftSize=3, boosted=null, mods=[];
+    if(t >= 3){
+      const spaceRoll = Math.random();
+      if(spaceRoll < 0.35) mods.push('grid_reducido');
+      else if(spaceRoll < 0.65) mods.push('celdas_bloqueadas');
+
+      const otherPool = ['draft_ajustado','elemento_potenciado'];
+      const otherCount = t >= 6 ? 2 : (t >= 4 ? 1 : 0);
+      const shuffled = otherPool.slice().sort(()=>Math.random()-0.5);
+      mods.push(...shuffled.slice(0, otherCount));
+    }
+    if(mods.includes('grid_reducido')){ rows=3; cols=4; }
+    if(mods.includes('draft_ajustado')) draftSize = 2;
+    if(mods.includes('elemento_potenciado')) boosted = ELEMENTS[Math.floor(Math.random()*ELEMENTS.length)].id;
+
+    const totalCells = rows*cols;
+    if(mods.includes('celdas_bloqueadas')){
+      const numBlocked = 2 + (t >= 7 ? 1 : 0);
+      while(blocked.length < numBlocked){
+        const idx = Math.floor(Math.random()*totalCells);
+        if(!blocked.includes(idx)) blocked.push(idx);
+      }
+    }
+    const placeable = totalCells - blocked.length;
+    const runesToPlace = Math.min(10, Math.max(1, placeable));
+    const target = Math.round(38 + t*11 + Math.pow(t,1.3)*1.2);
+
+    return {rows, cols, blocked, draftSize, boosted, runesToPlace, target, mods};
+  }
+
+  function modLabel(mods, boosted){
+    const parts = [];
+    if(mods.includes('grid_reducido')) parts.push('Altar reducido: menos espacio para maniobrar');
+    if(mods.includes('celdas_bloqueadas')) parts.push('Celdas selladas bloquean parte del grid');
+    if(mods.includes('draft_ajustado')) parts.push('El altar ofrece solo 2 runas por turno');
+    if(mods.includes('elemento_potenciado')) parts.push(`Elemento potenciado: ${ELEM_BY_ID[boosted].symbol} ${ELEM_BY_ID[boosted].name} (+3 en sus sinergias)`);
+    return parts.join(' · ');
+  }
+
+  // ---------------- START TRIAL ----------------
+  function startTrial(){
+    cfg = buildTrialConfig(trial);
+    cells = [];
+    for(let r=0;r<cfg.rows;r++){
+      for(let c=0;c<cfg.cols;c++){
+        const idx = r*cfg.cols + c;
+        cells.push({row:r, col:c, idx, rune:null, blocked: cfg.blocked.includes(idx)});
+      }
+    }
+    placedCount = 0;
+    curScore = 0;
+    selectedDraftIdx = null;
+
+    document.getElementById('trialLabel').textContent = `Trial ${trial}`;
+    document.getElementById('targetScore').textContent = cfg.target;
+    document.getElementById('curScore').innerHTML = `0 <span>pts</span>`;
+
+    const banner = document.getElementById('modBanner');
+    const label = modLabel(cfg.mods, cfg.boosted);
+    if(label){ banner.style.display='block'; banner.textContent = label; }
+    else { banner.style.display='none'; }
+
+    renderGrid();
+    rollDraft();
+    updateProgress();
+  }
+
+  function renderGrid(){
+    const grid = document.getElementById('grid');
+    grid.style.gridTemplateColumns = `repeat(${cfg.cols}, 1fr)`;
+    grid.style.width = cfg.cols <= 4 ? '100%' : '';
+    grid.innerHTML = '';
+    cells.forEach(cell=>{
+      const div = document.createElement('div');
+      div.className = 'cell';
+      div.style.width = `${Math.min(80, 340/cfg.cols)}px`;
+      if(cell.blocked){
+        div.classList.add('blocked');
+      } else if(cell.rune){
+        div.classList.add('filled');
+        div.style.background = `${ELEM_BY_ID[cell.rune.element].color}22`;
+        div.style.borderColor = ELEM_BY_ID[cell.rune.element].color;
+        div.style.boxShadow = edgeGlow(cell);
+        div.innerHTML = `<span style="color:${ELEM_BY_ID[cell.rune.element].color}">${ELEM_BY_ID[cell.rune.element].symbol}</span><span class="val">${cell.rune.value}</span>`;
+        div.onclick = ()=> inspectCell(cell);
+      } else {
+        div.classList.add('empty');
+        if(selectedDraftIdx !== null){ div.classList.add('selectable'); div.onclick = ()=> placeRune(cell); }
+      }
+      div.dataset.idx = cell.idx;
+      grid.appendChild(div);
+    });
+  }
+
+  function rollDraft(){
+    draft = [];
+    for(let i=0;i<cfg.draftSize;i++){
+      const el = ELEMENTS[Math.floor(Math.random()*ELEMENTS.length)];
+      const value = Math.floor(Math.random()*5) + 3; // 3-7
+      draft.push({element: el.id, value});
+    }
+    selectedDraftIdx = null;
+    renderDraft();
+  }
+
+  function renderDraft(){
+    const wrap = document.getElementById('draftOptions');
+    wrap.innerHTML = '';
+    draft.forEach((rune, i)=>{
+      const el = ELEM_BY_ID[rune.element];
+      const div = document.createElement('div');
+      div.className = 'draft-rune' + (selectedDraftIdx === i ? ' selected' : '');
+      div.style.color = el.color;
+      div.style.borderColor = selectedDraftIdx === i ? '#f0e6c8' : 'transparent';
+      div.style.boxShadow = `0 0 12px ${el.color}55`;
+      div.innerHTML = `${el.symbol}<span class="v">${el.name} · ${rune.value}</span>`;
+      div.onclick = ()=>{
+        selectedDraftIdx = (selectedDraftIdx === i) ? null : i;
+        renderDraft();
+        renderGrid();
+        document.getElementById('placeHint').textContent = selectedDraftIdx !== null
+          ? 'Tocá una celda vacía para colocarla'
+          : 'Elegí una runa y tocá una celda vacía para colocarla';
+      };
+      wrap.appendChild(div);
+    });
+  }
+
+  function updateProgress(){
+    document.getElementById('progressLabel').textContent = `${placedCount} / ${cfg.runesToPlace} runas colocadas`;
+  }
+
+  let lastBreakdown = [];
+
+  function computeScore(){
+    let total = 0;
+    const breakdown = [];
+    cells.forEach(c=>{ if(c.rune) total += c.rune.value; });
+    if(cells.some(c=>c.rune)){
+      breakdown.push({label:'Suma de valores de runas', val: cells.reduce((a,c)=> a + (c.rune?c.rune.value:0), 0)});
+    }
+    // adjacency: right and down neighbors avoid double counting
+    cells.forEach(c=>{
+      if(!c.rune) return;
+      const rightIdx = c.row*cfg.cols + (c.col+1);
+      const downIdx = (c.row+1)*cfg.cols + c.col;
+      if(c.col+1 < cfg.cols){
+        const rightCell = cells[rightIdx];
+        if(rightCell && rightCell.rune){
+          const v = synergyValue(c.rune.element, rightCell.rune.element, cfg.boosted);
+          total += v;
+          if(v !== 0) breakdown.push({label:`${ELEM_BY_ID[c.rune.element].symbol} ${ELEM_BY_ID[c.rune.element].name} + ${ELEM_BY_ID[rightCell.rune.element].symbol} ${ELEM_BY_ID[rightCell.rune.element].name}`, val:v});
+        }
+      }
+      if(c.row+1 < cfg.rows){
+        const downCell = cells[downIdx];
+        if(downCell && downCell.rune){
+          const v = synergyValue(c.rune.element, downCell.rune.element, cfg.boosted);
+          total += v;
+          if(v !== 0) breakdown.push({label:`${ELEM_BY_ID[c.rune.element].symbol} ${ELEM_BY_ID[c.rune.element].name} + ${ELEM_BY_ID[downCell.rune.element].symbol} ${ELEM_BY_ID[downCell.rune.element].name}`, val:v});
+        }
+      }
+    });
+    lastBreakdown = breakdown;
+    return total;
+  }
+
+  function placeRune(cell){
+    if(selectedDraftIdx === null || cell.rune || cell.blocked) return;
+    const rune = draft[selectedDraftIdx];
+    cell.rune = { element: rune.element, value: rune.value };
+    placedCount++;
+    curScore = computeScore();
+    document.getElementById('curScore').innerHTML = `${curScore} <span>pts</span>`;
+    updateProgress();
+    renderGrid();
+    flashSynergies(cell);
+
+    if(placedCount >= cfg.runesToPlace){
+      setTimeout(finishTrial, 500);
+    } else {
+      rollDraft();
+    }
+  }
+
+  function flashSynergies(cell){
+    const gridEl = document.getElementById('grid');
+    const cellEl = gridEl.querySelector(`[data-idx="${cell.idx}"]`);
+    if(!cellEl) return;
+    const neighbors = [];
+    if(cell.col+1 < cfg.cols) neighbors.push(cells[cell.row*cfg.cols + (cell.col+1)]);
+    if(cell.col-1 >= 0) neighbors.push(cells[cell.row*cfg.cols + (cell.col-1)]);
+    if(cell.row+1 < cfg.rows) neighbors.push(cells[(cell.row+1)*cfg.cols + cell.col]);
+    if(cell.row-1 >= 0) neighbors.push(cells[(cell.row-1)*cfg.cols + cell.col]);
+    let offset = 0;
+    neighbors.forEach(n=>{
+      if(!n || !n.rune) return;
+      const v = synergyValue(cell.rune.element, n.rune.element, cfg.boosted);
+      if(v === 0) return;
+      const span = document.createElement('span');
+      span.className = 'floaty';
+      span.textContent = (v>0?'+':'') + v;
+      span.style.color = v>0 ? '#8fe0a0' : '#e08080';
+      span.style.left = (10 + offset) + 'px';
+      span.style.top = '2px';
+      offset += 14;
+      cellEl.appendChild(span);
+      setTimeout(()=> span.remove(), 1000);
+    });
+  }
+
+  // ---------------- TRIAL RESULT ----------------
+  function finishTrial(){
+    const overlay = document.getElementById('overlay');
+    const success = curScore >= cfg.target;
+    const titleEl = document.getElementById('overlayTitle');
+    const textEl = document.getElementById('overlayText');
+    const statsEl = document.getElementById('overlayStats');
+    const btn = document.getElementById('overlayBtn');
+    const bdToggle = document.getElementById('breakdownToggle');
+    const bdWrap = document.getElementById('breakdownWrap');
+
+    bdWrap.innerHTML = lastBreakdown.map(r=>
+      `<div class="brow"><span>${r.label}</span><span class="bval ${r.val>0?'pos':(r.val<0?'neg':'')}">${r.val>0?'+':''}${r.val}</span></div>`
+    ).join('');
+    bdWrap.style.display = 'none';
+    bdToggle.style.display = 'inline-block';
+    bdToggle.textContent = 'Ver desglose del puntaje';
+    bdToggle.onclick = ()=>{
+      const open = bdWrap.style.display !== 'none';
+      bdWrap.style.display = open ? 'none' : 'block';
+      bdToggle.textContent = open ? 'Ver desglose del puntaje' : 'Ocultar desglose';
+    };
+
+    if(success){
+      completedTrials = trial;
+      titleEl.className = 'win';
+      titleEl.textContent = 'TRIAL SUPERADO';
+      textEl.textContent = 'El altar acepta tu ofrenda. Se prepara para exigir más.';
+      statsEl.innerHTML = `Puntaje: <b>${curScore}</b> / objetivo ${cfg.target}`;
+      btn.textContent = 'Siguiente Trial';
+      btn.onclick = ()=>{
+        overlay.classList.remove('active');
+        trial++;
+        startTrial();
+      };
+    } else {
+      const best = bestRecord();
+      if(completedTrials > best) saveBest(completedTrials);
+      titleEl.className = 'lose';
+      titleEl.textContent = 'EL ALTAR SE APAGA';
+      textEl.textContent = 'No alcanzaste la ofrenda exigida. El altar vuelve a dormir.';
+      statsEl.innerHTML = `Puntaje final: <b>${curScore}</b> / objetivo ${cfg.target}<br>` +
+        `Trials superados: <b>${completedTrials}</b><br>` +
+        `Récord: <b>${Math.max(completedTrials, best)}</b>`;
+      btn.textContent = 'Intentar de nuevo';
+      btn.onclick = ()=>{
+        overlay.classList.remove('active');
+        trial = 1; completedTrials = 0;
+        document.getElementById('bestRecord').textContent = `Récord: ${bestRecord()} trials superados`;
+        startTrial();
+      };
+    }
+    overlay.classList.add('active');
+  }
+
+})();
+</script>
+</body>
+</html>
