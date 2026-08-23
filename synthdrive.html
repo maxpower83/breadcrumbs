@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>SYNTHDRIVE — Carrera generada por música</title>
+<style>
+:root{
+  --bg0:#0a0518;
+  --bg1:#160b2e;
+  --magenta:#ff2ea6;
+  --cyan:#2ef2ff;
+  --gold:#ffb238;
+  --violet:#7b2fff;
+  --line:#3a2166;
+  --white:#f4f0ff;
+  --danger:#ff3b5c;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{
+  margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+  background:var(--bg0); color:var(--white);
+  font-family:'Rajdhani',-apple-system,'Segoe UI',Roboto,system-ui,sans-serif;
+  touch-action:none; overscroll-behavior:none;
+}
+#app{ position:fixed; inset:0; width:100%; height:100%; }
+canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+#gameCanvas{ background:var(--bg0); }
+
+.hidden{ display:none !important; }
+
+/* ---------- overlay screens ---------- */
+.screen{
+  position:absolute; inset:0; z-index:5;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:24px; text-align:center;
+  background:
+    radial-gradient(ellipse at 50% 15%, rgba(123,47,255,.35), transparent 60%),
+    linear-gradient(180deg, var(--bg1), var(--bg0) 70%);
+}
+.screen::before{
+  content:""; position:absolute; left:0; right:0; bottom:0; height:45%;
+  background-image:
+    linear-gradient(rgba(46,242,255,.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(46,242,255,.18) 1px, transparent 1px);
+  background-size: 40px 40px;
+  -webkit-mask-image: linear-gradient(to top, black, transparent);
+          mask-image: linear-gradient(to top, black, transparent);
+  transform: perspective(220px) rotateX(60deg);
+  transform-origin: bottom;
+  pointer-events:none;
+  opacity:.6;
+}
+.title{
+  font-family:'Orbitron',-apple-system,'Segoe UI',Roboto,system-ui,sans-serif; font-stretch:condensed; font-weight:900;
+  font-size:clamp(2.2rem, 9vw, 3.6rem);
+  letter-spacing:2px;
+  margin:0 0 4px;
+  background:linear-gradient(90deg, var(--cyan), var(--magenta) 60%, var(--gold));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  filter:drop-shadow(0 0 18px rgba(255,46,166,.45));
+  z-index:2;
+}
+.subtitle{
+  font-size:clamp(.85rem, 3vw, 1rem); letter-spacing:4px; text-transform:uppercase;
+  color:var(--cyan); opacity:.8; margin-bottom:28px; z-index:2;
+}
+.panel{
+  position:relative; z-index:2; width:min(92vw, 420px);
+  background:rgba(15,8,30,.55); border:1px solid var(--line); border-radius:14px;
+  padding:18px; backdrop-filter: blur(6px);
+  box-shadow: 0 0 0 1px rgba(46,242,255,.05), 0 20px 60px rgba(0,0,0,.5);
+}
+.panel + .panel{ margin-top:14px; }
+.panel h3{
+  margin:0 0 10px; font-family:'Orbitron',-apple-system,'Segoe UI',Roboto,system-ui,sans-serif; font-stretch:condensed; font-size:.8rem;
+  letter-spacing:2px; text-transform:uppercase; color:var(--gold);
+  display:flex; align-items:center; gap:8px;
+}
+.panel h3 .n{ color:var(--bg0); background:var(--gold); width:20px; height:20px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:.7rem; }
+.row{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+
+button{
+  font-family:'Rajdhani',-apple-system,'Segoe UI',Roboto,system-ui,sans-serif; font-weight:700; letter-spacing:1px;
+  border:1px solid var(--line); background:rgba(255,255,255,.03); color:var(--white);
+  padding:12px 16px; border-radius:10px; font-size:.95rem; cursor:pointer;
+  transition:transform .12s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease;
+  -webkit-user-select:none; user-select:none;
+}
+button:active{ transform:scale(.96); }
+button.primary{
+  background:linear-gradient(90deg, var(--magenta), var(--violet));
+  border-color:transparent; color:#fff;
+  box-shadow:0 6px 22px rgba(255,46,166,.35);
+}
+button.ghost{ background:transparent; }
+button.selected{ border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan), 0 0 16px rgba(46,242,255,.4); color:var(--cyan); }
+button:disabled{ opacity:.35; cursor:not-allowed; }
+button.big{ width:100%; padding:16px; font-size:1.05rem; }
+.hint{ font-size:.78rem; color:#a8a0c8; margin-top:8px; line-height:1.4; }
+.filebtn{ position:relative; overflow:hidden; }
+.filebtn input[type=file]{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+
+#songLabel{ font-size:.85rem; color:var(--cyan); min-height:1.2em; margin-top:6px; word-break:break-word; }
+
+.progWrap{ width:100%; height:8px; background:rgba(255,255,255,.08); border-radius:6px; overflow:hidden; margin-top:10px; }
+.progBar{ height:100%; width:0%; background:linear-gradient(90deg,var(--cyan),var(--magenta)); transition:width .1s linear; }
+
+.record{ font-size:.8rem; color:#a8a0c8; margin-top:2px; }
+.record b{ color:var(--gold); }
+
+/* ---------- acerca de / privacidad ---------- */
+.aboutOverlay{
+  position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
+  background:rgba(5,2,14,.82); padding:20px; backdrop-filter:blur(4px);
+}
+.aboutCard{
+  width:min(94vw, 480px); max-height:82vh; overflow-y:auto;
+  background:linear-gradient(180deg, var(--bg1), var(--bg0)); border:1px solid var(--line);
+  border-radius:14px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+.aboutCard h3{ font-family:'Orbitron',-apple-system,'Segoe UI',Roboto,system-ui,sans-serif; color:var(--gold); letter-spacing:1px; }
+.aboutCard p, .aboutCard li{ font-size:.9rem; line-height:1.5; color:#d8d2ee; }
+.aboutCard ul{ padding-left:20px; margin:10px 0 18px; }
+.aboutCard code{ background:rgba(255,255,255,.08); padding:1px 5px; border-radius:4px; }
+
+/* ---------- HUD ---------- */
+#hud{
+  position:absolute; inset:0; z-index:4; pointer-events:none;
+  display:flex; flex-direction:column; justify-content:space-between;
+  padding: calc(10px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));
+  font-family:'Orbitron',-apple-system,'Segoe UI',Roboto,system-ui,sans-serif; font-stretch:condensed;
+}
+.hudTop{ display:flex; justify-content:space-between; align-items:flex-start; }
+.hudBox{ background:rgba(10,5,24,.45); border:1px solid var(--line); border-radius:10px; padding:8px 12px; }
+.score{ font-size:1.3rem; font-weight:700; color:var(--white); letter-spacing:1px; }
+.combo{ font-size:.7rem; color:var(--gold); letter-spacing:2px; }
+.hearts{ display:flex; gap:5px; }
+.heart{ width:16px; height:16px; }
+#songProgWrap{ height:5px; background:rgba(255,255,255,.1); border-radius:4px; overflow:hidden; margin-top:6px; width:140px; }
+#songProgBar{ height:100%; width:0%; background:linear-gradient(90deg,var(--cyan),var(--magenta)); }
+.hudBottom{ display:flex; justify-content:center; }
+.pauseBtn{ pointer-events:all; }
+#speedLabel{ font-size:.65rem; letter-spacing:2px; color:var(--cyan); text-align:right; }
+
+.flash{ position:absolute; inset:0; background:var(--danger); opacity:0; pointer-events:none; z-index:6; }
+
+#destroyedOverlay{
+  position:absolute; inset:0; z-index:7; display:flex; align-items:center; justify-content:center;
+  pointer-events:none; opacity:0;
+}
+#destroyedOverlay .dTxt{
+  font-family:'Orbitron',-apple-system,'Segoe UI',Roboto,system-ui,sans-serif; font-stretch:condensed; font-weight:900;
+  font-size:clamp(2.6rem, 14vw, 5.5rem); letter-spacing:4px;
+  color:#fff;
+  text-shadow: 0 0 18px var(--danger), 0 0 42px var(--danger), 0 0 4px #fff;
+  transform: scale(0.6);
+}
+#destroyedOverlay.show{ animation: destroyedIn 1s cubic-bezier(.2,1.4,.4,1) forwards; }
+#destroyedOverlay.show .dTxt{ animation: destroyedTxt 1s cubic-bezier(.2,1.4,.4,1) forwards; }
+@keyframes destroyedIn{
+  0%{ opacity:0; } 8%{ opacity:1; } 75%{ opacity:1; } 100%{ opacity:0; }
+}
+@keyframes destroyedTxt{
+  0%{ transform:scale(2.2) rotate(-4deg); }
+  12%{ transform:scale(0.92) rotate(1deg); }
+  22%{ transform:scale(1.06) rotate(0deg); }
+  32%{ transform:scale(1) rotate(0deg); }
+  100%{ transform:scale(1.12) rotate(0deg); }
+}
+
+/* results list */
+.statRow{ display:flex; justify-content:space-between; font-size:.95rem; padding:6px 2px; border-bottom:1px dashed var(--line); }
+.statRow span:first-child{ color:#a8a0c8; letter-spacing:1px; }
+.statRow b{ color:var(--white); }
+
+@media (max-width:380px){ .title{font-size:2rem;} }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="bgCanvas"></canvas>
+  <canvas id="gameCanvas"></canvas>
+  <div class="flash" id="flash"></div>
+  <div id="destroyedOverlay"><div class="dTxt">DESTRUIDO</div></div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hudTop">
+      <div class="hudBox">
+        <div class="score" id="hudScore">0</div>
+        <div class="combo" id="hudCombo">COMBO ×1</div>
+      </div>
+      <div class="hudBox" style="text-align:right;">
+        <div class="hearts" id="hudHearts"></div>
+        <div id="speedLabel">000 KM/H</div>
+        <div id="songProgWrap"><div id="songProgBar"></div></div>
+      </div>
+    </div>
+    <div class="hudBottom">
+      <button class="pauseBtn ghost" id="pauseBtn">⏸ PAUSA</button>
+    </div>
+  </div>
+
+  <!-- ADVERTENCIA DE FOTOSENSIBILIDAD (primera vez) -->
+  <div class="screen hidden" id="screenWarning">
+    <div class="title" style="font-size:1.6rem;">⚠ ANTES DE EMPEZAR</div>
+    <div class="panel" style="text-align:left;">
+      <h3>Fotosensibilidad</h3>
+      <div class="hint" style="font-size:.88rem;">
+        Este juego usa luces y destellos rápidos que reaccionan a la música
+        (incluyendo flashes blancos/rojos en los choques y una grilla que
+        pulsa fuerte con los graves). Si tenés epilepsia fotosensible o
+        historial de convulsiones por estímulos visuales, jugá con
+        precaución o evitalo.
+      </div>
+    </div>
+    <div class="panel" style="text-align:left;">
+      <h3>Privacidad y audio</h3>
+      <div class="hint" style="font-size:.88rem;">
+        Todo el procesamiento de audio ocurre en tu propio dispositivo: no
+        hay servidor, no se sube, descarga ni guarda ningún archivo de
+        audio en ningún lado. Lo único que persiste es tu puntaje, guardado
+        localmente en tu navegador (localStorage), y nunca sale de tu
+        dispositivo. Este juego no está afiliado a YouTube ni a Spotify.
+      </div>
+    </div>
+    <div class="panel">
+      <button class="primary big" id="btnWarningOk">✓ ENTIENDO, CONTINUAR</button>
+    </div>
+  </div>
+
+  <!-- ACERCA DE / PRIVACIDAD (accesible desde el menú) -->
+  <div id="aboutOverlay" class="aboutOverlay hidden">
+    <div class="aboutCard">
+      <h3 style="margin-top:0;">Acerca de SYNTHDRIVE</h3>
+      <p>Generador de pistas de carreras a partir de música, 100% local:</p>
+      <ul>
+        <li>El audio (archivo subido o pestaña compartida) se analiza en vivo en tu navegador con la Web Audio API. Nunca se sube, descarga, transmite ni guarda a ningún servidor — no existe backend.</li>
+        <li>No estamos afiliados ni respaldados por YouTube, Spotify ni ningún otro servicio de streaming. La captura de pestaña es una función estándar del navegador, no un servicio nuestro.</li>
+        <li>El único dato que persiste es tu récord por canción, guardado con <code>localStorage</code> únicamente en este dispositivo. No hay cuentas, ni cookies de seguimiento, ni analítica.</li>
+        <li>Contiene destellos y luces intermitentes reactivas a la música — ver aviso de fotosensibilidad.</li>
+      </ul>
+      <button class="primary big" id="btnCloseAbout">CERRAR</button>
+    </div>
+  </div>
+
+  <!-- MENU -->
+  <div class="screen hidden" id="screenMenu">
+    <div class="title">SYNTHDRIVE</div>
+    <div class="subtitle">la pista nace de tu música</div>
+    <div class="panel">
+      <button class="primary big" id="btnStart">▶ EMPEZAR</button>
+      <div class="hint">Manejá con una sola mano. La carretera, las curvas y los obstáculos se generan en vivo a partir del audio que elijas.</div>
+    </div>
+    <div class="panel" id="menuRecordPanel" style="display:none;">
+      <div class="record">Mejor puntaje guardado: <b id="menuRecord">—</b></div>
+    </div>
+    <button class="ghost" id="btnAbout" style="margin-top:14px;">ℹ Acerca de / Privacidad</button>
+  </div>
+
+  <!-- SOURCE SELECT -->
+  <div class="screen hidden" id="screenSource">
+    <div class="title" style="font-size:1.6rem;">ELEGÍ LA MÚSICA</div>
+    <div class="panel">
+      <h3><span class="n">1</span>Subir un tema</h3>
+      <button class="big filebtn" id="btnPickFile">🎵 Elegir archivo de audio
+        <input type="file" id="fileInput" accept="audio/*">
+      </button>
+      <div class="hint">MP3, WAV, OGG, M4A. Se analiza y se escucha directo en el juego.</div>
+    </div>
+    <div class="panel">
+      <h3><span class="n">2</span>Capturar una pestaña</h3>
+      <button class="big" id="btnCapture">🖥️ Compartir pestaña con audio</button>
+      <div class="hint">Abrí YouTube (u otra fuente) en otra pestaña, tocá este botón y elegí "esa pestaña" con la casilla de audio activada. Funciona en Chrome/Edge de escritorio.</div>
+    </div>
+    <div class="panel">
+      <h3><span class="n">3</span>Sin música</h3>
+      <button class="big ghost" id="btnNoAudio">🎲 Modo aleatorio (sin audio)</button>
+      <div class="hint">Pista infinita generada de forma proceduralmente aleatoria, sin necesidad de ningún archivo.</div>
+    </div>
+    <div id="songLabel"></div>
+    <div class="progWrap hidden" id="loadProgWrap"><div class="progBar" id="loadProgBar"></div></div>
+    <button class="ghost" id="btnBackFromSource" style="margin-top:16px;">← volver</button>
+  </div>
+
+  <!-- CONTROL SELECT -->
+  <div class="screen hidden" id="screenControl">
+    <div class="title" style="font-size:1.6rem;">CONTROLES</div>
+    <div class="panel">
+      <h3><span class="n">✋</span>Un solo dedo</h3>
+      <div class="row">
+        <button id="ctlTouch">👉 Táctil (arrastrar)</button>
+        <button id="ctlTilt">📱 Inclinación</button>
+      </div>
+      <div class="hint" id="controlHint">Táctil: apoyá el pulgar en la pantalla y deslizá a izquierda/derecha para esquivar.</div>
+      <button class="ghost hidden" id="btnCalibrate" style="margin-top:10px;">🎯 Calibrar inclinación</button>
+    </div>
+    <div class="panel">
+      <button class="primary big" id="btnPlay">🏁 LARGAR</button>
+    </div>
+    <button class="ghost" id="btnBackFromControl">← volver</button>
+  </div>
+
+  <!-- PAUSE -->
+  <div class="screen hidden" id="screenPause">
+    <div class="title" style="font-size:1.8rem;">PAUSA</div>
+    <div class="panel">
+      <button class="primary big" id="btnResume">▶ CONTINUAR</button>
+      <button class="ghost big" id="btnQuit" style="margin-top:10px;">✖ SALIR AL MENÚ</button>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="screen hidden" id="screenResults">
+    <div class="title" style="font-size:1.8rem;" id="resultsTitle">FIN DE LA CARRERA</div>
+    <div class="panel">
+      <div class="statRow"><span>Puntaje</span><b id="resScore">0</b></div>
+      <div class="statRow"><span>Distancia</span><b id="resDist">0 m</b></div>
+      <div class="statRow"><span>Mejor combo</span><b id="resCombo">×1</b></div>
+      <div class="statRow"><span>Récord de esta pista</span><b id="resRecord">0</b></div>
+    </div>
+    <div class="panel">
+      <button class="primary big" id="btnRetry">🔁 REINTENTAR (nueva variante)</button>
+      <button class="ghost big" id="btnChangeSong" style="margin-top:10px;">🎵 CAMBIAR MÚSICA</button>
+    </div>
+  </div>
+
+</div>
+<script>
+/* ============================================================
+   SYNTHDRIVE — motor de juego, 100% independiente (sin IA, sin backend)
+   ============================================================ */
+(() => {
+"use strict";
+
+/* ---------------- compatibilidad ---------------- */
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+    this.rect(x,y,w,h); return this;
+  };
+}
+
+/* ---------------- utilidades ---------------- */
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp  = (a,b,t) => a + (b-a)*t;
+const $ = (id) => document.getElementById(id);
+
+function mulberry32(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashString(str){
+  let h = 2166136261;
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+/* ---------------- constantes del mundo ---------------- */
+const SEG_LEN        = 200;
+const ROAD_WIDTH      = 1700;
+const RUMBLE_LEN      = 3;
+const LANES           = 3;
+const FOV             = 100;
+const CAM_HEIGHT      = 900;
+const DRAW_DIST       = 170;
+const GEN_AHEAD       = DRAW_DIST + 60;
+const KEEP_BEHIND     = 20;
+const CAM_DEPTH       = 1 / Math.tan((FOV/2) * Math.PI/180);
+const BASE_SPEED      = 5200;   // unidades/seg mínimas
+const SPEED_RANGE     = 8600;   // unidades/seg extra según energía
+const MAX_CURVE_STEP  = 4.2;    // qué tan cerrada puede ser una curva nueva (escala world/segmento)
+const MAX_HEART       = 3;
+
+/* ---------------- estado global ---------------- */
+const State = {
+  screen: "menu",
+  audioMode: null,     // 'file' | 'capture' | 'none'
+  songKey: "sin-audio",
+  songName: "",
+  controlMode: null,   // 'touch' | 'tilt'
+  tiltNeutral: 0,
+  running: false,
+  paused: false,
+};
+
+/* ================================================================
+   AUDIO ENGINE — análisis en vivo, funciona con archivo, captura de
+   pestaña, o un generador procedural si no hay audio disponible.
+   ================================================================ */
+const Audio_ = {
+  ctx: null,
+  analyser: null,
+  freq: null,
+  source: null,
+  el: null,              // <audio> element para archivos
+  duration: 0,
+  mode: null,
+  fakeClock: 0,
+  bands: { bass:0, mid:0, treble:0, energy:0 },
+  smooth: { bass:0, mid:0, treble:0, energy:0 },
+  beat: false,
+  bassHistory: [],
+  onEnded: null,
+
+  ensureCtx(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AC();
+    }
+    if(this.ctx.state === "suspended") this.ctx.resume();
+  },
+
+  async loadFile(file){
+    this.ensureCtx();
+    this.teardown(false);
+    this.mode = "file";
+    const url = URL.createObjectURL(file);
+    const el = new Audio();
+    el.src = url;
+    el.crossOrigin = "anonymous";
+    el.preload = "auto";
+    await new Promise((res, rej) => {
+      el.addEventListener("loadedmetadata", res, { once:true });
+      el.addEventListener("error", () => rej(new Error("No se pudo leer el audio")), { once:true });
+    });
+    this.el = el;
+    this.duration = el.duration || 0;
+    const srcNode = this.ctx.createMediaElementSource(el);
+    const analyser = this.ctx.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.75;
+    srcNode.connect(analyser);
+    analyser.connect(this.ctx.destination);
+    this.analyser = analyser;
+    this.freq = new Uint8Array(analyser.frequencyBinCount);
+    this.source = srcNode;
+    el.addEventListener("ended", () => { if(this.onEnded) this.onEnded(); });
+  },
+
+  async captureTab(){
+    this.ensureCtx();
+    this.teardown(false);
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true });
+    const audioTracks = stream.getAudioTracks();
+    if(audioTracks.length === 0){
+      stream.getTracks().forEach(t=>t.stop());
+      throw new Error("La pestaña compartida no tiene audio. Volvé a intentar y activá 'Compartir audio de la pestaña'.");
+    }
+    // no necesitamos el video, lo apagamos para ahorrar recursos
+    stream.getVideoTracks().forEach(t => t.enabled = false);
+    this.mode = "capture";
+    this.duration = 0; // desconocida -> modo endless
+    const srcNode = this.ctx.createMediaStreamSource(stream);
+    const analyser = this.ctx.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.7;
+    srcNode.connect(analyser); // OJO: no conectar a destination (evita eco/duplicado)
+    this.analyser = analyser;
+    this.freq = new Uint8Array(analyser.frequencyBinCount);
+    this.source = srcNode;
+    this._stream = stream;
+    stream.getVideoTracks()[0]?.addEventListener("ended", () => { if(this.onEnded) this.onEnded(); });
+  },
+
+  useProcedural(){
+    this.teardown(false);
+    this.mode = "none";
+    this.duration = 0;
+    this.fakeClock = 0;
+  },
+
+  play(){
+    if(this.mode === "file" && this.el){ this.el.currentTime = 0; this.el.play(); }
+  },
+  pause(){ if(this.mode === "file" && this.el) this.el.pause(); },
+  resume(){ if(this.mode === "file" && this.el) this.el.play(); this.ensureCtx(); },
+
+  currentTime(){
+    if(this.mode === "file" && this.el) return this.el.currentTime;
+    return this.fakeClock;
+  },
+
+  teardown(full){
+    try{ if(this.el){ this.el.pause(); this.el.src=""; } }catch(e){}
+    try{ if(this._stream){ this._stream.getTracks().forEach(t=>t.stop()); } }catch(e){}
+    this.el = null; this._stream = null; this.source = null; this.analyser = null; this.freq = null;
+    if(full && this.ctx){ this.ctx.close().catch(()=>{}); this.ctx = null; }
+  },
+
+  update(dt){
+    if(this.mode === "none"){
+      this.fakeClock += dt;
+      const t = this.fakeClock;
+      // generador procedural de "pseudo-música": ondas superpuestas + pulso periódico
+      const pulse = (Math.sin(t*2.4)*0.5+0.5) * (Math.sin(t*0.37)*0.5+0.5);
+      this.bands.bass   = clamp(0.25 + pulse*0.9 + Math.sin(t*4.0)*0.08, 0, 1);
+      this.bands.mid    = clamp(0.3 + Math.sin(t*1.7+1.1)*0.35 + 0.25, 0, 1);
+      this.bands.treble = clamp(0.2 + Math.sin(t*6.3+2.0)*0.3 + 0.25, 0, 1);
+      this.bands.energy = (this.bands.bass*0.5 + this.bands.mid*0.3 + this.bands.treble*0.2);
+      this.beat = pulse > 0.82 && (t % 0.45) < dt*3;
+    } else if(this.analyser){
+      this.analyser.getByteFrequencyData(this.freq);
+      const n = this.freq.length;
+      const bassEnd   = Math.floor(n * 0.10);
+      const midEnd    = Math.floor(n * 0.45);
+      const trebleEnd = n;
+      let bass=0, mid=0, treble=0;
+      for(let i=0;i<bassEnd;i++) bass += this.freq[i];
+      for(let i=bassEnd;i<midEnd;i++) mid += this.freq[i];
+      for(let i=midEnd;i<trebleEnd;i++) treble += this.freq[i];
+      bass   = bass / (bassEnd*255 || 1);
+      mid    = mid / ((midEnd-bassEnd)*255 || 1);
+      treble = treble / ((trebleEnd-midEnd)*255 || 1);
+      this.bands.bass = bass; this.bands.mid = mid; this.bands.treble = treble;
+      this.bands.energy = bass*0.55 + mid*0.3 + treble*0.15;
+
+      // detección simple de "beat" por energía de graves vs. promedio móvil
+      this.bassHistory.push(bass);
+      if(this.bassHistory.length > 40) this.bassHistory.shift();
+      const avg = this.bassHistory.reduce((a,b)=>a+b,0) / this.bassHistory.length;
+      this.beat = bass > avg*1.32 && bass > 0.18;
+    } else {
+      this.bands.bass=this.bands.mid=this.bands.treble=this.bands.energy=0;
+      this.beat = false;
+    }
+    const k = 1 - Math.pow(0.001, dt); // suavizado independiente del framerate
+    this.smooth.bass   = lerp(this.smooth.bass,   this.bands.bass,   k);
+    this.smooth.mid    = lerp(this.smooth.mid,    this.bands.mid,    k);
+    this.smooth.treble = lerp(this.smooth.treble, this.bands.treble, k);
+    this.smooth.energy = lerp(this.smooth.energy, this.bands.energy, k);
+  }
+};
+
+/* ================================================================
+   GENERADOR DE PISTA — reacciona en vivo al audio, con una semilla
+   por partida para variar cada rejugada (rejugabilidad pseudo-infinita)
+   ================================================================ */
+const Track = {
+  segments: [],
+  baseIndex: 0,
+  rng: null,
+  curCurve: 0, curveTarget: 0, curveHold: 0,
+  spawnCooldown: 0,
+  colorFlash: 0,
+
+  reset(seed){
+    this.segments = [];
+    this.baseIndex = 0;
+    this.rng = mulberry32(seed);
+    this.curCurve = 0; this.curveTarget = 0; this.curveHold = 0;
+    this.spawnCooldown = 0;
+    // arranque recto para dar tiempo a ubicarse
+    for(let i=0;i<20;i++) this.segments.push(this.makeSegment(i, 0));
+  },
+
+  makeSegment(index, curve){
+    return {
+      index, curve,
+      color: (Math.floor(index/RUMBLE_LEN) % 2 === 0) ? 0 : 1,
+      sprites: []
+    };
+  },
+
+  segAt(globalIndex){
+    const i = globalIndex - this.baseIndex;
+    if(i < 0 || i >= this.segments.length) return null;
+    return this.segments[i];
+  },
+
+  prune(playerGlobalIndex){
+    while(this.segments.length && this.segments[0].index < playerGlobalIndex - KEEP_BEHIND){
+      this.segments.shift(); this.baseIndex++;
+    }
+  },
+
+  ensureGenerated(playerGlobalIndex, feat){
+    const need = playerGlobalIndex + GEN_AHEAD;
+    let last = this.baseIndex + this.segments.length - 1;
+    while(last < need){
+      last++;
+      this.generateOne(last, feat);
+    }
+  },
+
+  generateOne(index, feat){
+    const rng = this.rng;
+    // curva: random walk que "salta" de objetivo cuando hay golpe de graves
+    if(this.curveHold <= 0){
+      const intensity = 0.35 + feat.bass*0.9;
+      if(rng() < 0.5){
+        this.curveTarget = (rng()*2-1) * MAX_CURVE_STEP * intensity;
+      } else {
+        this.curveTarget = 0; // tramo recto de respiro
+      }
+      this.curveHold = 10 + Math.floor(rng()*18);
+    }
+    this.curveHold--;
+    this.curCurve = lerp(this.curCurve, this.curveTarget, 0.09);
+
+    const seg = this.makeSegment(index, this.curCurve);
+
+    // spawns: hay una probabilidad base de obstáculo siempre presente (para
+    // que el juego tenga desafío incluso con canciones de agudos suaves),
+    // reforzada por golpes reales del audio; los coleccionables llenan los huecos
+    this.spawnCooldown--;
+    if(this.spawnCooldown <= 0){
+      const roll = rng();
+      const obstacleChance = 0.42 + feat.treble*0.25 + (feat.beat ? 0.2 : 0);
+      if(roll < obstacleChance){
+        const lane = Math.floor(rng()*LANES) - 1; // -1,0,1
+        seg.sprites.push({ kind:"obstacle", type: rng()<0.5?"pillar":"barrier", lane, offset: lane*0.62, resolved:false });
+        this.spawnCooldown = 5 + Math.floor(rng()*5);
+      } else if(roll < obstacleChance + 0.35){
+        const lane = Math.floor(rng()*LANES) - 1;
+        seg.sprites.push({ kind:"note", lane, offset: lane*0.62, resolved:false });
+        this.spawnCooldown = 4 + Math.floor(rng()*5);
+      } else {
+        this.spawnCooldown = 2 + Math.floor(rng()*4);
+      }
+    }
+    this.segments.push(seg);
+  }
+};
+
+/* ================================================================
+   JUGADOR / FÍSICA
+   ================================================================ */
+const Player = {
+  x: 0,          // -1..1 (posición lateral, puede salirse un poco)
+  z: 0,          // distancia recorrida (mundo)
+  speed: BASE_SPEED,
+  steer: 0,      // -1..1 entrada de control
+  hearts: MAX_HEART,
+  invuln: 0,
+  score: 0,
+  combo: 1,
+  bestCombo: 1,
+  distance: 0,
+  lastIndex: 0,
+
+  reset(){
+    this.x = 0; this.z = 0; this.speed = BASE_SPEED; this.steer = 0;
+    this.hearts = MAX_HEART; this.invuln = 1.2;
+    this.score = 0; this.combo = 1; this.bestCombo = 1; this.distance = 0;
+    this.lastIndex = 0;
+  },
+
+  globalIndex(){ return Math.floor(this.z / SEG_LEN); }
+};
+
+/* ================================================================
+   CONTROLES — táctil (arrastre con un dedo) o inclinación (giroscopio)
+   ================================================================ */
+const Controls = {
+  touchActive:false, touchStartX:0, touchCurX:0, touchTarget:0,
+  tiltRaw:0,
+
+  initTouch(canvas){
+    const onDown = (e) => {
+      const x = (e.touches ? e.touches[0].clientX : e.clientX);
+      this.touchActive = true; this.touchStartX = x; this.touchCurX = x;
+    };
+    const onMove = (e) => {
+      if(!this.touchActive) return;
+      const x = (e.touches ? e.touches[0].clientX : e.clientX);
+      this.touchCurX = x;
+      const dx = (this.touchCurX - this.touchStartX) / (window.innerWidth*0.15);
+      this.touchTarget = clamp(dx, -1, 1);
+      e.preventDefault();
+    };
+    const onUp = () => { this.touchActive = false; this.touchTarget = 0; };
+    canvas.addEventListener("touchstart", onDown, { passive:true });
+    canvas.addEventListener("touchmove", onMove, { passive:false });
+    canvas.addEventListener("touchend", onUp);
+    canvas.addEventListener("touchcancel", onUp);
+    canvas.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  },
+
+  async requestTiltPermission(){
+    if(typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function"){
+      const res = await DeviceOrientationEvent.requestPermission();
+      return res === "granted";
+    }
+    return true; // Android / navegadores sin permiso explícito
+  },
+
+  initTilt(){
+    window.addEventListener("deviceorientation", (e) => {
+      this.tiltRaw = e.gamma || 0;
+    });
+  },
+
+  calibrateTilt(){ State.tiltNeutral = this.tiltRaw; },
+
+  getSteer(dt){
+    let target = 0;
+    if(State.controlMode === "touch"){
+      target = this.touchTarget;
+    } else if(State.controlMode === "tilt"){
+      const rel = (this.tiltRaw - State.tiltNeutral);
+      target = clamp(rel / 14, -1, 1);
+    }
+    // respuesta casi instantánea entre el gesto y el giro del auto
+    Player.steer = lerp(Player.steer, target, clamp(dt*24, 0, 1));
+    return Player.steer;
+  }
+};
+
+/* ================================================================
+   RENDER — carretera pseudo-3D basada en segmentos (estilo OutRun)
+   ================================================================ */
+const Render = {
+  canvas:null, ctx:null, bgCanvas:null, bgCtx:null,
+  width:0, height:0,
+
+  init(){
+    this.canvas = $("gameCanvas"); this.ctx = this.canvas.getContext("2d");
+    this.bgCanvas = $("bgCanvas"); this.bgCtx = this.bgCanvas.getContext("2d");
+    this.resize();
+    window.addEventListener("resize", () => this.resize());
+  },
+  resize(){
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    for(const c of [this.canvas, this.bgCanvas]){
+      c.width = Math.floor(window.innerWidth*dpr);
+      c.height = Math.floor(window.innerHeight*dpr);
+    }
+    this.width = this.canvas.width; this.height = this.canvas.height;
+    this.ctx.setTransform(1,0,0,1,0,0);
+    this.bgCtx.setTransform(1,0,0,1,0,0);
+  },
+
+  project(worldX, worldY, worldZ, camX, camY, camZ){
+    const dz = Math.max(worldZ - camZ, 1);
+    const scale = CAM_DEPTH / dz;
+    const x = (this.width/2)  + scale * (worldX - camX) * this.width/2;
+    const y = (this.height/2) - scale * (worldY - camY) * this.height/2;
+    const w = scale * ROAD_WIDTH * this.width/2;
+    return { x, y, w, scale, z: dz };
+  },
+
+  drawBackground(feat, offsetX){
+    const ctx = this.bgCtx;
+    const w = this.width, h = this.height;
+    const bass = feat.bass;
+    // cielo degradado, reacciona levemente a los graves
+    const g = ctx.createLinearGradient(0,0,0,h*0.62);
+    const hue1 = 262, hue2 = 320;
+    g.addColorStop(0, `hsl(${hue1} 70% ${8+bass*6}%)`);
+    g.addColorStop(0.55, `hsl(${hue2} 85% ${16+bass*10}%)`);
+    g.addColorStop(1, `hsl(${hue2+15} 90% ${22+bass*14}%)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+
+    // sol
+    const sunY = h*0.42;
+    const sunR = Math.min(w,h)*0.16*(1+bass*0.12);
+    const sg = ctx.createLinearGradient(0, sunY-sunR, 0, sunY+sunR);
+    sg.addColorStop(0, "#ffe07a");
+    sg.addColorStop(0.5, "#ff8fb8");
+    sg.addColorStop(1, "#ff2ea6");
+    ctx.fillStyle = sg;
+    ctx.beginPath(); ctx.arc(w/2 - offsetX*0.15, sunY, sunR, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(10,5,24,1)";
+    for(let i=0;i<5;i++){
+      const yy = sunY + sunR*0.15*i - sunR*0.05;
+      ctx.fillRect(w/2 - offsetX*0.15 - sunR, yy, sunR*2, 3+i);
+    }
+
+    // montañas lejanas
+    ctx.fillStyle = "rgba(30,14,54,0.9)";
+    ctx.beginPath(); ctx.moveTo(0,h*0.6);
+    for(let x=0;x<=w;x+=w/10){
+      const yy = h*0.6 - Math.sin((x*0.004)+offsetX*0.0008)*h*0.05 - h*0.02;
+      ctx.lineTo(x, yy);
+    }
+    ctx.lineTo(w,h*0.6); ctx.closePath(); ctx.fill();
+
+    // grilla del horizonte
+    ctx.save();
+    ctx.strokeStyle = `rgba(46,242,255,${0.25+bass*0.25})`;
+    ctx.lineWidth = 1;
+    const horizon = h*0.58;
+    for(let i=0;i<14;i++){
+      const yy = horizon + i*i*1.1;
+      if(yy>h) break;
+      ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(w,yy); ctx.stroke();
+    }
+    const shift = (offsetX*0.6) % 60;
+    for(let x=-14;x<=14;x++){
+      const xx = w/2 + x*60 - shift;
+      ctx.beginPath(); ctx.moveTo(xx, horizon); ctx.lineTo(w/2 + x*4, h); ctx.stroke();
+    }
+    ctx.restore();
+  },
+
+  drawRoad(feat){
+    const ctx = this.ctx;
+    ctx.clearRect(0,0,this.width,this.height);
+
+    const playerIdx = Player.globalIndex();
+    const base = Track.segAt(playerIdx);
+    if(!base) return;
+
+    const camHeight = CAM_HEIGHT;
+    const camX = Player.x * ROAD_WIDTH * 0.5;
+    const camZ = Player.z;
+
+    let x = 0, dx = 0;
+    let maxy = this.height;
+    const pts = [];
+
+    // dibujar de más cerca a más lejos (orden correcto del algoritmo de
+    // segmentos): cada polígono se recorta contra el horizonte ya cubierto
+    // por los segmentos más cercanos (maxy), en vez de al revés.
+    for(let n=0; n<DRAW_DIST; n++){
+      const seg = Track.segAt(playerIdx + n);
+      if(!seg) break;
+      const z1 = seg.index * SEG_LEN;
+      const z2 = z1 + SEG_LEN;
+
+      const p1 = this.project(x, 0, z1, camX, camHeight, camZ);
+      const p2 = this.project(x+dx, 0, z2, camX, camHeight, camZ);
+
+      x += dx;
+      dx += seg.curve;
+
+      const visible = !(p2.y >= p1.y || p2.y >= maxy);
+      pts.push({ seg, p1, p2, visible });
+      if(!visible) continue;
+
+      const grass = seg.color===0 ? "#0e3a2e" : "#0b2e24";
+      const roadA = seg.color===0 ? "#241a3d" : "#1d1533";
+      const rumbleA = seg.color===0 ? "#e8e8ee" : "#c22e5e";
+      const laneCol = "rgba(255,255,255,0.75)";
+
+      // pasto
+      ctx.fillStyle = grass;
+      ctx.fillRect(0, p2.y, this.width, Math.max(1,(p1.y-p2.y)));
+
+      const w1 = p1.w, w2 = p2.w;
+      // banquina (rumble)
+      this.poly(ctx, p1.x-w1*1.12, p1.y, p1.x-w1*0.92, p1.y, p2.x-w2*0.92, p2.y, p2.x-w2*1.12, p2.y, rumbleA);
+      this.poly(ctx, p1.x+w1*0.92, p1.y, p1.x+w1*1.12, p1.y, p2.x+w2*1.12, p2.y, p2.x+w2*0.92, p2.y, rumbleA);
+      // asfalto
+      this.poly(ctx, p1.x-w1, p1.y, p1.x+w1, p1.y, p2.x+w2, p2.y, p2.x-w2, p2.y, roadA);
+      // detalle fino (lineas de carril + brillo neon): solo en los segmentos
+      // cercanos, donde realmente se alcanzan a ver — ahorra muchísimos
+      // draw calls por frame y hace que el motor responda más fluido
+      if(n < 90){
+        if(seg.color===0){
+          this.poly(ctx, p1.x-w1*0.32, p1.y, p1.x-w1*0.28, p1.y, p2.x-w2*0.28, p2.y, p2.x-w2*0.32, p2.y, laneCol);
+          this.poly(ctx, p1.x+w1*0.28, p1.y, p1.x+w1*0.32, p1.y, p2.x+w2*0.32, p2.y, p2.x+w2*0.28, p2.y, laneCol);
+        }
+        ctx.strokeStyle = seg.color===0 ? "rgba(46,242,255,.55)" : "rgba(255,46,166,.55)";
+        ctx.lineWidth = Math.max(1, w1*0.012);
+        ctx.beginPath(); ctx.moveTo(p1.x-w1, p1.y); ctx.lineTo(p2.x-w2, p2.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(p1.x+w1, p1.y); ctx.lineTo(p2.x+w2, p2.y); ctx.stroke();
+      }
+
+      maxy = p2.y;
+    }
+
+    // sprites: de más lejos a más cerca, para que lo más cercano tape lo lejano
+    for(let i=pts.length-1;i>=0;i--){
+      const { seg, p1, visible } = pts[i];
+      if(!visible || !seg.sprites.length) continue;
+      for(const sp of seg.sprites){
+        const sx = p1.x + sp.offset * p1.w;
+        const sw = p1.w;
+        if(sw < 1 || p1.y < 0 || p1.y > this.height+50) continue;
+        this.drawSprite(ctx, sp, sx, p1.y, sw);
+      }
+    }
+
+    this.drawCar(ctx);
+  },
+
+  poly(ctx, x1,y1,x2,y2,x3,y3,x4,y4, color){
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.lineTo(x4,y4);
+    ctx.closePath(); ctx.fill();
+  },
+
+  drawSprite(ctx, sp, x, y, roadW){
+    const size = clamp(roadW*0.22, 4, 900);
+    if(sp.resolved && sp.kind==="note") return;
+    if(size < 3) return; // muy lejos: no vale la pena dibujarlo (ahorra tiempo)
+    ctx.save();
+    ctx.translate(x, y);
+    const glowOn = size > 16; // el resplandor (shadowBlur) es caro: solo cuando se nota
+    if(sp.kind === "obstacle"){
+      const glow = sp.type==="pillar" ? "#2ef2ff" : "#ff3b5c";
+      if(glowOn){ ctx.shadowColor = glow; ctx.shadowBlur = size*0.4; }
+      ctx.fillStyle = "#120a24";
+      ctx.strokeStyle = glow; ctx.lineWidth = Math.max(1,size*0.06);
+      if(sp.type === "pillar"){
+        ctx.beginPath(); ctx.roundRect(-size*0.22, -size*1.5, size*0.44, size*1.5, size*0.08);
+        ctx.fill(); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.roundRect(-size*0.55, -size*0.55, size*1.1, size*0.55, size*0.08);
+        ctx.fill(); ctx.stroke();
+        ctx.beginPath();
+        for(let i=-2;i<=2;i++){ ctx.moveTo(i*size*0.2, -size*0.55); ctx.lineTo(i*size*0.2, 0); }
+        ctx.stroke();
+      }
+    } else {
+      const bob = Math.sin((performance.now()/220)+sp.offset*5) * size*0.15;
+      ctx.translate(0, -size*0.7 + bob);
+      if(glowOn){ ctx.shadowColor = "#ffd23f"; ctx.shadowBlur = size*0.6; }
+      ctx.fillStyle = "#ffd23f";
+      ctx.beginPath(); ctx.arc(0,0,size*0.28,0,Math.PI*2); ctx.fill();
+      ctx.fillRect(size*0.2, -size*0.55, size*0.09, size*0.6);
+    }
+    ctx.restore();
+  },
+
+  drawParticles(particles){
+    if(!particles || !particles.length) return;
+    const ctx = this.ctx;
+    for(const p of particles){
+      const a = clamp(p.life / p.maxLife, 0, 1);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size*a, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  },
+
+  drawCar(ctx){
+    const w = this.width, h = this.height;
+    const cx = w/2 + Player.x*w*0.18;
+    const cy = h*0.92;
+    const s = Math.min(w,h)*0.16;
+    const lean = clamp(Player.steer, -1, 1) * 10;
+    const hit = Player.invuln > 0 && Math.floor(performance.now()/90)%2===0;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(lean*Math.PI/180*0.15);
+    ctx.globalAlpha = hit ? 0.35 : 1;
+
+    // sombra
+    ctx.globalAlpha *= 0.4;
+    ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.ellipse(0, s*0.42, s*0.62, s*0.14, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = hit? 0.35:1;
+
+    // carroceria
+    ctx.fillStyle = "#1a1130";
+    ctx.strokeStyle = "#ff2ea6";
+    ctx.lineWidth = Math.max(2, s*0.05);
+    ctx.shadowColor = "#ff2ea6"; ctx.shadowBlur = s*0.35;
+    ctx.beginPath();
+    ctx.moveTo(-s*0.5, s*0.35);
+    ctx.lineTo(-s*0.42, -s*0.05);
+    ctx.lineTo(-s*0.22, -s*0.42);
+    ctx.lineTo(s*0.22, -s*0.42);
+    ctx.lineTo(s*0.42, -s*0.05);
+    ctx.lineTo(s*0.5, s*0.35);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // parabrisas / detalle
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#2ef2ff";
+    ctx.globalAlpha *= 0.85;
+    ctx.beginPath(); ctx.moveTo(-s*0.16,-s*0.36); ctx.lineTo(s*0.16,-s*0.36); ctx.lineTo(s*0.1,-s*0.1); ctx.lineTo(-s*0.1,-s*0.1); ctx.closePath(); ctx.fill();
+
+    // luces traseras
+    ctx.globalAlpha = hit?0.35:1;
+    ctx.fillStyle = "#ffb238"; ctx.shadowColor="#ffb238"; ctx.shadowBlur=s*0.25;
+    ctx.fillRect(-s*0.46, s*0.18, s*0.14, s*0.1);
+    ctx.fillRect(s*0.32, s*0.18, s*0.14, s*0.1);
+
+    ctx.restore();
+  }
+};
+/* ================================================================
+   JUEGO — estados, loop, colisiones, UI
+   ================================================================ */
+const Game = {
+  lastT: 0,
+  camShake: 0,
+  flashT: 0,
+  whiteFlashT: 0,
+  particles: [],
+  seedExtra: 0,
+  dying: false,
+  dyingT: 0,
+  pendingFinish: null,
+
+  startRun(){
+    const baseSeed = hashString(State.songKey) ^ (this.seedExtra >>> 0);
+    Track.reset(baseSeed >>> 0);
+    Player.reset();
+    Audio_.play();
+    this.whiteFlashT = 0; this.flashT = 0; this.camShake = 0; this.particles = [];
+    this.dying = false; this.dyingT = 0; this.pendingFinish = null;
+    $("destroyedOverlay").classList.remove("show");
+    this.updateHUD(true);
+    setScreen("hud");
+    State.running = true; State.paused = false;
+    this.lastT = performance.now();
+    requestAnimationFrame((t)=>this.loop(t));
+  },
+
+  retry(){
+    this.seedExtra = (this.seedExtra + 104729 + Math.floor(Math.random()*99991)) >>> 0;
+    this.startRun();
+  },
+
+  loop(t){
+    if(!State.running) return;
+    let dt = (t - this.lastT)/1000;
+    this.lastT = t;
+    dt = clamp(dt, 0, 0.05);
+
+    if(!State.paused){
+      Audio_.update(dt);
+      this.update(dt);
+      this.render();
+    }
+    requestAnimationFrame((tt)=>this.loop(tt));
+  },
+
+  update(dt){
+    if(this.dying){
+      this.dyingT -= dt;
+      this.updateImpactFX(dt);
+      if(this.dyingT <= 0) this.finishDeath();
+      return;
+    }
+    const feat = Audio_.smooth;
+    feat.beat = Audio_.beat;
+    Controls.getSteer(dt);
+
+    // velocidad reactiva a la energia del audio
+    const targetSpeed = BASE_SPEED + feat.energy*SPEED_RANGE;
+    Player.speed = lerp(Player.speed, targetSpeed, clamp(dt*1.5,0,1));
+
+    const idx = Player.globalIndex();
+    const seg = Track.segAt(idx);
+    const curve = seg ? seg.curve : 0;
+
+    // offroad penalty
+    let speedMul = 1;
+    if(Math.abs(Player.x) > 1) speedMul = 0.55;
+
+    Player.z += Player.speed * speedMul * dt;
+    Player.distance = Math.floor(Player.z/100);
+
+    // direccion + tironeo centrifugo en curvas (autoridad de giro alta,
+    // tironeo bajo, para reaccionar casi al instante al esquivar)
+    Player.x += Player.steer * dt * 3.6;
+    Player.x -= curve * (Player.speed/BASE_SPEED) * dt * 0.03;
+    Player.x = clamp(Player.x, -1.6, 1.6);
+
+    Track.ensureGenerated(Player.globalIndex(), feat);
+    Track.prune(Player.globalIndex());
+
+    // colisiones: recorrer TODOS los segmentos atravesados desde el frame anterior
+    // (a velocidades altas se puede cruzar más de un segmento por frame)
+    const newIndex = Player.globalIndex();
+    const fromIdx = Math.min(Player.lastIndex, newIndex);
+    const toIdx = Math.max(Player.lastIndex, newIndex);
+    for(let gi = fromIdx; gi <= toIdx; gi++){
+      const s = Track.segAt(gi);
+      if(!s) continue;
+      for(const sp of s.sprites){
+        if(sp.resolved) continue;
+        const dist = Math.abs(sp.offset - Player.x);
+        if(dist < 0.34){
+          sp.resolved = true;
+          if(sp.kind === "obstacle"){
+            if(Player.invuln<=0) this.onHit();
+          } else {
+            this.onCollect();
+          }
+        }
+      }
+    }
+    Player.lastIndex = newIndex;
+
+    if(Player.invuln>0) Player.invuln -= dt;
+    this.updateImpactFX(dt);
+
+    Player.score = Player.distance*2 + (Player._points||0);
+
+    // fin de cancion (modo archivo)
+    if(Audio_.mode === "file" && Audio_.duration>0 && Audio_.el && Audio_.el.ended){
+      this.endRun(true);
+    }
+  },
+
+  // flash blanco->rojo, sacudida de cámara y partículas: se usa tanto en
+  // choques normales como durante la secuencia de "DESTRUIDO" al perder
+  updateImpactFX(dt){
+    if(this.whiteFlashT>0){
+      this.whiteFlashT -= dt;
+      $("flash").style.background = "#fff";
+      $("flash").style.opacity = "0.85";
+    } else if(this.flashT>0){
+      this.flashT -= dt;
+      $("flash").style.background = "var(--danger)";
+      $("flash").style.opacity = Math.max(0,this.flashT/0.55)*0.5;
+    } else {
+      $("flash").style.opacity = "0";
+    }
+    if(this.camShake>0) this.camShake = Math.max(0, this.camShake - dt*2.8);
+    if(this.particles.length){
+      for(let i=this.particles.length-1;i>=0;i--){
+        const p = this.particles[i];
+        p.life -= dt;
+        if(p.life<=0){ this.particles.splice(i,1); continue; }
+        p.x += p.vx*dt; p.y += p.vy*dt;
+        p.vy += 1100*dt; p.vx *= (1 - dt*1.4);
+      }
+    }
+  },
+
+  onHit(){
+    if(this.dying) return;
+    Player.hearts--; Player.invuln = 1.6; Player.combo = 1;
+    // frenada brusca real (no un freeze: el auto sigue andando, pero se
+    // nota el golpe) + flash blanco-rojo + sacudida de cámara + chispas
+    Player.speed *= 0.35;
+    this.whiteFlashT = 0.07;
+    this.flashT = 0.55;
+    this.camShake = 1;
+    this.spawnImpactParticles();
+    if(navigator.vibrate) navigator.vibrate([50,25,90]);
+    if(Player.hearts<=0){
+      // choque final: se deja ver el impacto (sacudida/flash/chispas) y el
+      // cartel "DESTRUIDO" antes de pasar a la pantalla de resultados
+      Player.hearts = 0;
+      this.dying = true;
+      this.dyingT = 1.15;
+      this.camShake = 1.6;
+      this.spawnImpactParticles();
+      $("destroyedOverlay").classList.remove("show");
+      // forzar reflow para poder relanzar la animación si ya se había usado
+      void $("destroyedOverlay").offsetWidth;
+      $("destroyedOverlay").classList.add("show");
+      if(navigator.vibrate) navigator.vibrate([70,40,70,40,140]);
+    }
+  },
+
+  spawnImpactParticles(){
+    const cx = Render.width/2 + Player.x*Render.width*0.18;
+    const cy = Render.height*0.86;
+    const colors = ["#ff2ea6","#ffb238","#2ef2ff","#ffffff"];
+    for(let i=0;i<22;i++){
+      const ang = Math.random()*Math.PI*2;
+      const spd = 260 + Math.random()*520;
+      this.particles.push({
+        x: cx, y: cy,
+        vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd - 140,
+        life: 0.35 + Math.random()*0.35,
+        maxLife: 0.7,
+        color: colors[Math.floor(Math.random()*colors.length)],
+        size: 3 + Math.random()*5
+      });
+    }
+  },
+
+  onCollect(){
+    Player._points = (Player._points||0) + 25*Player.combo;
+    Player.combo = Math.min(Player.combo+1, 20);
+    Player.bestCombo = Math.max(Player.bestCombo, Player.combo);
+  },
+
+  // se llama cuando termina la secuencia de "DESTRUIDO" (choque final)
+  finishDeath(){
+    this.dying = false;
+    $("destroyedOverlay").classList.remove("show");
+    this.endRun(false);
+  },
+
+  endRun(finishedSong){
+    State.running = false;
+    Audio_.pause();
+    // apagar cualquier efecto de choque en curso (flash, sacudida, partículas)
+    // para que no quede pegado en la pantalla de resultados / menú
+    this.whiteFlashT = 0; this.flashT = 0; this.camShake = 0; this.particles = [];
+    $("flash").style.opacity = "0";
+    const key = "synthdrive_hs_" + State.songKey;
+    const prev = parseInt(localStorage.getItem(key)||"0",10);
+    const best = Math.max(prev, Player.score);
+    localStorage.setItem(key, String(best));
+
+    $("resultsTitle").textContent = finishedSong ? "¡TEMA COMPLETADO!" : "DESTRUIDO";
+    $("resScore").textContent = Player.score;
+    $("resDist").textContent = Player.distance + " m";
+    $("resCombo").textContent = "×"+Player.bestCombo;
+    $("resRecord").textContent = best;
+    setScreen("results");
+  },
+
+  render(){
+    const ctx = Render.ctx;
+    let shakeX = 0, shakeY = 0;
+    if(this.camShake > 0){
+      const amp = this.camShake * Math.min(Render.width, Render.height) * 0.045;
+      shakeX = (Math.random()*2-1) * amp;
+      shakeY = (Math.random()*2-1) * amp * 0.6;
+    }
+    Render.drawBackground(Audio_.smooth, Player.x*400 + Player.z*0.05);
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+    Render.drawRoad(Audio_.smooth);
+    Render.drawParticles(this.particles);
+    ctx.restore();
+  },
+
+  updateHUD(reset){
+    $("hudScore").textContent = Player.score;
+    $("hudCombo").textContent = "COMBO ×"+Player.combo;
+    const hearts = $("hudHearts"); hearts.innerHTML = "";
+    for(let i=0;i<MAX_HEART;i++){
+      const on = i<Player.hearts;
+      hearts.insertAdjacentHTML("beforeend",
+        `<svg class="heart" viewBox="0 0 24 24"><path fill="${on?'#ff2ea6':'#3a2166'}" d="M12 21s-7.5-4.6-10-9.3C.4 8 2 4 6 4c2 0 3.4 1 4 2.4C10.6 5 12 4 14 4c4 0 5.6 4 4 7.7C19.5 16.4 12 21 12 21z"/></svg>`);
+    }
+    $("speedLabel").textContent = Math.round(Player.speed/60) + " KM/H";
+    if(Audio_.mode==="file" && Audio_.duration>0){
+      const pct = clamp(Audio_.currentTime()/Audio_.duration,0,1)*100;
+      $("songProgBar").style.width = pct+"%";
+    } else {
+      $("songProgBar").style.width = "0%";
+    }
+  }
+};
+
+// enganchar el HUD al loop de forma liviana (no todos los frames necesitan reflow)
+setInterval(()=>{ if(State.running && !State.paused) Game.updateHUD(); }, 120);
+
+/* ================================================================
+   UI / NAVEGACIÓN DE PANTALLAS
+   ================================================================ */
+function setScreen(name){
+  State.screen = name;
+  for(const id of ["screenWarning","screenMenu","screenSource","screenControl","screenPause","screenResults"]){
+    $(id).classList.add("hidden");
+  }
+  $("hud").classList.add("hidden");
+  if(name==="warning") $("screenWarning").classList.remove("hidden");
+  if(name==="menu") $("screenMenu").classList.remove("hidden");
+  if(name==="source") $("screenSource").classList.remove("hidden");
+  if(name==="control") $("screenControl").classList.remove("hidden");
+  if(name==="pause") $("screenPause").classList.remove("hidden");
+  if(name==="results") $("screenResults").classList.remove("hidden");
+  if(name==="hud") $("hud").classList.remove("hidden");
+}
+
+function wireUI(){
+  Render.init();
+  Controls.initTouch(Render.canvas);
+  Controls.initTilt();
+
+  $("btnStart").addEventListener("click", () => setScreen("source"));
+  $("btnBackFromSource").addEventListener("click", () => setScreen("menu"));
+  $("btnBackFromControl").addEventListener("click", () => setScreen("source"));
+
+  // advertencia de fotosensibilidad/privacidad: se muestra una sola vez
+  $("btnWarningOk").addEventListener("click", () => {
+    localStorage.setItem("synthdrive_warning_ack", "1");
+    setScreen("menu");
+  });
+  const alreadyAcked = localStorage.getItem("synthdrive_warning_ack") === "1";
+  setScreen(alreadyAcked ? "menu" : "warning");
+
+  // acerca de / privacidad
+  $("btnAbout").addEventListener("click", () => $("aboutOverlay").classList.remove("hidden"));
+  $("btnCloseAbout").addEventListener("click", () => $("aboutOverlay").classList.add("hidden"));
+  $("aboutOverlay").addEventListener("click", (e) => {
+    if(e.target.id === "aboutOverlay") $("aboutOverlay").classList.add("hidden");
+  });
+
+  // récord en menú
+  const savedKeys = Object.keys(localStorage).filter(k=>k.startsWith("synthdrive_hs_"));
+  if(savedKeys.length){
+    let best = 0;
+    savedKeys.forEach(k=> best = Math.max(best, parseInt(localStorage.getItem(k)||"0",10)));
+    if(best>0){ $("menuRecord").textContent = best; $("menuRecordPanel").style.display="block"; }
+  }
+
+  $("fileInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    $("songLabel").textContent = "Analizando “"+file.name+"”…";
+    $("loadProgWrap").classList.remove("hidden");
+    $("loadProgBar").style.width = "40%";
+    try{
+      await Audio_.loadFile(file);
+      $("loadProgBar").style.width = "100%";
+      State.audioMode = "file";
+      State.songKey = file.name+"_"+file.size;
+      State.songName = file.name;
+      $("songLabel").textContent = "✓ Listo: " + file.name;
+      setTimeout(()=> setScreen("control"), 350);
+    }catch(err){
+      $("songLabel").textContent = "⚠ " + err.message;
+      $("loadProgWrap").classList.add("hidden");
+    }
+  });
+
+  $("btnCapture").addEventListener("click", async () => {
+    $("songLabel").textContent = "Elegí la pestaña con audio en el cuadro del navegador…";
+    try{
+      await Audio_.captureTab();
+      State.audioMode = "capture";
+      State.songKey = "captura-" + Date.now();
+      State.songName = "Audio de pestaña compartida";
+      $("songLabel").textContent = "✓ Capturando audio en vivo";
+      setTimeout(()=> setScreen("control"), 350);
+    }catch(err){
+      $("songLabel").textContent = "⚠ " + err.message;
+    }
+  });
+
+  $("btnNoAudio").addEventListener("click", () => {
+    Audio_.useProcedural();
+    State.audioMode = "none";
+    State.songKey = "sin-audio";
+    State.songName = "Modo aleatorio";
+    $("songLabel").textContent = "✓ Modo aleatorio activado";
+    setTimeout(()=> setScreen("control"), 200);
+  });
+
+  // control select
+  $("ctlTouch").addEventListener("click", () => {
+    State.controlMode = "touch";
+    $("ctlTouch").classList.add("selected"); $("ctlTilt").classList.remove("selected");
+    $("btnCalibrate").classList.add("hidden");
+    $("controlHint").textContent = "Táctil: apoyá el pulgar en la pantalla y deslizá a izquierda/derecha para esquivar.";
+  });
+  $("ctlTilt").addEventListener("click", async () => {
+    const ok = await Controls.requestTiltPermission();
+    if(!ok){ $("controlHint").textContent = "No se concedió permiso de sensores. Probá con táctil."; return; }
+    State.controlMode = "tilt";
+    Controls.calibrateTilt();
+    $("ctlTilt").classList.add("selected"); $("ctlTouch").classList.remove("selected");
+    $("btnCalibrate").classList.remove("hidden");
+    $("controlHint").textContent = "Inclinación: sujetá el teléfono cómodo con una mano e inclinalo apenas a los costados.";
+  });
+  $("btnCalibrate").addEventListener("click", () => {
+    Controls.calibrateTilt();
+    $("controlHint").textContent = "Calibrado ✓ — esa posición ahora es 'derecho'.";
+  });
+
+  $("btnPlay").addEventListener("click", () => {
+    if(!State.controlMode){ $("controlHint").textContent = "Elegí un control primero →"; return; }
+    Game.seedExtra = Math.floor(Math.random()*1e9);
+    Game.startRun();
+  });
+
+  // pausa
+  $("pauseBtn").addEventListener("click", () => {
+    State.paused = true; Audio_.pause(); setScreen("pause");
+  });
+  $("btnResume").addEventListener("click", () => {
+    State.paused = false; Audio_.resume(); setScreen("hud");
+  });
+  $("btnQuit").addEventListener("click", () => {
+    State.running = false; State.paused = false;
+    Game.whiteFlashT = 0; Game.flashT = 0; Game.camShake = 0; Game.particles = [];
+    Game.dying = false; Game.dyingT = 0;
+    $("flash").style.opacity = "0";
+    $("destroyedOverlay").classList.remove("show");
+    Audio_.teardown(false);
+    setScreen("menu");
+  });
+
+  // resultados
+  $("btnRetry").addEventListener("click", () => Game.retry());
+  $("btnChangeSong").addEventListener("click", () => {
+    Audio_.teardown(false);
+    setScreen("source");
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if(document.hidden && State.running && !State.paused){
+      State.paused = true; Audio_.pause(); setScreen("pause");
+    }
+  });
+}
+
+window.addEventListener("DOMContentLoaded", wireUI);
+})();
+
+</script>
+</body>
+</html>
