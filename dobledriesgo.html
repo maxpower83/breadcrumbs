@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Doble de Riesgo</title>
+<style>
+  :root{
+    --bg:#161313;
+    --panel:#211d1b;
+    --panel2:#2b2622;
+    --cream:#e8e2d6;
+    --amber:#f2a93b;
+    --danger:#c1382d;
+    --stone:#8b857c;
+    --safe:#4a6b5a;
+    --line:#3a332e;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:
+      repeating-linear-gradient(45deg, #0000 0 18px, rgba(255,255,255,0.015) 18px 19px),
+      var(--bg);
+    color:var(--cream);
+    font-family:'Segoe UI', Arial, sans-serif;
+    overflow:hidden;
+  }
+  #app{
+    max-width:480px; margin:0 auto;
+    height:100vh; height:100svh; height:100dvh;
+    display:flex; flex-direction:column;
+    padding:10px; gap:8px;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  #topScroll{
+    flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    display:flex; flex-direction:column; gap:8px;
+  }
+
+  /* ---------- CLAPBOARD HEADER ---------- */
+  #slate{
+    background:var(--panel2);
+    border:2px solid var(--line);
+    border-radius:4px;
+    position:relative;
+    overflow:hidden;
+    flex:0 0 auto;
+  }
+  #slateStripe{
+    height:14px;
+    background:repeating-linear-gradient(-45deg, var(--cream) 0 14px, #161313 14px 28px);
+    border-bottom:2px solid var(--line);
+  }
+  #slateBody{
+    display:flex; flex-direction:column; gap:3px;
+    padding:7px 12px;
+  }
+  #slateTopRow{ display:flex; justify-content:space-between; align-items:center; }
+  #slateTitle{
+    font-weight:900; letter-spacing:2px; text-transform:uppercase;
+    font-size:15px; color:var(--amber);
+    font-stretch:condensed;
+  }
+  #slateTake{
+    font-family:'Courier New', monospace; font-weight:700; font-size:13px;
+    color:var(--cream); background:#00000055; padding:3px 8px; border-radius:3px;
+    letter-spacing:1px;
+  }
+  #slateAct{
+    font-size:10px; letter-spacing:1.5px; text-transform:uppercase; font-weight:700;
+    color:var(--stone);
+  }
+  #slateAct b{ color:var(--cream); }
+  #slateAct.boss{ color:var(--danger); }
+  #slateAct.boss b{ color:#f0b8ae; }
+
+  /* ---------- MONITOR ---------- */
+  #monitorWrap{
+    position:relative; flex:1 1 auto; min-height:220px;
+    background:#000;
+    border:3px solid #46403a;
+    border-radius:6px;
+    box-shadow: inset 0 0 40px #000, 0 4px 10px #0006;
+    overflow:hidden;
+  }
+  #stage{ width:100%; height:100%; display:block; }
+  #scanlines{
+    position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 3px);
+    mix-blend-mode:multiply;
+  }
+  #vignette{
+    position:absolute; inset:0; pointer-events:none;
+    box-shadow: inset 0 0 90px 30px #000000cc;
+  }
+  #recBadge{
+    position:absolute; top:8px; left:10px;
+    display:flex; align-items:center; gap:5px;
+    font-family:'Courier New', monospace; font-size:11px; font-weight:700;
+    color:var(--danger); text-shadow:0 0 4px #000;
+    letter-spacing:1px;
+  }
+  #recDot{
+    width:8px; height:8px; border-radius:50%; background:var(--danger);
+    box-shadow:0 0 6px var(--danger);
+    animation:blink 1.1s infinite steps(1);
+  }
+  @keyframes blink{ 50%{ opacity:0.2; } }
+  #timecode{
+    position:absolute; top:8px; right:10px;
+    font-family:'Courier New', monospace; font-size:11px; color:#ffffffaa;
+    text-shadow:0 0 4px #000;
+  }
+  #cardCaption{
+    position:absolute; left:0; right:0; bottom:0;
+    padding:8px 12px 7px;
+    background:linear-gradient(0deg, #000000cc, #00000000);
+    font-size:13px; line-height:1.35; color:var(--cream);
+  }
+  #cardCaption b{ color:var(--amber); }
+
+  /* ---------- STATS ---------- */
+  #stats{ flex:0 0 auto; display:flex; flex-direction:column; gap:6px; }
+  .barRow{ display:flex; align-items:center; gap:8px; }
+  .barLabel{
+    font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--stone);
+    width:64px; flex:0 0 auto; font-weight:700;
+  }
+  .barTrack{
+    flex:1; height:12px; background:#000000aa; border-radius:6px;
+    border:1px solid var(--line); overflow:hidden; position:relative;
+  }
+  .barFill{ height:100%; border-radius:6px; transition:width .35s ease; }
+  #aguanteFill{ background:linear-gradient(90deg,#5c8a6e,#8fc79a); }
+  #aguanteFill.warn{ background:linear-gradient(90deg,#c1382d,#e5624f); }
+  #adrenFill{ background:linear-gradient(90deg,#c77a1f,#f2a93b); }
+  .barVal{ font-family:'Courier New', monospace; font-size:11px; width:32px; text-align:right; color:var(--cream); }
+
+  #injuryRow{ display:flex; gap:6px; flex-wrap:wrap; min-height:22px; }
+  .injuryChip{
+    font-size:10px; padding:3px 7px; border-radius:10px;
+    background:#3a1f1c; border:1px solid var(--danger); color:#f0b8ae;
+    letter-spacing:.3px;
+  }
+  #perkRow{ display:flex; gap:6px; flex-wrap:wrap; min-height:0; }
+  .perkChip{
+    font-size:10px; padding:3px 7px; border-radius:10px;
+    background:#2e2a15; border:1px solid var(--amber); color:#f2d9a3;
+    letter-spacing:.3px;
+  }
+  #contractInfo{
+    font-size:10px; color:#e08a7a; letter-spacing:.3px; display:none;
+  }
+
+  #scoreRow{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:'Courier New', monospace;
+  }
+  #scoreRow .k{ font-size:10px; color:var(--stone); text-transform:uppercase; letter-spacing:1px; }
+  #scoreVal{ font-size:20px; font-weight:900; color:var(--amber); }
+
+  /* ---------- CONTROLS ---------- */
+  #controls{ flex:0 0 auto; display:flex; flex-direction:column; gap:8px; }
+  #promptText{
+    text-align:center; font-size:12px; color:var(--stone);
+    text-transform:uppercase; letter-spacing:1px; font-weight:700;
+    min-height:14px;
+  }
+  #btnRow{ display:flex; gap:8px; }
+  .actBtn{
+    flex:1; padding:14px 6px; border-radius:5px; border:none; cursor:pointer;
+    font-weight:900; text-transform:uppercase; letter-spacing:.5px; font-size:13px;
+    color:var(--cream); position:relative; overflow:hidden;
+    transition:transform .08s ease, filter .15s ease;
+    font-family:inherit;
+    text-shadow:0 1px 3px rgba(0,0,0,0.6);
+  }
+  .actBtn:active{ transform:scale(0.96); }
+  .actBtn small{ display:block; font-size:9px; font-weight:600; opacity:.9; margin-top:3px; letter-spacing:.3px; text-transform:none; text-shadow:0 1px 2px rgba(0,0,0,0.6); }
+  .btnSafe{ background:linear-gradient(180deg,#33553f,#20392a); }
+  .btnRisky{ background:linear-gradient(180deg,#6b4a17,#4a3210); }
+  .btnExtreme{ background:linear-gradient(180deg,#7a2a20,#551d16); }
+  .actBtn:disabled{ filter:grayscale(0.8) brightness(0.55); cursor:not-allowed; }
+
+  #btnCobrar{ background:linear-gradient(180deg,#3d6b8f,#2c5470); }
+  #btnSeguir{ background:linear-gradient(180deg,#8a6321,#6b4c17); }
+  .btnCamerino{ background:linear-gradient(180deg,#5c4a6b,#453552); }
+  .btnPerk{ background:linear-gradient(180deg,#8a6f21,#6b5417); }
+  .btnSkip{ background:linear-gradient(180deg,#4a463f,#37332e); }
+  .btnContract{ background:linear-gradient(180deg,#832f4a,#5f2036); }
+  .btnChar{ background:linear-gradient(180deg,#2f4a5c,#203545); }
+  .btnDirector{ background:linear-gradient(180deg,#4a2f4a,#332035); }
+
+  /* ---------- OVERLAY ---------- */
+  #overlay{
+    position:fixed; top:0; bottom:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:480px;
+    background:#000000ee;
+    display:none; flex-direction:column; align-items:center;
+    text-align:center; padding:24px; z-index:20; gap:10px;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  #overlay.show{ display:flex; }
+  #overlayTitle{ font-size:22px; font-weight:900; letter-spacing:1px; text-transform:uppercase; flex:0 0 auto; }
+  #overlayTitle.bad{ color:var(--danger); }
+  #overlayTitle.good{ color:var(--amber); }
+  #overlayScore{ font-family:'Courier New',monospace; font-size:34px; font-weight:900; color:var(--cream); flex:0 0 auto; }
+  #overlayMeta{ font-size:12px; color:var(--stone); line-height:1.6; flex:0 0 auto; }
+  #overlayMeta b{ color:var(--cream); }
+  #restartBtn{
+    margin-top:8px; margin-bottom:8px; padding:13px 26px; border-radius:5px; border:none;
+    background:var(--amber); color:#231a0d; font-weight:900; letter-spacing:.5px;
+    text-transform:uppercase; font-size:13px; cursor:pointer; flex:0 0 auto;
+  }
+  #introText{
+    font-size:12px; color:var(--stone); line-height:1.6; max-width:320px; flex:0 0 auto;
+  }
+  #setupPanel{ width:100%; max-width:340px; display:flex; flex-direction:column; gap:4px; flex:0 0 auto; }
+  #setupLabel1, #setupLabel2{
+    font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--stone);
+    font-weight:700; margin-top:4px; text-align:left;
+  }
+  .setupRow{ display:flex; flex-direction:column; gap:6px; }
+  .setupOption{
+    text-align:left; padding:8px 10px; border-radius:5px; border:1.5px solid var(--line);
+    background:var(--panel2); cursor:pointer; font-family:inherit;
+  }
+  .setupOption .soName{ font-weight:800; font-size:12px; color:var(--cream); text-transform:uppercase; letter-spacing:.5px; }
+  .setupOption .soDesc{ font-size:10.5px; color:var(--stone); margin-top:2px; line-height:1.4; }
+  .setupOption.selected{ border-color:var(--amber); background:#33291a; }
+  .setupOption.selected .soName{ color:var(--amber); }
+  .setupOption.locked{ opacity:0.45; cursor:not-allowed; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="topScroll">
+
+  <div id="slate">
+    <div id="slateStripe"></div>
+    <div id="slateBody">
+      <div id="slateTopRow">
+        <div id="slateTitle">Doble de Riesgo</div>
+        <div id="slateTake">TOMA 00</div>
+      </div>
+      <div id="slateAct">Acto 1 · Ciudad</div>
+    </div>
+  </div>
+
+  <div id="monitorWrap">
+    <canvas id="stage"></canvas>
+    <div id="scanlines"></div>
+    <div id="vignette"></div>
+    <div id="recBadge"><div id="recDot"></div>REC</div>
+    <div id="timecode">00:00:00</div>
+    <div id="cardCaption"></div>
+    <div id="overlay">
+      <div id="overlayTitle"></div>
+      <div id="overlayScore"></div>
+      <div id="overlayMeta"></div>
+      <div id="introText" style="display:none"></div>
+      <div id="setupPanel">
+        <div id="setupLabel1">Doble</div>
+        <div id="charOptions" class="setupRow"></div>
+        <div id="setupLabel2">Director</div>
+        <div id="dirOptions" class="setupRow"></div>
+      </div>
+      <button id="restartBtn">Empezar carrera</button>
+    </div>
+  </div>
+
+  <div id="stats">
+    <div class="barRow">
+      <div class="barLabel">Aguante</div>
+      <div class="barTrack"><div id="aguanteFill" class="barFill" style="width:100%"></div></div>
+      <div class="barVal" id="aguanteVal">100</div>
+    </div>
+    <div class="barRow">
+      <div class="barLabel">Adrenalina</div>
+      <div class="barTrack"><div id="adrenFill" class="barFill" style="width:0%"></div></div>
+      <div class="barVal" id="adrenVal">0</div>
+    </div>
+    <div id="injuryRow"></div>
+    <div id="perkRow"></div>
+    <div id="contractInfo"></div>
+    <div id="scoreRow">
+      <div><span class="k">Puntaje de racha&nbsp;</span></div>
+      <div id="scoreVal">0</div>
+    </div>
+  </div>
+
+  </div>
+
+  <div id="controls">
+    <div id="promptText"></div>
+    <div id="btnRow"></div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------- persistence ----------------
+  const LS_BEST = 'dobleDeRiesgo_best';
+  const LS_TOTAL = 'dobleDeRiesgo_total';
+  const LS_RUNS = 'dobleDeRiesgo_runs';
+  const LS_INJURIES = 'dobleDeRiesgo_careerInjuries';
+  const LS_DIRECTOR_MAX = 'dobleDeRiesgo_directorMax';
+
+  function lsGet(k, d){ const v = localStorage.getItem(k); return v===null? d : Number(v); }
+  function lsInc(k, amt){ const v = lsGet(k,0)+amt; localStorage.setItem(k, v); return v; }
+  function lsSetIfBigger(k, val){ const cur = lsGet(k,0); if(val>cur) localStorage.setItem(k,val); return Math.max(cur,val); }
+
+  let selectedCharId = 'recluta';
+  let selectedDirectorId = 0;
+
+  // ---------------- stunt pool ----------------
+  const STUNT_TYPES = [
+    { id:'caida',    name:'Caída',        baseRisk:0.20, baseReward:40, color:'#8fa6c7', verb:'caer desde' },
+    { id:'choque',   name:'Choque',       baseRisk:0.26, baseReward:55, color:'#c78f4a', verb:'un impacto contra' },
+    { id:'fuego',    name:'Fuego',        baseRisk:0.30, baseReward:70, color:'#e0703f', verb:'arder junto a' },
+    { id:'pelea',    name:'Pelea',        baseRisk:0.18, baseReward:35, color:'#a6a6a6', verb:'una pelea con' },
+    { id:'explosion',name:'Explosión',    baseRisk:0.34, baseReward:85, color:'#e0b23f', verb:'una onda expansiva de' },
+    { id:'altura',   name:'Cable/Altura', baseRisk:0.24, baseReward:60, color:'#7ec7a6', verb:'un descenso desde' },
+  ];
+  const SUBJECTS = [
+    'un edificio en obra', 'un puente colgante', 'un tren en marcha', 'un techo de chapa',
+    'un auto en llamas', 'una grúa de 20 metros', 'un ring improvisado', 'un tanque de combustible',
+    'una escalera de incendio', 'un helicóptero en vuelo bajo', 'un camión cisterna', 'una azotea mojada'
+  ];
+  const ACTS = [
+    { name:'Ciudad', types:['caida','choque','pelea'], takes:4,
+      bossType:'choque', bossName:'Persecución en la autopista elevada',
+      bossRiskMult:1.25, bossRewardMult:2.4, tint:'#3d4a5c' },
+    { name:'Desierto en llamas', types:['fuego','explosion','altura'], takes:4,
+      bossType:'explosion', bossName:'El tanque de combustible',
+      bossRiskMult:1.30, bossRewardMult:2.7, tint:'#5c3d1f' },
+    { name:'Escena final bajo lluvia', types:['caida','choque','fuego','pelea','explosion','altura'], takes:3,
+      bossType:'altura', bossName:'El salto final bajo la tormenta',
+      bossRiskMult:1.40, bossRewardMult:3.2, tint:'#25333c' },
+  ];
+
+  const INJURY_POOL = [
+    { name:'Tobillo torcido', maxAguanteDelta:-10 },
+    { name:'Costillas fisuradas', maxAguanteDelta:-15 },
+    { name:'Espalda resentida', riskDelta:0.05 },
+    { name:'Muñeca hinchada', riskDelta:0.04 },
+    { name:'Visión nublada', riskDelta:0.06 },
+    { name:'Piel quemada', maxAguanteDelta:-8 },
+  ];
+
+  const CHARACTERS = [
+    { id:'recluta', name:'El Recluta', desc:'Sin bonos ni penalidades.', maxAguanteDelta:0, rewardMult:1.0, unlockReq:0 },
+    { id:'novato', name:'El Novato', desc:'-20 aguante máximo, pero +20% recompensa en toda la racha.', maxAguanteDelta:-20, rewardMult:1.20, unlockReq:200 },
+    { id:'veterano', name:'El Veterano', desc:'+30 aguante máximo, pero -15% recompensa en toda la racha.', maxAguanteDelta:30, rewardMult:0.85, unlockReq:600 },
+  ];
+
+  const DIRECTORS = [
+    { id:0, name:'Ayudante de dirección', desc:'Sin modificadores. Para aprender el rodaje.', riskGlobal:1.0, descansarMult:1.0 },
+    { id:1, name:'El Exigente', desc:'+6% riesgo en todas las tomas.', riskGlobal:1.06, descansarMult:1.0 },
+    { id:2, name:'El Tirano', desc:'+12% riesgo. Descansar cura 30% menos de lo normal.', riskGlobal:1.12, descansarMult:0.7 },
+    { id:3, name:'La Leyenda del Set', desc:'+18% riesgo. Descansar apenas alcanza (50% de lo normal).', riskGlobal:1.18, descansarMult:0.5 },
+  ];
+
+  const PERK_POOL = [
+    { id:'reflejos_gato', name:'Reflejos de gato', desc:'Caída: -12% riesgo', mods:{ riskByType:{caida:0.88} } },
+    { id:'piromano', name:'Pirómano', desc:'Fuego da el doble de adrenalina', mods:{ adrenByType:{fuego:2} } },
+    { id:'cuero_curtido', name:'Cuero curtido', desc:'-2 de fatiga en cada toma exitosa', mods:{ fatigueFlat:2 } },
+    { id:'amortiguado', name:'Amortiguado', desc:'Choque: -10% riesgo', mods:{ riskByType:{choque:0.90} } },
+    { id:'nervios_acero', name:'Nervios de acero', desc:'Extremo: -8% riesgo', mods:{ riskExtreme:0.92 } },
+    { id:'buen_seguro', name:'Buen seguro', desc:'Fallar te cuesta 25% menos aguante', mods:{ failFatigueMult:0.75 } },
+    { id:'doble_turno', name:'Doble turno', desc:'Pelea: +30% recompensa', mods:{ rewardByType:{pelea:1.30} } },
+    { id:'piel_amianto', name:'Piel de amianto', desc:'La próxima vez que falles, no te deja lesión', mods:{ injuryImmuneCharges:1 } },
+    { id:'ojo_halcon', name:'Ojo de halcón', desc:'Cable/Altura: -10% riesgo', mods:{ riskByType:{altura:0.90} } },
+    { id:'contactos', name:'Contactos en producción', desc:'Sobornar al director es más efectivo', mods:{ sobornoExtraDiscount:0.15 } },
+    { id:'attrezzo', name:'Doble de attrezzo', desc:'Explosión: +25% recompensa', mods:{ rewardByType:{explosion:1.25} } },
+    { id:'temple_frio', name:'Temple frío', desc:'-5% riesgo en todas las tomas', mods:{ riskGlobal:0.95 } },
+  ];
+
+  const INTENSITIES = {
+    seguro:  { label:'Seguro',   riskMult:0.55, rewardMult:0.6, fatigue:3,  failFatigue:14, cls:'btnSafe' },
+    riesgo:  { label:'Arriesgado', riskMult:1.0, rewardMult:1.05, fatigue:6, failFatigue:24, cls:'btnRisky' },
+    extremo: { label:'Extremo',  riskMult:1.65, rewardMult:2.0, fatigue:10, failFatigue:38, cls:'btnExtreme' },
+  };
+
+  // ---------------- state ----------------
+  let run = null;
+
+  function newRun(){
+    const char = CHARACTERS.find(c=>c.id===selectedCharId) || CHARACTERS[0];
+    const dirMax = lsGet(LS_DIRECTOR_MAX, 0);
+    const dir = DIRECTORS.find(d=>d.id===selectedDirectorId && d.id<=dirMax) || DIRECTORS[0];
+    const startAguante = 100 + char.maxAguanteDelta;
+    run = {
+      take: 0,
+      actIndex: 0,
+      takeInAct: 0,
+      actRiskDiscount: 1,
+      score: 0,
+      maxAguante: startAguante,
+      aguante: startAguante,
+      adrenalina: 0,
+      injuries: [],
+      extremeLocked: 0, // turns remaining where extreme is disabled
+      phase: 'ready', // ready -> choosing -> resolving -> decide -> perkchoice -> camerino -> ended
+      currentCard: null,
+      ended: false,
+      perks: [],
+      perkMods: { riskByType:{}, rewardByType:{}, adrenByType:{}, riskGlobal:1, rewardGlobal:1, riskExtreme:1, fatigueFlat:0, failFatigueMult:1, injuryImmuneCharges:0, sobornoExtraDiscount:0 },
+      contractRiskBonus: 0,
+      contractRewardBonus: 0,
+      contractOffers: 0,
+      successStreakForPerk: 0,
+      charId: char.id,
+      charRewardMult: char.rewardMult,
+      directorId: dir.id,
+      directorRiskMult: dir.riskGlobal,
+      directorDescansarMult: dir.descansarMult,
+    };
+  }
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function pickN(arr,n){ const copy=[...arr]; const out=[]; while(out.length<n && copy.length){ const i=Math.floor(Math.random()*copy.length); out.push(copy.splice(i,1)[0]); } return out; }
+  function currentAct(){ return ACTS[run.actIndex]; }
+
+  function applyPerk(perk){
+    const m = perk.mods, pm = run.perkMods;
+    if(m.riskByType) Object.entries(m.riskByType).forEach(([k,v])=>{ pm.riskByType[k] = (pm.riskByType[k]||1)*v; });
+    if(m.rewardByType) Object.entries(m.rewardByType).forEach(([k,v])=>{ pm.rewardByType[k] = (pm.rewardByType[k]||1)*v; });
+    if(m.adrenByType) Object.entries(m.adrenByType).forEach(([k,v])=>{ pm.adrenByType[k] = (pm.adrenByType[k]||1)*v; });
+    if(m.riskGlobal) pm.riskGlobal *= m.riskGlobal;
+    if(m.rewardGlobal) pm.rewardGlobal *= m.rewardGlobal;
+    if(m.riskExtreme) pm.riskExtreme *= m.riskExtreme;
+    if(m.fatigueFlat) pm.fatigueFlat += m.fatigueFlat;
+    if(m.failFatigueMult) pm.failFatigueMult *= m.failFatigueMult;
+    if(m.injuryImmuneCharges) pm.injuryImmuneCharges += m.injuryImmuneCharges;
+    if(m.sobornoExtraDiscount) pm.sobornoExtraDiscount += m.sobornoExtraDiscount;
+    run.perks.push(perk);
+  }
+
+  function drawCard(){
+    const act = currentAct();
+    const typeId = pick(act.types);
+    const chosenType = STUNT_TYPES.find(t=>t.id===typeId);
+    const subject = pick(SUBJECTS);
+    return {
+      type: chosenType,
+      subject,
+      isBoss: false,
+      risk: chosenType.baseRisk * (1 + run.takeInAct*0.045 + run.actIndex*0.12) * run.actRiskDiscount,
+      reward: Math.round(chosenType.baseReward * (1 + run.takeInAct*0.07 + run.actIndex*0.18)),
+    };
+  }
+
+  function drawBossCard(){
+    const act = currentAct();
+    const type = STUNT_TYPES.find(t=>t.id===act.bossType);
+    return {
+      type,
+      subject: act.bossName,
+      isBoss: true,
+      risk: type.baseRisk * act.bossRiskMult * (1 + run.actIndex*0.08) * run.actRiskDiscount,
+      reward: Math.round(type.baseReward * act.bossRewardMult * (1 + run.actIndex*0.15)),
+    };
+  }
+
+  // ---------------- DOM refs ----------------
+  const el = {
+    slateTake: document.getElementById('slateTake'),
+    slateAct: document.getElementById('slateAct'),
+    timecode: document.getElementById('timecode'),
+    caption: document.getElementById('cardCaption'),
+    aguanteFill: document.getElementById('aguanteFill'),
+    aguanteVal: document.getElementById('aguanteVal'),
+    adrenFill: document.getElementById('adrenFill'),
+    adrenVal: document.getElementById('adrenVal'),
+    injuryRow: document.getElementById('injuryRow'),
+    perkRow: document.getElementById('perkRow'),
+    contractInfo: document.getElementById('contractInfo'),
+    scoreVal: document.getElementById('scoreVal'),
+    prompt: document.getElementById('promptText'),
+    btnRow: document.getElementById('btnRow'),
+    overlay: document.getElementById('overlay'),
+    overlayTitle: document.getElementById('overlayTitle'),
+    overlayScore: document.getElementById('overlayScore'),
+    overlayMeta: document.getElementById('overlayMeta'),
+    introText: document.getElementById('introText'),
+    restartBtn: document.getElementById('restartBtn'),
+    charOptions: document.getElementById('charOptions'),
+    dirOptions: document.getElementById('dirOptions'),
+  };
+
+  function updateStatsUI(){
+    const pct = Math.max(0, run.aguante/run.maxAguante*100);
+    el.aguanteFill.style.width = pct+'%';
+    el.aguanteFill.classList.toggle('warn', pct < 35);
+    el.aguanteVal.textContent = Math.max(0,Math.round(run.aguante));
+    el.adrenFill.style.width = run.adrenalina+'%';
+    el.adrenVal.textContent = Math.round(run.adrenalina);
+    el.scoreVal.textContent = run.score;
+    el.injuryRow.innerHTML = run.injuries.map(i=>`<div class="injuryChip">${i.name}</div>`).join('');
+    el.perkRow.innerHTML = run.perks.map(p=>`<div class="perkChip" title="${p.desc}">${p.name}</div>`).join('');
+    if(run.contractRiskBonus > 0){
+      el.contractInfo.style.display = 'block';
+      el.contractInfo.textContent = `Contrato: +${Math.round(run.contractRiskBonus*100)}% riesgo · +${Math.round(run.contractRewardBonus*100)}% recompensa`;
+    } else {
+      el.contractInfo.style.display = 'none';
+    }
+    const act = currentAct();
+    const isBossNow = run.currentCard && run.currentCard.isBoss;
+    el.slateTake.textContent = isBossNow ? 'JEFE' : 'TOMA ' + String(run.take).padStart(2,'0');
+    el.slateAct.classList.toggle('boss', !!isBossNow);
+    el.slateAct.innerHTML = `Acto ${run.actIndex+1} · <b>${act.name}</b> — ${Math.min(run.takeInAct,act.takes)}/${act.takes} tomas`;
+    const secs = run.take*7;
+    const mm = String(Math.floor(secs/60)).padStart(2,'0');
+    const ss = String(secs%60).padStart(2,'0');
+    el.timecode.textContent = `00:${mm}:${ss}`;
+  }
+
+  function setCaption(card, msg){
+    if(msg){ el.caption.innerHTML = msg; return; }
+    if(card.isBoss){
+      el.caption.innerHTML = `<b>ESCENA FINAL DEL ACTO</b> — ${card.subject}`;
+    } else {
+      el.caption.innerHTML = `<b>${card.type.name}</b> — ${card.type.verb} ${card.subject}`;
+    }
+  }
+
+  // ---------------- flow ----------------
+  function startTake(){
+    run.take++;
+    run.takeInAct++;
+    run.currentCard = drawCard();
+    run.phase = 'choosing';
+    setCaption(run.currentCard);
+    updateStatsUI();
+    renderChoiceButtons();
+    scene.setActTint(currentAct().tint);
+    scene.setPose('idle', run.currentCard.type);
+  }
+
+  function startBossTake(){
+    run.take++;
+    run.currentCard = drawBossCard();
+    run.phase = 'choosing';
+    setCaption(run.currentCard);
+    updateStatsUI();
+    renderChoiceButtons();
+    scene.setActTint(currentAct().tint);
+    scene.setPose('idle', run.currentCard.type);
+  }
+
+  function renderChoiceButtons(){
+    el.prompt.textContent = run.currentCard.isBoss ? '¡Se juega el acto entero acá!' : '¿Cómo encarás la toma?';
+    el.btnRow.innerHTML = '';
+    Object.entries(INTENSITIES).forEach(([key, cfg])=>{
+      const b = document.createElement('button');
+      b.className = 'actBtn ' + cfg.cls;
+      const disabled = key==='extremo' && run.extremeLocked>0;
+      const effRisk = computeRisk(cfg, key);
+      b.innerHTML = cfg.label + `<small>${Math.round(effRisk*100)}% riesgo · +${effectiveReward(cfg)} pts</small>`;
+      if(disabled){ b.disabled = true; b.querySelector('small').textContent = 'Mano lastimada — no disponible'; }
+      b.onclick = ()=> resolveTake(key, cfg);
+      el.btnRow.appendChild(b);
+    });
+  }
+
+  function computeRisk(cfg, key){
+    const typeId = run.currentCard.type.id;
+    const pm = run.perkMods;
+    let risk = run.currentCard.risk * cfg.riskMult;
+    risk *= (pm.riskByType[typeId]||1);
+    risk *= pm.riskGlobal;
+    if(key==='extremo') risk *= pm.riskExtreme;
+    risk *= (1 + run.contractRiskBonus);
+    risk *= run.directorRiskMult;
+    run.injuries.forEach(i=>{ if(i.riskDelta) risk += i.riskDelta; });
+    risk -= (run.adrenalina/100) * 0.15;
+    return Math.min(0.92, Math.max(0.03, risk));
+  }
+
+  function effectiveReward(cfg){
+    const typeId = run.currentCard.type.id;
+    const pm = run.perkMods;
+    let pts = run.currentCard.reward * cfg.rewardMult;
+    pts *= (pm.rewardByType[typeId]||1);
+    pts *= pm.rewardGlobal;
+    pts *= (1 + run.contractRewardBonus);
+    pts *= run.charRewardMult;
+    return Math.round(pts);
+  }
+
+  function resolveTake(key, cfg){
+    run.phase = 'resolving';
+    el.btnRow.innerHTML = '';
+    el.prompt.textContent = '...';
+    const risk = computeRisk(cfg, key);
+    const success = Math.random() > risk;
+    const card = run.currentCard;
+    const isBoss = card.isBoss;
+
+    scene.playAnimation(card.type, success, isBoss, ()=>{
+      if(success){
+        const pts = effectiveReward(cfg);
+        run.score += pts;
+        const adrenGain = 16 * (run.perkMods.adrenByType[card.type.id]||1);
+        run.adrenalina = Math.min(100, run.adrenalina + adrenGain);
+        const fatigueCost = Math.max(1, cfg.fatigue - run.perkMods.fatigueFlat) * (isBoss?1.4:1);
+        run.aguante -= fatigueCost;
+        if(run.extremeLocked>0) run.extremeLocked--;
+        setCaption(card, isBoss ? `<b>¡Escena en una!</b> +${pts} puntos.` : `<b>¡Toma en una!</b> +${pts} puntos.`);
+        updateStatsUI();
+
+        if(isBoss){
+          if(run.actIndex === ACTS.length-1){
+            completeRun();
+          } else {
+            run.actRiskDiscount = 1;
+            run.phase = 'camerino';
+            renderCamerinoButtons();
+          }
+          return;
+        }
+        run.successStreakForPerk = (run.successStreakForPerk||0) + 1;
+        if(run.successStreakForPerk >= 3){
+          run.successStreakForPerk = 0;
+          run.phase = 'perkchoice';
+          renderPerkChoice();
+          return;
+        }
+        run.phase = 'decide';
+        renderDecideButtons();
+      } else {
+        const failCost = cfg.failFatigue * run.perkMods.failFatigueMult * (isBoss?1.3:1);
+        run.aguante -= failCost;
+        run.adrenalina = Math.max(0, run.adrenalina - 30);
+        let inj = null;
+        if(run.perkMods.injuryImmuneCharges > 0){
+          run.perkMods.injuryImmuneCharges--;
+          setCaption(card, isBoss ? `<b>No llegaste a la marca.</b> La producción te baja de la escena.` : `<b>Toma falsa</b> — tu piel de amianto te salvó de una lesión.`);
+        } else {
+          inj = pick(INJURY_POOL);
+          run.injuries.push(inj);
+          if(inj.maxAguanteDelta){ run.maxAguante += inj.maxAguanteDelta; }
+          if(inj.name === 'Muñeca hinchada'){ run.extremeLocked = 2; }
+          setCaption(card, isBoss ? `<b>No llegaste a la marca.</b> ${inj.name}. La producción te baja de la escena.` : `<b>Toma falsa.</b> ${inj.name}.`);
+        }
+        updateStatsUI();
+
+        if(isBoss || run.aguante <= 0){
+          endRun(false);
+          return;
+        }
+        run.phase = 'decide';
+        renderDecideButtons();
+      }
+    });
+  }
+
+  function renderPerkChoice(){
+    const available = PERK_POOL.filter(p=> !run.perks.some(rp=>rp.id===p.id));
+    const options = pickN(available, Math.min(2, available.length));
+    el.btnRow.innerHTML = '';
+    if(options.length===0){
+      run.phase = 'decide';
+      renderDecideButtons();
+      return;
+    }
+    el.prompt.textContent = 'Elegí una mejora permanente para la racha';
+    setCaption(null, `<b>Entre tomas.</b> El equipo te ofrece una ventaja para lo que queda de racha.`);
+    options.forEach(perk=>{
+      const b = document.createElement('button');
+      b.className = 'actBtn btnPerk';
+      b.innerHTML = perk.name + `<small>${perk.desc}</small>`;
+      b.onclick = ()=>{
+        applyPerk(perk);
+        updateStatsUI();
+        run.phase = 'decide';
+        renderDecideButtons();
+      };
+      el.btnRow.appendChild(b);
+    });
+    const bSkip = document.createElement('button');
+    bSkip.className = 'actBtn btnSkip';
+    bSkip.innerHTML = 'Seguir sin mejora' + `<small>Ninguna de las dos te convence</small>`;
+    bSkip.onclick = ()=>{ run.phase = 'decide'; renderDecideButtons(); };
+    el.btnRow.appendChild(bSkip);
+  }
+
+  function renderDecideButtons(){
+    const act = currentAct();
+    el.btnRow.innerHTML = '';
+    const bCobrar = document.createElement('button');
+    bCobrar.className = 'actBtn';
+    bCobrar.id = 'btnCobrar';
+    bCobrar.innerHTML = 'Cobrar y retirarte' + `<small>Asegurás ${run.score} puntos</small>`;
+    bCobrar.onclick = ()=> endRun(true);
+    el.btnRow.appendChild(bCobrar);
+
+    if(run.takeInAct >= act.takes){
+      el.prompt.textContent = `Acto casi listo — ¿enfrentás la escena final?`;
+      const bBoss = document.createElement('button');
+      bBoss.className = 'actBtn';
+      bBoss.id = 'btnSeguir';
+      bBoss.innerHTML = `Rodar: ${act.bossName}` + `<small>Escena final del acto — todo o nada</small>`;
+      bBoss.onclick = ()=> startBossTake();
+      el.btnRow.appendChild(bBoss);
+    } else {
+      el.prompt.textContent = 'La escena sigue rodando...';
+      const bSeguir = document.createElement('button');
+      bSeguir.className = 'actBtn';
+      bSeguir.id = 'btnSeguir';
+      bSeguir.innerHTML = 'Seguir a la próxima toma' + `<small>El riesgo sube con cada toma</small>`;
+      bSeguir.onclick = ()=> startTake();
+      el.btnRow.appendChild(bSeguir);
+
+      if(Math.random() < 0.35 && run.contractOffers < 6){
+        const stakes = run.contractOffers;
+        const riskAdd = 0.08 + stakes*0.01;
+        const rewardAdd = 0.20 + stakes*0.02;
+        const bContract = document.createElement('button');
+        bContract.className = 'actBtn btnContract';
+        bContract.innerHTML = 'Doblez de contrato' + `<small>+${Math.round(rewardAdd*100)}% recompensa el resto de la racha · +${Math.round(riskAdd*100)}% riesgo permanente</small>`;
+        bContract.onclick = ()=>{
+          run.contractRiskBonus += riskAdd;
+          run.contractRewardBonus += rewardAdd;
+          run.contractOffers++;
+          updateStatsUI();
+          startTake();
+        };
+        el.btnRow.appendChild(bContract);
+      }
+    }
+  }
+
+  function renderCamerinoButtons(){
+    el.prompt.textContent = `Camerino — ${currentAct().name} superado`;
+    el.btnRow.innerHTML = '';
+    setCaption(null, `<b>Entre actos.</b> El próximo es "${ACTS[run.actIndex+1].name}".`);
+    scene.setPose('bow', run.currentCard.type);
+
+    const options = [
+      { label:'Descansar', small:`Recuperás ${Math.round(run.maxAguante*0.30*run.directorDescansarMult)} de aguante (${Math.round(30*run.directorDescansarMult)}%) — un día no es una semana`, act:()=>{ run.aguante = Math.min(run.maxAguante, run.aguante + Math.round(run.maxAguante*0.30*run.directorDescansarMult)); } },
+      { label:'Entrenar', small:'+15 aguante máximo (permanente) y curás lo mismo', act:()=>{ run.maxAguante += 15; run.aguante = Math.min(run.maxAguante, run.aguante+15); } },
+      { label:'Sobornar al director', small:'Próximo acto menos exigente — no curás nada', act:()=>{ run.actRiskDiscount = Math.max(0.25, 0.6 - run.perkMods.sobornoExtraDiscount); } },
+    ];
+    options.forEach(opt=>{
+      const b = document.createElement('button');
+      b.className = 'actBtn btnCamerino';
+      b.innerHTML = opt.label + `<small>${opt.small}</small>`;
+      b.onclick = ()=>{
+        opt.act();
+        updateStatsUI();
+        run.actIndex++;
+        run.takeInAct = 0;
+        startTake();
+      };
+      el.btnRow.appendChild(b);
+    });
+  }
+
+  function endRun(cashedOut, isComplete){
+    run.phase = 'ended';
+    el.btnRow.innerHTML = '';
+    el.prompt.textContent = '';
+    let bankedScore = 0;
+    if(isComplete){
+      bankedScore = Math.round(run.score * 1.5);
+    } else if(cashedOut){
+      bankedScore = run.score;
+    } else {
+      bankedScore = Math.round(run.score * 0.25); // seguro médico
+    }
+    const best = lsSetIfBigger(LS_BEST, bankedScore);
+    lsInc(LS_TOTAL, bankedScore);
+    const totalRuns = lsInc(LS_RUNS, 1);
+    lsInc(LS_INJURIES, run.injuries.length);
+
+    let unlockMsg = '';
+    if(isComplete){
+      const dirMax = lsGet(LS_DIRECTOR_MAX, 0);
+      if(run.directorId === dirMax && dirMax < DIRECTORS.length-1){
+        localStorage.setItem(LS_DIRECTOR_MAX, dirMax+1);
+        unlockMsg = `<br><br><b>¡Nuevo director desbloqueado!</b> ${DIRECTORS[dirMax+1].name} ya está disponible.`;
+      }
+    }
+
+    el.overlayTitle.className = (cashedOut||isComplete) ? 'good' : 'bad';
+    el.overlayTitle.textContent = isComplete ? '¡Película terminada!' : (cashedOut ? 'Retiro con laureles' : 'Fin de carrera');
+    el.overlayScore.textContent = bankedScore + ' pts';
+    const metaLine = isComplete
+      ? `Cerraste los 3 actos sin bajarte del rodaje. Bono de cierre incluido (x1.5).`
+      : cashedOut
+        ? `Racha de ${run.take} tomas, retirado en el Acto ${run.actIndex+1} (${currentAct().name}).`
+        : `El cuerpo dijo basta en el Acto ${run.actIndex+1} (${currentAct().name}), toma ${run.take}. Seguro médico: 25% del puntaje.`;
+    el.overlayMeta.innerHTML = `${metaLine}<br><br>Mejor racha: <b>${best}</b> pts &nbsp;·&nbsp; Total carrera: <b>${lsGet(LS_TOTAL,0)}</b> pts<br>Corridas: <b>${totalRuns}</b> &nbsp;·&nbsp; Lesiones acumuladas: <b>${lsGet(LS_INJURIES,0)}</b>${unlockMsg}`;
+    el.introText.style.display = 'none';
+    el.restartBtn.textContent = 'Nueva carrera';
+    renderSetupPanel();
+    el.overlay.classList.add('show');
+    scene.setPose((cashedOut||isComplete)?'bow':'down', run.currentCard ? run.currentCard.type : STUNT_TYPES[0]);
+  }
+
+  function completeRun(){ endRun(true, true); }
+
+  function renderSetupPanel(){
+    const totalRep = lsGet(LS_TOTAL, 0);
+    const dirMax = lsGet(LS_DIRECTOR_MAX, 0);
+
+    el.charOptions.innerHTML = '';
+    CHARACTERS.forEach(c=>{
+      const unlocked = totalRep >= c.unlockReq;
+      const b = document.createElement('button');
+      b.className = 'setupOption' + (c.id===selectedCharId?' selected':'') + (unlocked?'':' locked');
+      b.innerHTML = `<div class="soName">${c.name}</div><div class="soDesc">${unlocked ? c.desc : `Se desbloquea con ${c.unlockReq} pts de Reputación Total (tenés ${totalRep})`}</div>`;
+      if(unlocked){ b.onclick = ()=>{ selectedCharId = c.id; renderSetupPanel(); }; }
+      else { b.disabled = true; }
+      el.charOptions.appendChild(b);
+    });
+    if(!CHARACTERS.some(c=>c.id===selectedCharId && totalRep>=c.unlockReq)) selectedCharId = 'recluta';
+
+    el.dirOptions.innerHTML = '';
+    DIRECTORS.forEach(d=>{
+      const unlocked = d.id <= dirMax;
+      const b = document.createElement('button');
+      b.className = 'setupOption' + (d.id===selectedDirectorId?' selected':'') + (unlocked?'':' locked');
+      b.innerHTML = `<div class="soName">${d.name}</div><div class="soDesc">${unlocked ? d.desc : 'Se desbloquea completando la película con el director anterior'}</div>`;
+      if(unlocked){ b.onclick = ()=>{ selectedDirectorId = d.id; renderSetupPanel(); }; }
+      else { b.disabled = true; }
+      el.dirOptions.appendChild(b);
+    });
+    if(!DIRECTORS.some(d=>d.id===selectedDirectorId && d.id<=dirMax)) selectedDirectorId = 0;
+  }
+
+  el.restartBtn.onclick = ()=>{
+    el.overlay.classList.remove('show');
+    newRun();
+    scene.setActTint(currentAct().tint);
+    updateStatsUI();
+    startTake();
+  };
+
+  // ---------------- real viewport height (dvh is unreliable in some browsers, e.g. Brave) ----------------
+  const appEl = document.getElementById('app');
+  function setAppHeight(){
+    const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+    appEl.style.height = h + 'px';
+  }
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+  window.addEventListener('orientationchange', setAppHeight);
+  if(window.visualViewport){ window.visualViewport.addEventListener('resize', setAppHeight); }
+
+  // ---------------- canvas scene ----------------
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  function resize(){
+    const wrap = document.getElementById('monitorWrap');
+    canvas.width = wrap.clientWidth * devicePixelRatio;
+    canvas.height = wrap.clientHeight * devicePixelRatio;
+    canvas.style.width = wrap.clientWidth+'px';
+    canvas.style.height = wrap.clientHeight+'px';
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  }
+  window.addEventListener('resize', ()=>{ resize(); });
+
+  const scene = (function(){
+    let particles = [];
+    let t = 0;
+    let anim = null; // {type, success, phase, elapsed, cb}
+    let pose = 'idle';
+    let poseType = STUNT_TYPES[0];
+    let actTint = '#3d4a5c';
+
+    function setPose(p, type){ pose = p; poseType = type; }
+    function setActTint(color){ actTint = color; }
+
+    function spawnParticles(x,y,color,n,spread){
+      for(let i=0;i<n;i++){
+        particles.push({
+          x, y,
+          vx: rand(-spread,spread), vy: rand(-spread*1.3, -spread*0.3),
+          life: rand(0.5,1.1), age:0, color, size: rand(2,5)
+        });
+      }
+    }
+
+    function playAnimation(type, success, isBoss, cb){
+      anim = { type, success, isBoss, elapsed:0, cb, done:false };
+    }
+
+    function figure(x,y,scale,angle,armAngle,legAngle,color,crumple){
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.rotate(angle);
+      ctx.scale(scale, scale);
+      ctx.strokeStyle = color; ctx.fillStyle = color;
+      ctx.lineWidth = 4; ctx.lineCap='round';
+      // head
+      ctx.beginPath(); ctx.arc(0,-46,8,0,Math.PI*2); ctx.fill();
+      // spine
+      const spineBend = crumple? 14:0;
+      ctx.beginPath(); ctx.moveTo(0,-38); ctx.quadraticCurveTo(spineBend,-18,0,0); ctx.stroke();
+      // arms
+      ctx.beginPath(); ctx.moveTo(0,-30); ctx.lineTo(Math.sin(armAngle)*26, -30+Math.cos(armAngle)*22); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,-30); ctx.lineTo(-Math.sin(armAngle)*26, -30+Math.cos(armAngle)*22); ctx.stroke();
+      // legs
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.sin(legAngle)*22, 34+Math.cos(legAngle)*6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-Math.sin(legAngle)*22, 34-Math.cos(legAngle)*6); ctx.stroke();
+      ctx.restore();
+    }
+
+    function groundLine(w,h){
+      ctx.strokeStyle = '#3d372f';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0,h*0.82); ctx.lineTo(w,h*0.82); ctx.stroke();
+      // hazard strip
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0,h*0.82,w,6);
+      ctx.clip();
+      ctx.fillStyle = '#f2a93b';
+      for(let x=-10;x<w+20;x+=20){
+        ctx.save(); ctx.translate(x,h*0.82); ctx.rotate(-0.6);
+        ctx.fillRect(0,-4,10,14);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    function render(dt){
+      t += dt;
+      const w = canvas.width/devicePixelRatio, h = canvas.height/devicePixelRatio;
+      ctx.clearRect(0,0,w,h);
+      // backdrop gradient
+      const g = ctx.createLinearGradient(0,0,0,h);
+      g.addColorStop(0,'#1c1a19'); g.addColorStop(1,'#0c0b0a');
+      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+      ctx.save();
+      ctx.globalAlpha = 0.16;
+      ctx.fillStyle = actTint;
+      ctx.fillRect(0,0,w,h);
+      ctx.restore();
+
+      groundLine(w,h);
+
+      const cx = w/2, cy = h*0.82;
+
+      if(anim){
+        anim.elapsed += dt;
+        const p = anim.elapsed;
+        const color = anim.type.color;
+        const scale = anim.isBoss ? 1.22 : 1;
+        const pmult = anim.isBoss ? 1.7 : 1;
+        drawTypeBackdrop(anim.type, w, h, p * (anim.isBoss?1.6:1));
+        if(p < 0.55){
+          // wind-up
+          const k = p/0.55;
+          figure(cx, cy, scale, -0.15*Math.sin(k*Math.PI), 0.5+0.3*Math.sin(k*10), 0.3, color, false);
+        } else if(p < 0.95){
+          const k = (p-0.55)/0.4;
+          if(anim.success){
+            figure(cx, cy - 18*Math.sin(k*Math.PI), scale, 0.25*Math.sin(k*Math.PI*2), 1.1, 0.9, color, false);
+            if(Math.floor(p*30)%3===0) spawnParticles(cx, cy, color, 2*pmult, 60);
+          } else {
+            const fall = k*26;
+            figure(cx, cy+fall, scale, 1.4*k, 1.6, 1.6, '#c1382d', true);
+            if(Math.floor(p*40)%2===0) spawnParticles(cx, cy+fall, '#c1382d', 3*pmult, 90);
+          }
+        } else {
+          if(!anim.done){
+            anim.done = true;
+            spawnParticles(cx,cy, anim.success? '#f2a93b':'#c1382d', 26*pmult, 130);
+            const cb = anim.cb; setTimeout(cb, 260);
+          }
+          const settle = Math.min(1,(p-0.95)/0.3);
+          figure(cx, cy, scale, anim.success? 0 : 1.4*(1-settle*0.3), anim.success?0.3:1.5, anim.success?0.3:1.4, anim.success?color:'#c1382d', !anim.success);
+        }
+      } else {
+        drawTypeBackdrop(poseType, w, h, 0.4);
+        const bob = pose==='idle' ? Math.sin(t*2)*3 : 0;
+        const ang = pose==='down' ? 1.3 : pose==='bow' ? 0.5 : 0;
+        const armA = pose==='idle'? 0.35+Math.sin(t*2)*0.08 : pose==='bow'? 1.1 : 1.4;
+        const legA = pose==='idle'? 0.22 : 0.9;
+        figure(cx, cy+bob, 1, ang, armA, legA, poseType.color, pose!=='idle');
+      }
+
+      // particles
+      ctx.save();
+      particles.forEach(pt=>{
+        pt.age += dt; pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.vy += 220*dt;
+        const a = Math.max(0, 1 - pt.age/pt.life);
+        ctx.globalAlpha = a;
+        ctx.fillStyle = pt.color;
+        ctx.fillRect(pt.x, pt.y, pt.size, pt.size);
+      });
+      ctx.restore();
+      particles = particles.filter(pt=> pt.age < pt.life);
+    }
+
+    function drawTypeBackdrop(type, w, h, intensity){
+      ctx.save();
+      ctx.globalAlpha = 0.14 * intensity;
+      ctx.fillStyle = type.color;
+      if(type.id==='fuego' || type.id==='explosion'){
+        ctx.beginPath(); ctx.arc(w/2, h*0.6, 90+30*Math.sin(t*4), 0, Math.PI*2); ctx.fill();
+      } else if(type.id==='altura'){
+        ctx.fillRect(w/2-1, 0, 2, h*0.82);
+      } else {
+        ctx.fillRect(0,0,w,h);
+      }
+      ctx.restore();
+    }
+
+    return { render, playAnimation, setPose, setActTint };
+  })();
+
+  let lastT = performance.now();
+  function loop(now){
+    const dt = Math.min(0.05,(now-lastT)/1000);
+    lastT = now;
+    scene.render(dt);
+    requestAnimationFrame(loop);
+  }
+
+  // ---------------- boot ----------------
+  function boot(){
+    resize();
+    newRun();
+    updateStatsUI();
+    el.overlayTitle.className = '';
+    el.overlayTitle.textContent = 'Doble de Riesgo';
+    el.overlayScore.textContent = '';
+    el.overlayMeta.innerHTML = `Sos el doble. Nadie ve tu cara, todos ven tu caída.<br>3 actos, cada uno con su Gran Escena Final. Cada 3 tomas ganadas elegís una mejora permanente,<br>y a veces la producción te ofrece un <b>doblez de contrato</b>: más riesgo a cambio de más plata.<br>Decidí en cada corte: <b>cobrar</b> lo ganado o <b>seguir</b> arriesgando todo.`;
+    el.introText.style.display = 'none';
+    const best = lsGet(LS_BEST,0);
+    if(best>0){ el.overlayMeta.innerHTML += `<br><br>Mejor racha hasta ahora: <b>${best}</b> pts`; }
+    renderSetupPanel();
+    el.overlay.classList.add('show');
+    requestAnimationFrame(loop);
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
